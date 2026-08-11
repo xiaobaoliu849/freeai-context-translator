@@ -1,5 +1,6 @@
 import express from "express";
 import path from "path";
+import dns from "node:dns";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import { DEFAULT_BASE_URLS, DEFAULT_MODELS } from "./src/config";
@@ -30,6 +31,81 @@ function getGeminiClient(customApiKey?: string) {
       },
     },
   });
+}
+
+// ---------------------------
+// Security: SSRF guard & rate limiting
+// ---------------------------
+
+// The API accepts client-supplied `baseUrl` (needed for custom providers). When
+// deployed publicly that is an SSRF vector: without checks an attacker could
+// point the server at internal hosts (cloud metadata, Redis, …). We therefore
+// reject non-http(s) URLs and, in production, URLs resolving to private/
+// link-local addresses unless ALLOW_PRIVATE_LLM=1 (for people who deliberately
+// proxy through localhost).
+function isPrivateIp(ip: string): boolean {
+  const v4 = ip.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (v4) {
+    const a = Number(v4[1]);
+    const b = Number(v4[2]);
+    if (a === 0 || a === 10 || a === 127) return true; // 0/8, 10/8, loopback
+    if (a === 169 && b === 254) return true; // link-local (incl. cloud metadata 169.254.169.254)
+    if (a === 172 && b >= 16 && b <= 31) return true; // 172.16/12
+    if (a === 192 && b === 168) return true; // 192.168/16
+    if (a === 100 && b >= 64 && b <= 127) return true; // CGNAT 100.64/10
+    return false;
+  }
+  const lower = ip.toLowerCase();
+  if (lower === "::1" || lower === "::") return true; // loopback / unspecified
+  if (/^f[cd]/.test(lower)) return true; // fc00::/7 unique-local
+  if (/^fe[89ab]/.test(lower)) return true; // fe80::/10 link-local
+  return false;
+}
+
+const privateHostCache = new Map<string, { private: boolean; at: number }>();
+
+async function isPrivateHost(hostname: string): Promise<boolean> {
+  const cached = privateHostCache.get(hostname);
+  if (cached && Date.now() - cached.at < 60_000) return cached.private;
+  const hosts = await dns.promises.lookup(hostname, { all: true });
+  const privateHost = hosts.some((h) => isPrivateIp(h.address));
+  privateHostCache.set(hostname, { private: privateHost, at: Date.now() });
+  return privateHost;
+}
+
+async function assertSafeBaseUrl(baseUrl: string | undefined, provider: string): Promise<string> {
+  if (!baseUrl) return (DEFAULT_BASE_URLS[provider] || "").replace(/\/+$/, "");
+  const url = new URL(baseUrl);
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new Error("Base URL must use http:// or https://");
+  }
+  if (process.env.NODE_ENV === "production" && process.env.ALLOW_PRIVATE_LLM !== "1") {
+    if (await isPrivateHost(url.hostname)) {
+      throw new Error(`Base URL "${baseUrl}" resolves to a private/internal address and was blocked`);
+    }
+  }
+  return url.toString().replace(/\/+$/, "");
+}
+
+// Simple in-memory rate limiter for the paid endpoints. The server may hold
+// its own API keys (env vars); when deployed publicly a limiter stops third
+// parties from burning them. Tune with RATE_LIMIT_PER_MIN (0 disables).
+const RATE_LIMIT_PER_MIN = Number(process.env.RATE_LIMIT_PER_MIN ?? 30);
+const rateBuckets = new Map<string, number[]>();
+
+function rateLimit(req: express.Request, res: express.Response, next: express.NextFunction) {
+  if (RATE_LIMIT_PER_MIN <= 0) return next();
+  const key = req.ip || req.socket?.remoteAddress || "unknown";
+  const now = Date.now();
+  const windowStart = now - 60_000;
+  const hits = (rateBuckets.get(key) || []).filter((t) => t > windowStart);
+  if (hits.length >= RATE_LIMIT_PER_MIN) {
+    res.setHeader("Retry-After", "60");
+    return res.status(429).json({ error: "Rate limit exceeded, please slow down." });
+  }
+  hits.push(now);
+  rateBuckets.set(key, hits);
+  next();
 }
 
 // Helper with exponential retry and model fallback for 503 / 429 errors
@@ -90,7 +166,7 @@ async function callLLM({
   systemInstruction?: string;
   jsonOutput?: boolean;
 }): Promise<string> {
-  const effectiveBaseUrl = (customUrl || DEFAULT_BASE_URLS[provider] || "").replace(/\/+$/, "");
+  const effectiveBaseUrl = await assertSafeBaseUrl(customUrl, provider);
   const effectiveModel = model || DEFAULT_MODELS[provider]?.[0] || "gemini-3.6-flash";
 
   // Use Google Gemini SDK if provider is gemini OR if no custom API key is supplied
@@ -163,6 +239,7 @@ async function* callLLMStream({
   prompt,
   systemInstruction,
   jsonOutput = false,
+  signal,
 }: {
   provider?: string;
   apiKey?: string;
@@ -171,8 +248,9 @@ async function* callLLMStream({
   prompt: string;
   systemInstruction?: string;
   jsonOutput?: boolean;
+  signal?: AbortSignal;
 }): AsyncGenerator<string> {
-  const effectiveBaseUrl = (customUrl || DEFAULT_BASE_URLS[provider] || "").replace(/\/+$/, "");
+  const effectiveBaseUrl = await assertSafeBaseUrl(customUrl, provider);
   const effectiveModel = model || DEFAULT_MODELS[provider]?.[0] || "gemini-3.6-flash";
 
   // Use Google Gemini SDK if provider is gemini OR if no custom API key is supplied
@@ -198,6 +276,7 @@ async function* callLLMStream({
           config,
         });
         for await (const chunk of stream) {
+          if (signal?.aborted) break;
           const delta = chunk.text ?? "";
           if (delta) {
             yieldedAny = true;
@@ -244,6 +323,7 @@ async function* callLLMStream({
     method: "POST",
     headers,
     body: JSON.stringify(payload),
+    signal,
   });
 
   if (!response.ok) {
@@ -258,6 +338,7 @@ async function* callLLMStream({
   const decoder = new TextDecoder();
   let buffer = "";
   while (true) {
+    if (signal?.aborted) break;
     const { done, value } = await reader.read();
     if (done) break;
     buffer += decoder.decode(value, { stream: true });
@@ -282,13 +363,35 @@ async function* callLLMStream({
 // ---------------------------
 // 0. Auto Fetch Models Endpoint
 // ---------------------------
-app.post("/api/models", async (req, res) => {
+app.post("/api/models", rateLimit, async (req, res) => {
   try {
     const { provider = "gemini", apiKey, baseUrl: customUrl } = req.body;
-    const baseUrl = (customUrl || DEFAULT_BASE_URLS[provider] || "").replace(/\/+$/, "");
+    const baseUrl = await assertSafeBaseUrl(customUrl, provider);
 
+    // Gemini: fetch the live list when a key is available (user key or server env key).
+    if (provider === "gemini" && (apiKey || process.env.GEMINI_API_KEY)) {
+      try {
+        const key = apiKey || process.env.GEMINI_API_KEY;
+        const response = await fetch(`${baseUrl}/v1beta/models?pageSize=1000`, {
+          headers: { "x-goog-api-key": key, "Content-Type": "application/json" },
+        });
+        if (response.ok) {
+          const data: any = await response.json();
+          const modelIds = (data?.models || [])
+            .map((m: any) => (typeof m === "string" ? m : String(m.name || "").replace(/^models\//, "")))
+            .filter((n: string) => n && /^gemini/i.test(n));
+          if (modelIds.length > 0) {
+            return res.json({ models: modelIds, source: "live" });
+          }
+        }
+      } catch (err: any) {
+        console.warn("Could not fetch live Gemini model list:", err.message);
+      }
+    }
+
+    // No usable key for this provider: preset defaults (cannot verify).
     if (provider === "gemini" || (!apiKey && provider !== "custom")) {
-      return res.json({ models: DEFAULT_MODELS[provider] || DEFAULT_MODELS.gemini });
+      return res.json({ models: DEFAULT_MODELS[provider] || DEFAULT_MODELS.gemini, source: "default" });
     }
 
     try {
@@ -313,7 +416,7 @@ app.post("/api/models", async (req, res) => {
           .filter(Boolean);
 
         if (modelIds.length > 0) {
-          return res.json({ models: modelIds });
+          return res.json({ models: modelIds, source: "live" });
         }
       }
     } catch (err: any) {
@@ -321,7 +424,7 @@ app.post("/api/models", async (req, res) => {
     }
 
     // Fallback preset models
-    res.json({ models: DEFAULT_MODELS[provider] || DEFAULT_MODELS.gemini });
+    res.json({ models: DEFAULT_MODELS[provider] || DEFAULT_MODELS.gemini, source: "default" });
   } catch (err: any) {
     res.status(500).json({ error: err.message || "Failed to fetch models" });
   }
@@ -330,7 +433,7 @@ app.post("/api/models", async (req, res) => {
 // ---------------------------
 // 1. Translation Endpoint
 // ---------------------------
-app.post("/api/translate", async (req, res) => {
+app.post("/api/translate", rateLimit, async (req, res) => {
   try {
     const {
       text,
@@ -378,7 +481,7 @@ app.post("/api/translate", async (req, res) => {
 // ---------------------------
 // 1b. Translation Endpoint (Server-Sent Events streaming)
 // ---------------------------
-app.post("/api/translate/stream", async (req, res) => {
+app.post("/api/translate/stream", rateLimit, async (req, res) => {
   const {
     text,
     sourceLang = "auto",
@@ -401,6 +504,11 @@ app.post("/api/translate/stream", async (req, res) => {
 
   const send = (payload: any) => res.write(`data: ${JSON.stringify(payload)}\n\n`);
 
+  // Stop the upstream LLM call as soon as the client disconnects so we don't
+  // keep burning tokens on a stream nobody is listening to.
+  const abort = new AbortController();
+  res.on("close", () => abort.abort());
+
   try {
     let raw = "";
     const stream = callLLMStream({
@@ -411,6 +519,7 @@ app.post("/api/translate/stream", async (req, res) => {
       prompt: buildTranslatePrompt(text, sourceLang, targetLang),
       systemInstruction: TRANSLATE_SYSTEM_PROMPT,
       jsonOutput: true,
+      signal: abort.signal,
     });
 
     for await (const delta of stream) {
@@ -437,7 +546,7 @@ app.post("/api/translate/stream", async (req, res) => {
 // ---------------------------
 // 2. Word Contextual Analysis Endpoint
 // ---------------------------
-app.post("/api/explain-word", async (req, res) => {
+app.post("/api/explain-word", rateLimit, async (req, res) => {
   const {
     sentence,
     selectedWord,
@@ -495,7 +604,7 @@ app.post("/api/explain-word", async (req, res) => {
 // ---------------------------
 // 3. TTS (Text-To-Speech) Endpoint
 // ---------------------------
-app.post("/api/tts", async (req, res) => {
+app.post("/api/tts", rateLimit, async (req, res) => {
   try {
     const {
       text,
@@ -572,7 +681,7 @@ app.post("/api/tts", async (req, res) => {
     if (engine === "openai") {
       const openaiConfig = providerConfigs?.openai || {};
       const key = userKey || openaiConfig.apiKey || process.env.OPENAI_API_KEY;
-      const baseUrl = userBaseUrl || openaiConfig.baseUrl || "https://api.openai.com/v1";
+      const baseUrl = await assertSafeBaseUrl(userBaseUrl || openaiConfig.baseUrl, "openai");
 
       if (!key) {
         return res.status(400).json({ error: "OpenAI API Key is required for OpenAI TTS. Please configure it in Settings." });
@@ -782,7 +891,7 @@ app.post("/api/tts", async (req, res) => {
 // ---------------------------
 // 4. "Ask AI" Webpage Assistant Endpoint
 // ---------------------------
-app.post("/api/ask-ai", async (req, res) => {
+app.post("/api/ask-ai", rateLimit, async (req, res) => {
   try {
     const {
       prompt,

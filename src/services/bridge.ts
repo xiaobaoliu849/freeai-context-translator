@@ -137,6 +137,6 @@ export function bridgeTts(payload: {
   return bridgeClient.call('tts', payload);
 }
 
-export function bridgeModels(payload: { provider: string; baseUrl?: string }): Promise<{ models: string[] }> {
+export function bridgeModels(payload: { provider: string; baseUrl?: string }): Promise<{ models: string[]; source: 'live' | 'default' }> {
   return bridgeClient.call('models', payload);
 }

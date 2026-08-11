@@ -321,10 +321,28 @@ async function runTts({
 // Models listing
 // ---------------------------
 
-async function fetchModels({ provider, baseUrl, settings }: { provider: string; baseUrl?: string; settings: AppSettings }) {
+async function fetchModels({ provider, baseUrl, settings }: { provider: string; baseUrl?: string; settings: AppSettings }): Promise<{ models: string[]; source: 'live' | 'default' }> {
   const cfg = resolveProviderConfig(settings, provider);
+
+  // Gemini: fetch the live list when a key is available.
+  if (provider === 'gemini' && cfg.apiKey) {
+    try {
+      const endpoint = `${(baseUrl || cfg.baseUrl || DEFAULT_BASE_URLS[provider] || '').replace(/\/+$/, '')}/v1beta/models?pageSize=1000`;
+      const res = await fetch(endpoint, { headers: { 'x-goog-api-key': cfg.apiKey, 'Content-Type': 'application/json' } });
+      if (res.ok) {
+        const data: any = await res.json();
+        const ids = (data?.models || [])
+          .map((m: any) => (typeof m === 'string' ? m : String(m.name || '').replace(/^models\//, '')))
+          .filter((n: string) => n && /^gemini/i.test(n));
+        if (ids.length > 0) return { models: ids, source: 'live' };
+      }
+    } catch (e) {
+      // fall through to defaults
+    }
+  }
+
   if (provider === 'gemini' || (!cfg.apiKey && provider !== 'custom')) {
-    return DEFAULT_MODELS[provider] || DEFAULT_MODELS.gemini;
+    return { models: DEFAULT_MODELS[provider] || DEFAULT_MODELS.gemini, source: 'default' };
   }
   try {
     const endpoint = `${(baseUrl || cfg.baseUrl || DEFAULT_BASE_URLS[provider] || '').replace(/\/+$/, '')}/models`;
@@ -335,12 +353,12 @@ async function fetchModels({ provider, baseUrl, settings }: { provider: string; 
       const data: any = await res.json();
       const rawList: any[] = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : Array.isArray(data?.models) ? data.models : [];
       const ids = rawList.map((m: any) => (typeof m === 'string' ? m : m.id || m.name || m.model)).filter(Boolean);
-      if (ids.length > 0) return ids;
+      if (ids.length > 0) return { models: ids, source: 'live' };
     }
   } catch (e) {
     // fall through to defaults
   }
-  return DEFAULT_MODELS[provider] || DEFAULT_MODELS.gemini;
+  return { models: DEFAULT_MODELS[provider] || DEFAULT_MODELS.gemini, source: 'default' };
 }
 
 // ---------------------------
@@ -432,8 +450,8 @@ export function handleBridgePort(port: chrome.runtime.Port) {
 
       if (msg.kind === 'models') {
         const { provider, baseUrl } = msg.payload || {};
-        const models = await fetchModels({ provider: provider || 'gemini', baseUrl, settings });
-        reply('done', { result: { models } });
+        const { models, source } = await fetchModels({ provider: provider || 'gemini', baseUrl, settings });
+        reply('done', { result: { models, source } });
         return;
       }
 
