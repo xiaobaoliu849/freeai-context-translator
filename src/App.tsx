@@ -67,13 +67,16 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
 
-        // Map of obsolete legacy models to strip across providers
+        // Map of obsolete / fictitious legacy models to strip across providers.
+        // These include the old hardcoded presets (e.g. gemini-3.6-flash) that
+        // never existed as real model IDs — keep them so saved settings get
+        // reset and the user re-fetches real model names.
         const legacyModelsMap: Record<string, string[]> = {
-          gemini: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.5-flash-lite', 'gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-1.0-pro'],
-          deepseek: ['deepseek-chat', 'deepseek-reasoner', 'deepseek-coder'],
-          openai: ['gpt-3.5-turbo', 'gpt-4-turbo', 'gpt-4', 'o1-mini', 'o1'],
-          qwen: ['qwen3.5-plus', 'qwen3.5-flash', 'qwen2.5-72b-instruct', 'qwen2.5-coder-32b-instruct', 'qwen3-72b-instruct', 'qwen-long'],
-          minimax: ['abab6.5s-chat', 'abab6.5g-chat', 'MiniMax-M2.5'],
+          gemini: ['gemini-3.6-flash', 'gemini-3-flash', 'gemini-3.1-pro', 'gemini-3-pro', 'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.5-flash-lite', 'gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-1.0-pro'],
+          deepseek: ['deepseek-v4-flash', 'deepseek-v4-pro', 'deepseek-chat', 'deepseek-reasoner', 'deepseek-coder'],
+          openai: ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-3.5-turbo', 'gpt-4-turbo', 'gpt-4', 'o1-mini', 'o1'],
+          qwen: ['qwen3.8-max', 'qwen3.7-plus', 'qwen3.7-flash', 'qwen3.5-plus', 'qwen3.5-flash', 'qwen2.5-72b-instruct', 'qwen2.5-coder-32b-instruct', 'qwen3-72b-instruct', 'qwen-long'],
+          minimax: ['MiniMax-M3', 'MiniMax-M2.7', 'minimax-text-01', 'abab6.5s-chat', 'abab6.5g-chat', 'MiniMax-M2.5'],
           groq: ['mixtral-8x7b-32768', 'gemma2-9b-it', 'llama-3.2-11b-vision-preview'],
         };
 
@@ -144,7 +147,10 @@ export default function App() {
     } catch (e) {
       // ignore
     }
-    mirrorToExtensionStorage({ [STORAGE_KEYS.settings]: settings });
+    // Store a JSON string: readers (background SW / content script) parse it
+    // with JSON.parse, which would throw on a raw object and silently fall
+    // back to DEFAULT_SETTINGS — losing the API key for the bridge.
+    mirrorToExtensionStorage({ [STORAGE_KEYS.settings]: JSON.stringify(settings) });
   }, [settings]);
 
   useEffect(() => {
@@ -153,7 +159,7 @@ export default function App() {
     } catch (e) {
       // ignore
     }
-    mirrorToExtensionStorage({ [STORAGE_KEYS.history]: history });
+    mirrorToExtensionStorage({ [STORAGE_KEYS.history]: JSON.stringify(history) });
   }, [history]);
 
   const handleSwapLanguages = () => {

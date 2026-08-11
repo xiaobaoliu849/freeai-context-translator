@@ -62,18 +62,25 @@ export const DEFAULT_SETTINGS: AppSettings = {
   ttsRate: 1.0,
   wordHoverMode: 'click',
   selectInputElementsText: false,
-  autoTranslate: true,
+  autoTranslate: false,
   enableContextMenu: true,
 };
 
 /**
  * Loads saved AppSettings from a JSON blob (localStorage / chrome.storage),
  * merging with defaults so newly added fields always exist.
+ *
+ * Accepts both a JSON string and a raw object: an older popup build stored the
+ * settings object directly into chrome.storage.local, which JSON.parse would
+ * coerce to "[object Object]" and throw on. Handling the object form lets the
+ * background bridge recover the user's saved API keys instead of silently
+ * falling back to DEFAULT_SETTINGS.
  */
-export function parseSavedSettings(raw: string | null | undefined, fallback: AppSettings = DEFAULT_SETTINGS): AppSettings {
+export function parseSavedSettings(raw: string | Partial<AppSettings> | null | undefined, fallback: AppSettings = DEFAULT_SETTINGS): AppSettings {
   if (!raw) return fallback;
   try {
-    const parsed = JSON.parse(raw) as Partial<AppSettings>;
+    const parsed: Partial<AppSettings> =
+      typeof raw === 'object' ? (raw as Partial<AppSettings>) : (JSON.parse(raw) as Partial<AppSettings>);
     return {
       ...fallback,
       ...parsed,

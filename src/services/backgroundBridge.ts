@@ -82,17 +82,23 @@ async function* callLLMStreamRaw({
     });
     if (!res.ok) {
       const errText = await res.text();
+      console.warn('[bg:gemini] HTTP', res.status, errText.slice(0, 300));
       throw new Error(`Gemini API error (${res.status}): ${errText}`);
     }
     if (!res.body) throw new Error('Gemini API returned no stream body');
+    console.log('[bg:gemini] stream start', { url, model: effectiveModel });
 
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
+    let allRaw = '';
+    let yielded = false;
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      buffer += decoder.decode(value, { stream: true });
+      const chunk = decoder.decode(value, { stream: true });
+      allRaw += chunk;
+      buffer += chunk;
       const parts = buffer.split('\n\n');
       buffer = parts.pop() ?? '';
       for (const part of parts) {
@@ -100,13 +106,53 @@ async function* callLLMStreamRaw({
         if (!line) continue;
         const data = line.slice(5).trim();
         if (!data || data === '[DONE]') continue;
+        console.log('[bg:gemini] event', data.slice(0, 500));
         try {
           const parsed = JSON.parse(data);
           const text = parsed?.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('') ?? '';
-          if (text) yield text;
+          if (text) {
+            yielded = true;
+            yield text;
+          }
         } catch {
           // ignore partial events
         }
+      }
+    }
+    // Some models respond with a plain JSON body (no SSE framing), or the
+    // final SSE event lacks the trailing blank line and stayed in `buffer`.
+    // Handle only UNPROCESSED data — parsing `allRaw` again would duplicate
+    // text that the loop already yielded.
+    const tail = buffer.trim();
+    if (tail) {
+      console.log('[bg:gemini] tail', JSON.stringify(tail.slice(0, 400)));
+      const dataLine = tail.split('\n').find((l) => l.startsWith('data:'));
+      const payload = dataLine ? dataLine.slice(5).trim() : tail;
+      try {
+        const parsed = JSON.parse(payload);
+        if (parsed?.error) {
+          throw new Error(`Gemini API error: ${parsed.error.message || JSON.stringify(parsed.error)}`);
+        }
+        const text = parsed?.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('') ?? '';
+        if (text) yield text;
+      } catch (e: any) {
+        // Re-throw API errors, but swallow harmless JSON parse failures
+        // (e.g. a partial SSE event whose text was already yielded).
+        if (e?.message?.startsWith('Gemini API error')) throw e;
+      }
+    }
+    // Whole-body fallback for pretty-printed JSON bodies (multi-line, with
+    // blank lines) that the newline-newline split may have fragmented.
+    if (!yielded && allRaw.trim()) {
+      try {
+        const parsed = JSON.parse(allRaw.trim());
+        if (parsed?.error) {
+          throw new Error(`Gemini API error: ${parsed.error.message || JSON.stringify(parsed.error)}`);
+        }
+        const text = parsed?.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('') ?? '';
+        if (text) yield text;
+      } catch (e: any) {
+        if (e?.message?.startsWith('Gemini API error')) throw e;
       }
     }
     return;
@@ -518,6 +564,7 @@ export function handleBridgePort(port: chrome.runtime.Port) {
         const { text, sourceLang, targetLang, provider, model, baseUrl } = msg.payload || {};
         if (!text || !text.trim()) throw new Error('Text is required');
         const cfg = resolveProviderConfig(settings, provider);
+        console.log('[bg:translate]', { provider, model: model || cfg.model, baseUrl: baseUrl || cfg.baseUrl, hasKey: !!cfg.apiKey, textLen: text.length });
         let raw = '';
         for await (const delta of callLLMStreamRaw({
           provider,
@@ -532,9 +579,19 @@ export function handleBridgePort(port: chrome.runtime.Port) {
           reply('delta', { text: delta });
         }
         const parsed = parseLLMJson(raw);
+        console.log('[bg:translate] rawLen', raw.length, 'rawHead', raw.slice(0, 200));
+        if (!raw.trim() || !parsed.translation) {
+          // A silent empty response usually means the model name doesn't exist
+          // (the provider returns 200 with an empty stream) — surface it
+          // instead of showing a confusing "Translation unavailable.".
+          reply('error', {
+            error: '模型未返回有效内容，可能模型名不存在。请在设置中重新「自动获取可用模型」并选择一个模型。',
+          });
+          return;
+        }
         reply('done', {
           result: {
-            translation: parsed.translation || 'Translation unavailable.',
+            translation: parsed.translation,
             detectedLang: parsed.detectedLang || 'Auto',
           },
         });

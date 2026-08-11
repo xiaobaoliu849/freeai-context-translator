@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   X,
   Save,
@@ -142,6 +142,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   } | null>(null);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [testingTts, setTestingTts] = useState(false);
+
+  // In the extension the background bridge resolves API keys from
+  // chrome.storage.local, so persist the form as the user types (debounced) —
+  // otherwise a freshly typed key works for fetching models but translation
+  // still fails until the explicit Save button is pressed.
+  useEffect(() => {
+    if (!isOpen || !isExtensionContext()) return;
+    const t = setTimeout(() => {
+      onSaveSettings(formData);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [formData]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!isOpen) return null;
 

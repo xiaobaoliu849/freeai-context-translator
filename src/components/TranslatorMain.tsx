@@ -418,10 +418,11 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
   };
 
   const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-      e.preventDefault();
-      handleTranslate();
-    }
+    if (e.key !== 'Enter') return;
+    // Plain Enter (or Ctrl/Cmd+Enter) translates; Shift+Enter inserts a newline.
+    if (e.shiftKey) return;
+    e.preventDefault();
+    handleTranslate();
   };
 
   return (
@@ -475,7 +476,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
           onClick={() => handleTranslate()}
           disabled={loading || !sourceText.trim()}
           className="flex items-center justify-center gap-1.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white text-xs font-extrabold px-3 py-1.5 rounded-xl transition-all shadow-2xs hover:shadow-xs disabled:opacity-40 cursor-pointer shrink-0"
-          title="快捷键: Cmd/Ctrl + Enter"
+          title="快捷键: Enter（Shift+Enter 换行）"
         >
           <Sparkles className="w-3.5 h-3.5 text-indigo-200 shrink-0" />
           <span>{loading ? '翻译中...' : '翻译'}</span>
