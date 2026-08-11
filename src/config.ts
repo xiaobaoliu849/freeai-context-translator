@@ -28,6 +28,7 @@ export const DEFAULT_BASE_URLS: Record<ProviderType, string> = {
   groq: 'https://api.groq.com/openai/v1',
   openai: 'https://api.openai.com/v1',
   fishaudio: 'https://api.fish.audio/v1',
+  mimo: 'https://api.xiaomimimo.com/v1',
   custom: 'http://localhost:11434/v1',
 };
 
@@ -41,6 +42,7 @@ export const DEFAULT_MODELS: Record<ProviderType, string[]> = {
   groq: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'deepseek-r1-distill-llama-70b'],
   openai: ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-4o', 'gpt-4o-mini', 'o3', 'o3-mini'],
   fishaudio: ['fish-speech-1.5', 'fish-speech-1.4'],
+  mimo: ['mimo-v2.5-tts'],
   custom: ['llama3.3', 'qwen3', 'deepseek-v4-flash', 'mistral', 'phi4'],
 };
 

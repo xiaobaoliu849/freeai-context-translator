@@ -4,10 +4,10 @@ export type ProviderType =
   | 'qwen' 
   | 'doubao' 
   | 'moonshot' 
-  | 'minimax' 
-  | 'groq' 
-  | 'openai' 
+  | 'minimax'  | 'groq'
+  | 'openai'
   | 'fishaudio'
+  | 'mimo'
   | 'custom';
 
 export type TTSEngine = 
@@ -18,6 +18,7 @@ export type TTSEngine =
   | 'qwen' 
   | 'doubao' 
   | 'fishaudio' 
+  | 'mimo' 
   | 'browser' 
   | 'google-web';
 

@@ -881,6 +881,46 @@ app.post("/api/tts", rateLimit, async (req, res) => {
       return res.json({ audioBase64: Buffer.from(ab).toString("base64"), mimeType: "audio/mp3" });
     }
 
+    // 8. Xiaomi MiMo-V2.5 TTS (OpenAI-compatible chat completions with audio output)
+    if (engine === "mimo") {
+      const mimoConfig = providerConfigs?.mimo || {};
+      const key = userKey || mimoConfig.apiKey || process.env.MIMO_API_KEY;
+
+      if (!key) {
+        return res.status(400).json({ error: "MiMo API Key is required for MiMo TTS. Please configure it in Settings." });
+      }
+
+      // Text to synthesize goes in the assistant message; an optional user
+      // message can steer style. See https://mimo.mi.com/docs (MiMo-V2.5-TTS).
+      const mimoRes = await fetch("https://api.xiaomimimo.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "api-key": key,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "mimo-v2.5-tts",
+          messages: [{ role: "assistant", content: cleanText }],
+          audio: {
+            format: "wav",
+            voice: voice || "冰糖",
+          },
+        }),
+      });
+
+      if (!mimoRes.ok) {
+        const errText = await mimoRes.text();
+        throw new Error(`MiMo TTS Error (${mimoRes.status}): ${errText}`);
+      }
+
+      const mimoData: any = await mimoRes.json();
+      const base64Audio = mimoData?.choices?.[0]?.message?.audio?.data;
+      if (!base64Audio) {
+        throw new Error("No audio returned from MiMo TTS");
+      }
+      return res.json({ audioBase64: base64Audio, mimeType: "audio/wav" });
+    }
+
     return res.status(400).json({ error: `Unsupported TTS engine: ${engine}` });
   } catch (err: any) {
     console.error("TTS API error:", err);

@@ -314,6 +314,25 @@ async function runTts({
     return { audioBase64: bytesToBase64(new Uint8Array(ab)), mimeType: 'audio/mp3' };
   }
 
+  // 7. Xiaomi MiMo-V2.5 TTS (OpenAI-compatible chat completions with audio output)
+  if (engine === 'mimo') {
+    if (!cfg.apiKey) throw new Error('MiMo API Key is required for MiMo TTS. Please configure it in Settings.');
+    const res = await fetch('https://api.xiaomimimo.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'api-key': cfg.apiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'mimo-v2.5-tts',
+        messages: [{ role: 'assistant', content: text }],
+        audio: { format: 'wav', voice: voice || '冰糖' },
+      }),
+    });
+    if (!res.ok) throw new Error(`MiMo TTS Error (${res.status}): ${await res.text()}`);
+    const data: any = await res.json();
+    const base64Audio = data?.choices?.[0]?.message?.audio?.data;
+    if (!base64Audio) throw new Error('No audio returned from MiMo TTS');
+    return { audioBase64: base64Audio, mimeType: 'audio/wav' };
+  }
+
   throw new Error(`Unsupported TTS engine: ${engine}`);
 }
 

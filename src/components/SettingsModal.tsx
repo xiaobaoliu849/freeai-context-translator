@@ -101,6 +101,16 @@ const TTS_VOICES_BY_ENGINE: Record<TTSEngine, Array<{ id: string; name: string }
     { id: 'fish-speech-1.5:preset-female', name: 'Fish Speech 1.5 - Female' },
     { id: 'fish-speech-1.5:preset-male', name: 'Fish Speech 1.5 - Male' },
   ],
+  mimo: [
+    { id: '冰糖', name: 'MiMo - 冰糖 (中文女声)' },
+    { id: '茉莉', name: 'MiMo - 茉莉 (中文女声)' },
+    { id: '苏打', name: 'MiMo - 苏打 (中文男声)' },
+    { id: '白桦', name: 'MiMo - 白桦 (中文男声)' },
+    { id: 'Mia', name: 'MiMo - Mia (英文女声)' },
+    { id: 'Chloe', name: 'MiMo - Chloe (英文女声)' },
+    { id: 'Milo', name: 'MiMo - Milo (英文男声)' },
+    { id: 'Dean', name: 'MiMo - Dean (英文男声)' },
+  ],
   browser: [
     { id: 'default', name: 'Web Speech API (Local Browser)' },
   ],
@@ -728,13 +738,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <option value="qwen">阿里云 DashScope (Qwen 3.0 TTS / CosyVoice v3.5 - 共享 DashScope Key)</option>
                   <option value="doubao">火山引擎 (豆包 TTS - 共享火山 Key)</option>
                   <option value="fishaudio">Fish Audio (Fish Speech 1.5 - 共享 Fish Key)</option>
+                  <option value="mimo">小米 MiMo-V2.5 TTS (限时免费 - 共享 MiMo Key)</option>
                   <option value="browser">Web Speech API (浏览器本地)</option>
                   <option value="google-web">Google Translate TTS (免 Key 备用)</option>
                 </select>
               </div>
 
               {/* Bound Provider Credentials Card */}
-              {['openai', 'minimax', 'qwen', 'doubao', 'fishaudio', 'gemini'].includes(formData.ttsEngine) && (
+              {['openai', 'minimax', 'qwen', 'doubao', 'fishaudio', 'mimo', 'gemini'].includes(formData.ttsEngine) && (
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-slate-700 flex items-center gap-1">
@@ -743,7 +754,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                        formData.ttsEngine === 'openai' ? 'OpenAI' :
                        formData.ttsEngine === 'minimax' ? 'MiniMax' :
                        formData.ttsEngine === 'qwen' ? '阿里云 DashScope' :
-                       formData.ttsEngine === 'doubao' ? '火山引擎/豆包' : 'Fish Audio'}
+                       formData.ttsEngine === 'doubao' ? '火山引擎/豆包' :
+                       formData.ttsEngine === 'mimo' ? '小米 MiMo' : 'Fish Audio'}
                       )
                     </span>
                     <button
@@ -762,7 +774,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         formData.ttsEngine === 'openai' ? 'OpenAI API Key' :
                         formData.ttsEngine === 'minimax' ? 'MiniMax API Key' :
                         formData.ttsEngine === 'qwen' ? 'DashScope API Key' :
-                        formData.ttsEngine === 'doubao' ? '火山引擎/豆包 Key' : 'Fish Audio API Key'
+                        formData.ttsEngine === 'doubao' ? '火山引擎/豆包 Key' :
+                        formData.ttsEngine === 'mimo' ? '小米 MiMo Key' : 'Fish Audio API Key'
                       }`}
                       value={
                         formData.ttsEngine === 'gemini' ? formData.geminiApiKey :

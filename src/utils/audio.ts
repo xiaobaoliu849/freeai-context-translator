@@ -2,7 +2,7 @@ import { TTSEngine } from '../types';
 import { bridgeTts, isExtensionContext } from '../services/bridge';
 
 // TTS engines that need a cloud API key (routed via background in the extension)
-const CLOUD_TTS_ENGINES: TTSEngine[] = ['gemini', 'openai', 'minimax', 'qwen', 'doubao', 'fishaudio'];
+const CLOUD_TTS_ENGINES: TTSEngine[] = ['gemini', 'openai', 'minimax', 'qwen', 'doubao', 'fishaudio', 'mimo'];
 
 class AudioPlayerService {
   private currentAudioCtx: AudioContext | null = null;
