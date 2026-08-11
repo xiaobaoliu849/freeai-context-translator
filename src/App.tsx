@@ -197,7 +197,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
+    <div className={`${isPopup ? 'h-screen overflow-hidden' : 'min-h-screen'} bg-slate-50 text-slate-900 flex flex-col font-sans selection:bg-indigo-500 selection:text-white`}>
       {/* Header Bar */}
       <Header
         openSettings={() => setIsSettingsOpen(true)}
@@ -207,7 +207,7 @@ export default function App() {
       />
 
       {/* Main App Content View */}
-      <main className="flex-1 pb-8">
+      <main className={isPopup ? 'flex-1 min-h-0 flex flex-col overflow-hidden' : 'flex-1 pb-8'}>
         <TranslatorMain
           sourceText={sourceText}
           setSourceText={setSourceText}
@@ -222,6 +222,7 @@ export default function App() {
           openSettings={() => setIsSettingsOpen(true)}
           openHistory={() => setIsHistoryOpen(true)}
           retranslateSignal={retranslateSignal}
+          isPopup={isPopup}
         />
       </main>
 

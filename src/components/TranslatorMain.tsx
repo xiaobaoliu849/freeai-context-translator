@@ -21,6 +21,8 @@ interface TranslatorMainProps {
   openHistory: () => void;
   /** Bumped by App when the user retranslates a history item. */
   retranslateSignal?: number;
+  /** Compact app-shell layout used inside the 440x570 extension popup. */
+  isPopup?: boolean;
 }
 
 /** Small icon that reflects the current TTS state of a play button. */
@@ -55,6 +57,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
   openSettings,
   openHistory,
   retranslateSignal = 0,
+  isPopup = false,
 }) => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<TranslationResult | null>(null);
@@ -74,7 +77,44 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
   const [selectedWord, setSelectedWord] = useState<string | null>(null);
   const [wordExplanation, setWordExplanation] = useState<WordExplanation | null>(null);
   const [explainingWord, setExplainingWord] = useState(false);
-  const [layoutRatio, setLayoutRatio] = useState<'5:5' | '6:4' | '4:6'>('5:5');
+  // Free-drag split between the source/target panels (desktop). The value is
+  // a percentage of the left panel; it is persisted so the user's preferred
+  // ratio survives reloads. The toolbar presets (5:5 / 6:4 / 4:6) snap it.
+  const [splitPercent, setSplitPercent] = useState<number>(() => {
+    try {
+      const saved = Number(localStorage.getItem('freetranslate_layout_split'));
+      return saved >= 20 && saved <= 80 ? saved : 50;
+    } catch {
+      return 50;
+    }
+  });
+  const [splitDragging, setSplitDragging] = useState(false);
+  const workspaceRef = useRef<HTMLDivElement>(null);
+  const splitDragRef = useRef<{ x: number; split: number }>({ x: 0, split: 50 });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('freetranslate_layout_split', String(splitPercent));
+    } catch {}
+  }, [splitPercent]);
+
+  const handleSplitPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    splitDragRef.current = { x: e.clientX, split: splitPercent };
+    setSplitDragging(true);
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const handleSplitPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!splitDragging) return;
+    const grid = workspaceRef.current;
+    if (!grid) return;
+    const rect = grid.getBoundingClientRect();
+    if (rect.width === 0) return;
+    const delta = ((e.clientX - splitDragRef.current.x) / rect.width) * 100;
+    const next = Math.round(splitDragRef.current.split + delta);
+    setSplitPercent(Math.min(80, Math.max(20, next)));
+  };
+  const handleSplitPointerUp = () => setSplitDragging(false);
 
   // In-memory word explanation cache
   const wordCacheRef = useRef<Record<string, WordExplanation>>({});
@@ -265,13 +305,15 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
     }
   }, [sourceText, sourceLang, targetLang, settings.autoTranslate, activeProvider, activeConfig.model]);
 
-  // Auto-grow the input textarea with its content (90px → 260px)
+  // Auto-grow the input textarea with its content (90px → 260px). Skipped in
+  // the compact popup, where the textarea scrolls inside a fixed-height pane.
   useEffect(() => {
+    if (isPopup) return;
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = 'auto';
     el.style.height = `${Math.min(Math.max(el.scrollHeight, 90), 260)}px`;
-  }, [sourceText]);
+  }, [sourceText, isPopup]);
 
   // History "retranslate" trigger: App bumps this counter after loading an
   // item's text/langs, so we re-run the translation with current settings.
@@ -424,7 +466,10 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
   };
 
   return (
-    <div className="max-w-[1400px] mx-auto px-3 sm:px-6 py-3 sm:py-5 flex flex-col gap-3 sm:gap-4">
+    <div className={isPopup
+      ? 'flex-1 min-h-0 flex flex-col gap-2.5 px-3 py-2.5'
+      : 'max-w-[1400px] mx-auto px-3 sm:px-6 py-3 sm:py-5 flex flex-col gap-3 sm:gap-4'
+    }>
       {/* 1. ELEGANT LANGUAGE SELECTOR TOOLBAR */}
       <div className="bg-white border border-slate-200/90 rounded-2xl p-2 sm:p-2.5 shadow-2xs flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
         {/* Source Language Select */}
@@ -469,35 +514,24 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
           </select>
         </div>
 
-        {/* Layout Width Ratio Switcher (Desktop) */}
+        {/* Layout Width Ratio Switcher (Desktop) — presets snap the drag divider */}
         <div className="hidden md:flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200 text-[10px] font-bold text-slate-600 shrink-0">
-          <button
-            onClick={() => setLayoutRatio('5:5')}
-            className={`px-2 py-1 rounded-lg transition-colors cursor-pointer ${
-              layoutRatio === '5:5' ? 'bg-white text-indigo-700 shadow-2xs font-extrabold' : 'hover:text-slate-900'
-            }`}
-            title="左右等宽 (5:5)"
-          >
-            5:5
-          </button>
-          <button
-            onClick={() => setLayoutRatio('6:4')}
-            className={`px-2 py-1 rounded-lg transition-colors cursor-pointer ${
-              layoutRatio === '6:4' ? 'bg-white text-indigo-700 shadow-2xs font-extrabold' : 'hover:text-slate-900'
-            }`}
-            title="原文加宽 (6:4)"
-          >
-            6:4
-          </button>
-          <button
-            onClick={() => setLayoutRatio('4:6')}
-            className={`px-2 py-1 rounded-lg transition-colors cursor-pointer ${
-              layoutRatio === '4:6' ? 'bg-white text-indigo-700 shadow-2xs font-extrabold' : 'hover:text-slate-900'
-            }`}
-            title="译文加宽 (4:6)"
-          >
-            4:6
-          </button>
+          {[
+            { label: '5:5', v: 50, title: '左右等宽 (5:5)' },
+            { label: '6:4', v: 60, title: '原文加宽 (6:4)' },
+            { label: '4:6', v: 40, title: '译文加宽 (4:6)' },
+          ].map((p) => (
+            <button
+              key={p.label}
+              onClick={() => setSplitPercent(p.v)}
+              className={`px-2 py-1 rounded-lg transition-colors cursor-pointer ${
+                Math.abs(splitPercent - p.v) < 3 ? 'bg-white text-indigo-700 shadow-2xs font-extrabold' : 'hover:text-slate-900'
+              }`}
+              title={p.title}
+            >
+              {p.label}
+            </button>
+          ))}
         </div>
 
         {/* Translate Button */}
@@ -540,12 +574,20 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
         </div>
       )}
 
-      {/* 2 & 3. DUAL STUDIO TRANSLATION WORKSPACE GRID */}
-      <div className={`grid grid-cols-1 ${
-        layoutRatio === '6:4' ? 'md:grid-cols-[3fr_2fr]' : layoutRatio === '4:6' ? 'md:grid-cols-[2fr_3fr]' : 'md:grid-cols-2'
-      } gap-3.5 sm:gap-4`}>
+      {/* 2 & 3. DUAL STUDIO TRANSLATION WORKSPACE — the drag handle resizes the split */}
+      <div
+        ref={workspaceRef}
+        className={
+          isPopup
+            ? 'flex-1 min-h-0 flex flex-col gap-2.5'
+            : `grid grid-cols-1 gap-y-3 sm:gap-y-4 md:[grid-template-columns:minmax(0,var(--split))_12px_minmax(0,1fr)] ${splitDragging ? 'select-none' : ''}`
+        }
+        style={{ '--split': `${splitPercent}%` } as React.CSSProperties}
+      >
         {/* LEFT COLUMN: SOURCE INPUT BOX */}
-        <div className="bg-white border border-slate-200/90 rounded-2xl shadow-2xs overflow-hidden flex flex-col justify-between focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/10 transition-all min-h-[240px] sm:min-h-[300px]">
+        <div className={`bg-white border border-slate-200/90 rounded-2xl shadow-2xs overflow-hidden flex flex-col justify-between focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/10 transition-all ${
+          isPopup ? 'flex-[2] min-h-0' : 'min-h-[240px] sm:min-h-[300px]'
+        }`}>
           <textarea
             ref={textareaRef}
             value={sourceText}
@@ -560,8 +602,12 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             onKeyDown={handleTextareaKeyDown}
             onDoubleClick={detectSelection}
             onMouseUp={detectSelection}
-            placeholder="输入或粘贴文本... (支持划词或双击词汇极速发音与深度语境解析)"
-            className="w-full p-3.5 sm:p-4 flex-1 min-h-[180px] sm:min-h-[220px] text-slate-800 text-sm sm:text-base font-normal resize-y focus:outline-none placeholder:text-slate-400 bg-transparent leading-relaxed"
+            placeholder="输入或粘贴文本... (支持划词翻译)"
+            className={`${
+              isPopup
+                ? 'flex-1 min-h-0 p-3 resize-none overflow-y-auto text-sm'
+                : 'w-full p-3.5 sm:p-4 flex-1 min-h-[180px] sm:min-h-[220px] resize-y text-sm sm:text-base'
+            } text-slate-800 font-normal focus:outline-none placeholder:text-slate-400 bg-transparent leading-relaxed`}
           />
 
           {/* Input Box Actions Toolbar */}
@@ -617,8 +663,26 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
           </div>
         </div>
 
+        {/* Drag handle to freely resize the source/target split (desktop) */}
+        {!isPopup && (
+          <div
+            onPointerDown={handleSplitPointerDown}
+            onPointerMove={handleSplitPointerMove}
+            onPointerUp={handleSplitPointerUp}
+            onPointerCancel={handleSplitPointerUp}
+            className="hidden md:flex items-center justify-center cursor-col-resize touch-none group select-none"
+            title="拖动调整左右面板宽度"
+          >
+            <div className={`w-[3px] h-16 rounded-full transition-all ${
+              splitDragging ? 'bg-indigo-500 h-24' : 'bg-slate-200 group-hover:bg-indigo-400'
+            }`} />
+          </div>
+        )}
+
         {/* RIGHT COLUMN: TRANSLATION RESULT BOX / DICTIONARY MODE */}
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-3.5 sm:p-4 min-h-[240px] sm:min-h-[300px] shadow-2xs relative flex flex-col justify-between transition-all">
+        <div className={`bg-white border border-slate-200/90 rounded-2xl shadow-2xs relative flex flex-col justify-between transition-all ${
+          isPopup ? 'flex-[3] min-h-0 overflow-y-auto p-3' : 'p-3.5 sm:p-4 min-h-[240px] sm:min-h-[300px]'
+        }`}>
           {selectedWord ? (
             /* In-place In-Context Word Dictionary view */
             <WordContextCard
@@ -691,7 +755,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                     className={`p-2 rounded-xl transition-colors cursor-pointer ${
                       playingTarget === 'target' ? 'bg-indigo-100 text-indigo-700' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
                     } disabled:opacity-30`}
-                    title={`Listen full translation (${targetLang})`}
+                    title="朗读译文"
                   >
                     {playingTarget === 'target' ? (
                       <PlayIndicator phase={audioPhase} size={16} />
@@ -704,7 +768,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                     onClick={() => result?.translation && handleCopy(result.translation)}
                     disabled={!result?.translation}
                     className="p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 disabled:opacity-30 cursor-pointer transition-colors"
-                    title="Copy translation"
+                    title="复制译文"
                   >
                     {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
                   </button>
