@@ -1,0 +1,11 @@
+node_modules/
+build/
+dist/
+dist-web/
+dist-content/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+.freebuff/

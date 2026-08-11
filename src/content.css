@@ -1,0 +1,65 @@
+/* FreeTranslate Content Script isolated styles
+   Tailwind theme + utilities WITHOUT preflight, so the base reset never leaks
+   into the host page's styles. */
+@import "tailwindcss/theme" layer(theme);
+@import "tailwindcss/utilities" layer(utilities);
+
+.freetranslate-host-reset {
+  all: initial;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+.freetranslate-float-btn {
+  position: absolute;
+  z-index: 999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+  user-select: none;
+  pointer-events: auto;
+  opacity: 0;
+  animation: freetranslate-float-in 0.18s ease forwards;
+}
+
+.freetranslate-float-btn:hover {
+  transform: translateY(-2px) scale(1.12);
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.6);
+}
+
+@keyframes freetranslate-float-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.freetranslate-modal-card {
+  position: absolute;
+  z-index: 999999;
+  width: 420px;
+  max-width: 90vw;
+  background: #0f172a;
+  color: #f8fafc;
+  border: 1px solid #334155;
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  padding: 16px;
+  overflow: hidden;
+}

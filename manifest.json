@@ -1,0 +1,56 @@
+{
+  "manifest_version": 3,
+  "name": "FreeTranslate AI",
+  "version": "1.0.0",
+  "description": "Contextual AI Translator & Chrome Extension with in-context word breakdown, TTS speech audio, and selection popups.",
+  "permissions": [
+    "activeTab",
+    "contextMenus",
+    "storage",
+    "scripting",
+    "tts"
+  ],
+  "icons": {
+    "16": "assets/icon16.png",
+    "48": "assets/icon48.png",
+    "128": "assets/icon128.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "assets/icon16.png",
+      "48": "assets/icon48.png",
+      "128": "assets/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "commands": {
+    "translate-selection": {
+      "suggested_key": {
+        "default": "Alt+T"
+      },
+      "description": "翻译并解析当前选中的文本"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "content.css"
+      ]
+    }
+  ],
+  "options_page": "popup.html",
+  "host_permissions": [
+    "https://*/*",
+    "http://*/*"
+  ]
+}
