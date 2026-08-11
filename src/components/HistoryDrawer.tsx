@@ -91,7 +91,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
         <div className="flex items-center justify-between pb-4 border-b border-slate-100">
           <div className="flex items-center gap-2">
             <Clock className="w-4 h-4 text-indigo-600" />
-            <h3 className="font-bold text-base text-slate-900">Translation History</h3>
+            <h3 className="font-bold text-base text-slate-900">翻译历史</h3>
             <span className="text-xs bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded-full">
               {history.length}
             </span>
@@ -113,7 +113,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search history..."
+                placeholder="搜索历史..."
                 className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
               />
               {searchQuery && (
@@ -131,7 +131,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
         <div className="flex-1 overflow-y-auto py-4 space-y-3">
           {filteredHistory.length === 0 ? (
             <div className="text-center text-slate-400 text-xs py-12">
-              {searchQuery ? 'No matching history items found.' : 'No translation history yet. Translations will be saved here automatically.'}
+              {searchQuery ? '未找到匹配记录' : '暂无历史，翻译记录会自动保存在这里'}
             </div>
           ) : (
             filteredHistory.map((item) => (
@@ -159,7 +159,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
 
                 <div className="mt-2 pt-2 border-t border-slate-200/60 flex items-center justify-between">
                   <span className="text-[10px] text-slate-400 group-hover:text-indigo-600 flex items-center gap-1 font-medium">
-                    Load sentence <ArrowRight className="w-3 h-3" />
+                    载入原文 <ArrowRight className="w-3 h-3" />
                   </span>
 
                   <div className="flex items-center gap-0.5">
@@ -170,7 +170,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
                         onClose();
                       }}
                       className="p-1 rounded text-slate-400 hover:text-indigo-600 cursor-pointer"
-                      title="再翻译 (retranslate with current settings)"
+                      title="重新翻译"
                     >
                       <RefreshCw className="w-3.5 h-3.5" />
                     </button>
@@ -180,7 +180,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
                       className={`p-1 rounded cursor-pointer ${
                         playingId === item.id ? 'text-indigo-600' : 'text-slate-400 hover:text-indigo-600'
                       }`}
-                      title="重播译文 (replay translation audio)"
+                      title="重播译文"
                     >
                       {playingId === item.id ? (
                         playPhase === 'generating' ? (
@@ -201,7 +201,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
                     <button
                       onClick={(e) => handleCopy(item.translation, item.id, e)}
                       className="p-1 rounded text-slate-400 hover:text-slate-700 cursor-pointer"
-                      title="Copy translation"
+                      title="复制译文"
                     >
                       {copiedId === item.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                     </button>
@@ -217,10 +217,10 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
             <button
               onClick={handleExport}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 transition-colors cursor-pointer"
-              title="Export history as JSON"
+              title="导出历史 (JSON)"
             >
               <Download className="w-3.5 h-3.5" />
-              <span>Export</span>
+              <span>导出</span>
             </button>
 
             <button
@@ -228,7 +228,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 transition-colors cursor-pointer"
             >
               <Trash2 className="w-3.5 h-3.5" />
-              <span>Clear History</span>
+              <span>清空历史</span>
             </button>
           </div>
         )}
