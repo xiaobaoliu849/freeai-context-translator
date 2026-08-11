@@ -336,6 +336,105 @@ async function runTts({
   throw new Error(`Unsupported TTS engine: ${engine}`);
 }
 
+// Streaming TTS — yields base64 PCM16 24kHz chunks (pure fetch, SW-friendly).
+async function* callTTSStreamRaw({
+  engine,
+  text,
+  voice,
+  settings,
+}: {
+  engine: string;
+  text: string;
+  voice?: string;
+  settings: AppSettings;
+}): AsyncGenerator<string> {
+  if (engine === 'mimo') {
+    const cfg = resolveProviderConfig(settings, 'mimo');
+    if (!cfg.apiKey) throw new Error('MiMo API Key is required for MiMo TTS. Please configure it in Settings.');
+    const res = await fetch('https://api.xiaomimimo.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'api-key': cfg.apiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'mimo-v2.5-tts',
+        messages: [{ role: 'assistant', content: text }],
+        audio: { format: 'pcm16', voice: voice || '冰糖' },
+        stream: true,
+      }),
+    });
+    if (!res.ok) throw new Error(`MiMo TTS Error (${res.status}): ${await res.text()}`);
+    if (!res.body) throw new Error('MiMo TTS returned no stream body');
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith('data:')) continue;
+        const data = trimmed.slice(5).trim();
+        if (!data || data === '[DONE]') continue;
+        try {
+          const parsed = JSON.parse(data);
+          const audio = parsed?.choices?.[0]?.delta?.audio;
+          if (audio?.data) yield audio.data;
+        } catch {
+          // ignore partial lines
+        }
+      }
+    }
+    return;
+  }
+
+  if (engine === 'gemini') {
+    const cfg = resolveProviderConfig(settings, 'gemini');
+    if (!cfg.apiKey) throw new Error('Missing GEMINI_API_KEY');
+    const url = `${cfg.baseUrl || DEFAULT_BASE_URLS.gemini}/v1beta/models/gemini-3.1-flash-tts-preview:streamGenerateContent?alt=sse`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': cfg.apiKey },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text }] }],
+        generationConfig: {
+          responseModalities: ['AUDIO'],
+          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice || 'Kore' } } },
+        },
+      }),
+    });
+    if (!res.ok) throw new Error(`Gemini TTS Error (${res.status}): ${await res.text()}`);
+    if (!res.body) throw new Error('Gemini TTS returned no stream body');
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith('data:')) continue;
+        const data = trimmed.slice(5).trim();
+        if (!data) continue;
+        try {
+          const parsed = JSON.parse(data);
+          const part = parsed?.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
+          if (part?.inlineData?.data) yield part.inlineData.data;
+        } catch {
+          // ignore partial lines
+        }
+      }
+    }
+    return;
+  }
+
+  throw new Error(`Engine ${engine} does not support streaming TTS`);
+}
+
 // ---------------------------
 // Models listing
 // ---------------------------
@@ -464,6 +563,16 @@ export function handleBridgePort(port: chrome.runtime.Port) {
         if (!text || !text.trim()) throw new Error('Text is required');
         const result = await runTts({ text, lang: lang || 'en', engine, voice, settings });
         reply('done', { result });
+        return;
+      }
+
+      if (msg.kind === 'tts-stream') {
+        const { text, lang, engine, voice, rate } = msg.payload || {};
+        if (!text || !text.trim()) throw new Error('Text is required');
+        for await (const delta of callTTSStreamRaw({ engine, text, voice, settings })) {
+          reply('delta', { text: delta });
+        }
+        reply('done', { result: { sampleRate: 24000 } });
         return;
       }
 

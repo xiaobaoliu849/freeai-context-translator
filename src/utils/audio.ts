@@ -1,16 +1,125 @@
 import { TTSEngine } from '../types';
-import { bridgeTts, isExtensionContext } from '../services/bridge';
+import { bridgeTts, bridgeTtsStream, isExtensionContext } from '../services/bridge';
+import { consumeSSE } from '../services/streaming';
 
 // TTS engines that need a cloud API key (routed via background in the extension)
 const CLOUD_TTS_ENGINES: TTSEngine[] = ['gemini', 'openai', 'minimax', 'qwen', 'doubao', 'fishaudio', 'mimo'];
+
+// Engines that can stream audio chunks while generating (low first-byte latency)
+const STREAMABLE_TTS_ENGINES: TTSEngine[] = ['mimo', 'gemini'];
+
+/**
+ * Incremental 24kHz PCM16 player: each incoming base64 chunk is decoded and
+ * scheduled back-to-back on an AudioContext, so audio starts playing as soon
+ * as the first chunk arrives instead of waiting for the whole stream.
+ */
+class StreamingPcmPlayer {
+  private ctx: AudioContext | null = null;
+  private sources: AudioBufferSourceNode[] = [];
+  private nextStartTime = 0;
+  private sampleRate = 24000;
+  private onEnd: (() => void) | null = null;
+  private endTimer: number | null = null;
+  private finished = false;
+
+  start(sampleRate: number, onEnd?: () => void): boolean {
+    try {
+      const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
+      this.ctx = new AudioCtxClass({ sampleRate });
+    } catch (e) {
+      console.error('Failed to create AudioContext for streaming PCM:', e);
+      return false;
+    }
+    this.sampleRate = sampleRate;
+    this.onEnd = onEnd ?? null;
+    this.nextStartTime = this.ctx.currentTime + 0.05;
+    this.sources = [];
+    this.finished = false;
+    return true;
+  }
+
+  appendBase64(chunk: string) {
+    if (!this.ctx || !chunk) return;
+    try {
+      const binary = atob(chunk);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const pcm16 = new Int16Array(bytes.buffer);
+      const float32 = new Float32Array(pcm16.length);
+      for (let i = 0; i < pcm16.length; i++) float32[i] = pcm16[i] / 32768.0;
+      const buffer = this.ctx.createBuffer(1, float32.length, this.sampleRate);
+      buffer.getChannelData(0).set(float32);
+      const source = this.ctx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(this.ctx.destination);
+      const when = Math.max(this.nextStartTime, this.ctx.currentTime + 0.02);
+      source.start(when);
+      this.nextStartTime = when + buffer.duration;
+      this.sources.push(source);
+    } catch (e) {
+      console.warn('Failed to decode streaming PCM chunk:', e);
+    }
+  }
+
+  /** Marks the stream complete; fires onEnd after all queued audio has played. */
+  finish() {
+    if (!this.ctx || this.finished) return;
+    this.finished = true;
+    const remaining = Math.max(0, this.nextStartTime - this.ctx.currentTime);
+    this.endTimer = window.setTimeout(() => {
+      this.stop();
+      this.onEnd?.();
+    }, remaining * 1000 + 200);
+  }
+
+  stop() {
+    if (this.endTimer !== null) {
+      window.clearTimeout(this.endTimer);
+      this.endTimer = null;
+    }
+    for (const s of this.sources) {
+      try {
+        s.stop();
+        s.disconnect();
+      } catch {
+        // ignore
+      }
+    }
+    this.sources = [];
+    if (this.ctx) {
+      try {
+        this.ctx.close();
+      } catch {
+        // ignore
+      }
+      this.ctx = null;
+    }
+  }
+}
 
 class AudioPlayerService {
   private currentAudioCtx: AudioContext | null = null;
   private currentSourceNode: AudioBufferSourceNode | null = null;
   private currentAudioElement: HTMLAudioElement | null = null;
   private isPlaying: boolean = false;
+  private streamPlayer: StreamingPcmPlayer | null = null;
+  private streamFetchAbort: AbortController | null = null;
 
   public stopAll() {
+    // Abort an in-flight streaming TTS fetch and stop incremental playback
+    if (this.streamFetchAbort) {
+      try {
+        this.streamFetchAbort.abort();
+      } catch {
+        // ignore
+      }
+      this.streamFetchAbort = null;
+    }
+    if (this.streamPlayer) {
+      this.streamPlayer.stop();
+      this.streamPlayer = null;
+    }
+
     // Stop Web Speech API
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       window.speechSynthesis.cancel();
@@ -229,6 +338,13 @@ class AudioPlayerService {
       return;
     }
 
+    // Streaming engines: start playback as soon as the first audio chunk
+    // arrives. Falls back to the non-streaming path if nothing was produced.
+    if (STREAMABLE_TTS_ENGINES.includes(engine)) {
+      const streamed = await this.tryStreamTts({ text, lang, engine, voice, apiKey, providerConfigs, onEnd });
+      if (streamed) return;
+    }
+
     // Cloud TTS engines. In the extension this is relayed through the
     // background bridge (no API key in page context); in the web app it goes
     // through the server's /api/tts endpoint.
@@ -248,7 +364,7 @@ class AudioPlayerService {
               engine,
               voice,
               rate,
-              apiKey,
+              apiKey: engine === 'gemini' ? apiKey : undefined,
               baseUrl,
               providerConfigs,
             }),
@@ -301,6 +417,100 @@ class AudioPlayerService {
 
     if (!success) {
       this.playGoogleTtsUrl(text, lang, onEnd);
+    }
+  }
+
+  /**
+   * Streaming TTS via /api/tts/stream (web) or the background bridge
+   * (extension). Returns true once at least one audio chunk was played.
+   */
+  private async tryStreamTts({
+    text,
+    lang,
+    engine,
+    voice,
+    apiKey,
+    providerConfigs,
+    onEnd,
+  }: {
+    text: string;
+    lang: string;
+    engine: TTSEngine;
+    voice?: string;
+    apiKey?: string;
+    providerConfigs?: any;
+    onEnd?: () => void;
+  }): Promise<boolean> {
+    let player: StreamingPcmPlayer | null = null;
+    let startedPlaying = false;
+
+    const ensurePlayer = (): StreamingPcmPlayer | null => {
+      if (!player) {
+        const p = new StreamingPcmPlayer();
+        if (p.start(24000, () => {
+          this.streamPlayer = null;
+          onEnd?.();
+        })) {
+          player = p;
+          this.streamPlayer = p;
+        }
+      }
+      return player;
+    };
+
+    const handleChunk = (delta: string) => {
+      if (!delta) return;
+      ensurePlayer()?.appendBase64(delta);
+      startedPlaying = true;
+    };
+
+    try {
+      if (isExtensionContext()) {
+        await bridgeTtsStream({ text, lang, engine, voice }, handleChunk);
+      } else {
+        const abort = new AbortController();
+        this.streamFetchAbort = abort;
+        const res = await fetch('/api/tts/stream', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text, engine, voice, apiKey: engine === 'gemini' ? apiKey : undefined, providerConfigs }),
+          signal: abort.signal,
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || `HTTP ${res.status}`);
+        }
+        if (!res.body) throw new Error('No response body');
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const { events, rest } = consumeSSE(buffer);
+          buffer = rest;
+          for (const ev of events) {
+            if (ev.error) throw new Error(ev.error);
+            if (ev.delta) handleChunk(ev.delta);
+            if (ev.done) ensurePlayer()?.finish();
+          }
+        }
+      }
+
+      // Stream completed normally — finish playback if anything was played.
+      if (startedPlaying && player) player.finish();
+      return startedPlaying;
+    } catch (err) {
+      console.warn(`Streaming TTS (${engine}) failed:`, err);
+      if (player) {
+        player.stop();
+        this.streamPlayer = null;
+      }
+      return startedPlaying; // false → caller falls back to the non-streaming path
+    } finally {
+      this.streamFetchAbort = null;
     }
   }
 

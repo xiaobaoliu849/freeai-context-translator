@@ -361,6 +361,102 @@ async function* callLLMStream({
 }
 
 // ---------------------------
+// Streaming TTS (yields base64 audio chunks as they are generated)
+// ---------------------------
+async function* callTTSStream({
+  engine,
+  text,
+  voice,
+  apiKey,
+  providerConfigs,
+  signal,
+}: {
+  engine: string;
+  text: string;
+  voice?: string;
+  apiKey?: string;
+  providerConfigs?: any;
+  signal?: AbortSignal;
+}): AsyncGenerator<string> {
+  // MiMo-V2.5-TTS: OpenAI-compatible chat completions with stream:true and
+  // pcm16 audio — each SSE event carries a base64 PCM16 chunk at 24kHz.
+  if (engine === "mimo") {
+    const mimoConfig = providerConfigs?.mimo || {};
+    const key = apiKey || mimoConfig.apiKey || process.env.MIMO_API_KEY;
+    if (!key) {
+      throw new Error("MiMo API Key is required for MiMo TTS. Please configure it in Settings.");
+    }
+    const res = await fetch("https://api.xiaomimimo.com/v1/chat/completions", {
+      method: "POST",
+      headers: { "api-key": key, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "mimo-v2.5-tts",
+        messages: [{ role: "assistant", content: text }],
+        audio: { format: "pcm16", voice: voice || "冰糖" },
+        stream: true,
+      }),
+      signal,
+    });
+    if (!res.ok) throw new Error(`MiMo TTS Error (${res.status}): ${await res.text()}`);
+    if (!res.body) throw new Error("MiMo TTS returned no stream body");
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    while (true) {
+      if (signal?.aborted) break;
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith("data:")) continue;
+        const data = trimmed.slice(5).trim();
+        if (!data || data === "[DONE]") continue;
+        try {
+          const parsed = JSON.parse(data);
+          const audio = parsed?.choices?.[0]?.delta?.audio;
+          if (audio?.data) yield audio.data;
+        } catch {
+          // ignore partial lines
+        }
+      }
+    }
+    return;
+  }
+
+  // Gemini TTS: generateContentStream with AUDIO modality — each chunk's
+  // inlineData.data is a base64 slice of the 24kHz PCM audio.
+  if (engine === "gemini") {
+    const key = apiKey || process.env.GEMINI_API_KEY;
+    if (!key) throw new Error("Missing GEMINI_API_KEY");
+    const ai = getGeminiClient(key);
+    const stream = await ai.models.generateContentStream({
+      model: "gemini-3.1-flash-tts-preview",
+      contents: [{ parts: [{ text }] }],
+      config: {
+        responseModalities: ["AUDIO"],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName: voice || "Kore" },
+          },
+        },
+      },
+    });
+    for await (const chunk of stream) {
+      if (signal?.aborted) break;
+      const part = chunk?.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
+      if (part?.inlineData?.data) yield part.inlineData.data;
+    }
+    return;
+  }
+
+  throw new Error(`Engine ${engine} does not support streaming TTS`);
+}
+
+// ---------------------------
 // 0. Auto Fetch Models Endpoint
 // ---------------------------
 app.post("/api/models", rateLimit, async (req, res) => {
@@ -925,6 +1021,42 @@ app.post("/api/tts", rateLimit, async (req, res) => {
   } catch (err: any) {
     console.error("TTS API error:", err);
     res.status(500).json({ error: err.message || "TTS generation failed" });
+  }
+});
+
+// ---------------------------
+// 3b. TTS Endpoint (Server-Sent Events streaming — MiMo / Gemini PCM chunks)
+// ---------------------------
+app.post("/api/tts/stream", rateLimit, async (req, res) => {
+  const { text, engine = "gemini", voice, apiKey, providerConfigs } = req.body;
+
+  if (!text || !text.trim()) {
+    return res.status(400).json({ error: "Text is required" });
+  }
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  const send = (payload: any) => res.write(`data: ${JSON.stringify(payload)}\n\n`);
+
+  const abort = new AbortController();
+  res.on("close", () => abort.abort());
+
+  try {
+    const stream = callTTSStream({ engine, text, voice, apiKey, providerConfigs, signal: abort.signal });
+    for await (const delta of stream) {
+      if (abort.signal.aborted) break;
+      send({ delta });
+    }
+    send({ done: true, sampleRate: 24000 });
+    res.end();
+  } catch (err: any) {
+    console.error(`${engine} TTS stream error:`, err.message);
+    send({ error: err.message || "TTS stream failed" });
+    res.end();
   }
 });
 

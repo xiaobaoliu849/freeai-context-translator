@@ -137,6 +137,23 @@ export function bridgeTts(payload: {
   return bridgeClient.call('tts', payload);
 }
 
+/**
+ * Streaming TTS through the background bridge. Each audio chunk (base64 PCM16,
+ * 24kHz) is delivered via `onDelta` as it is generated.
+ */
+export function bridgeTtsStream(
+  payload: {
+    text: string;
+    lang: string;
+    engine: string;
+    voice?: string;
+    rate?: number;
+  },
+  onDelta?: (base64Chunk: string) => void,
+): Promise<{ sampleRate?: number }> {
+  return bridgeClient.call('tts-stream', payload, onDelta);
+}
+
 export function bridgeModels(payload: { provider: string; baseUrl?: string }): Promise<{ models: string[]; source: 'live' | 'default' }> {
   return bridgeClient.call('models', payload);
 }
