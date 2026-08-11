@@ -21,6 +21,9 @@ class StreamingPcmPlayer {
   private onEnd: (() => void) | null = null;
   private endTimer: number | null = null;
   private finished = false;
+  /** Fires the first time a chunk is scheduled (i.e. playback has begun). */
+  onFirstChunk: (() => void) | null = null;
+  private firedFirstChunk = false;
 
   start(sampleRate: number, onEnd?: () => void): boolean {
     try {
@@ -35,6 +38,7 @@ class StreamingPcmPlayer {
     this.nextStartTime = this.ctx.currentTime + 0.05;
     this.sources = [];
     this.finished = false;
+    this.firedFirstChunk = false;
     return true;
   }
 
@@ -56,6 +60,10 @@ class StreamingPcmPlayer {
       source.start(when);
       this.nextStartTime = when + buffer.duration;
       this.sources.push(source);
+      if (!this.firedFirstChunk) {
+        this.firedFirstChunk = true;
+        this.onFirstChunk?.();
+      }
     } catch (e) {
       console.warn('Failed to decode streaming PCM chunk:', e);
     }
@@ -308,6 +316,7 @@ class AudioPlayerService {
     baseUrl,
     providerConfigs,
     onStart,
+    onAudioStart,
     onEnd,
   }: {
     text: string;
@@ -319,6 +328,8 @@ class AudioPlayerService {
     baseUrl?: string;
     providerConfigs?: any;
     onStart?: () => void;
+    /** Fires when audio actually starts playing (generating → playing). */
+    onAudioStart?: () => void;
     onEnd?: () => void;
   }): Promise<void> {
     onStart?.();
@@ -327,21 +338,25 @@ class AudioPlayerService {
       const success = this.playBrowserSpeech(text, lang, rate, onEnd, () => {
         this.playGoogleTtsUrl(text, lang, onEnd);
       });
-      if (!success) {
+      if (success) {
+        onAudioStart?.();
+      } else {
         this.playGoogleTtsUrl(text, lang, onEnd);
+        onAudioStart?.();
       }
       return;
     }
 
     if (engine === 'google-web') {
       this.playGoogleTtsUrl(text, lang, onEnd);
+      onAudioStart?.();
       return;
     }
 
     // Streaming engines: start playback as soon as the first audio chunk
     // arrives. Falls back to the non-streaming path if nothing was produced.
     if (STREAMABLE_TTS_ENGINES.includes(engine)) {
-      const streamed = await this.tryStreamTts({ text, lang, engine, voice, apiKey, providerConfigs, onEnd });
+      const streamed = await this.tryStreamTts({ text, lang, engine, voice, apiKey, providerConfigs, onAudioStart, onEnd });
       if (streamed) return;
     }
 
@@ -404,6 +419,7 @@ class AudioPlayerService {
           sampleRate: data.sampleRate || 24000,
           onEnd,
         });
+        onAudioStart?.();
         return;
       }
     } catch (err) {
@@ -415,8 +431,11 @@ class AudioPlayerService {
       this.playGoogleTtsUrl(text, lang, onEnd);
     });
 
-    if (!success) {
+    if (success) {
+      onAudioStart?.();
+    } else {
       this.playGoogleTtsUrl(text, lang, onEnd);
+      onAudioStart?.();
     }
   }
 
@@ -431,6 +450,7 @@ class AudioPlayerService {
     voice,
     apiKey,
     providerConfigs,
+    onAudioStart,
     onEnd,
   }: {
     text: string;
@@ -439,6 +459,7 @@ class AudioPlayerService {
     voice?: string;
     apiKey?: string;
     providerConfigs?: any;
+    onAudioStart?: () => void;
     onEnd?: () => void;
   }): Promise<boolean> {
     let player: StreamingPcmPlayer | null = null;
@@ -451,6 +472,7 @@ class AudioPlayerService {
           this.streamPlayer = null;
           onEnd?.();
         })) {
+          p.onFirstChunk = () => onAudioStart?.();
           player = p;
           this.streamPlayer = p;
         }

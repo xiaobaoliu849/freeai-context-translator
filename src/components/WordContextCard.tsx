@@ -1,5 +1,5 @@
 import React from 'react';
-import { Volume2, BookOpen, Layers, Info, Check, X, Sparkles, ArrowRight, Lightbulb } from 'lucide-react';
+import { Volume2, Loader2, BookOpen, Layers, Info, Check, X, Sparkles, ArrowRight, Lightbulb } from 'lucide-react';
 import { WordExplanation, AppSettings } from '../types';
 import { audioPlayer } from '../utils/audio';
 
@@ -18,11 +18,11 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
   sentence,
   settings,
 }) => {
-  const [playingWord, setPlayingWord] = React.useState(false);
+  // 'generating' = waiting for the first audio chunk, 'playing' = audio is live
+  const [wordPhase, setWordPhase] = React.useState<'generating' | 'playing' | null>(null);
 
   const handlePlayWordAudio = () => {
     if (!explanation?.word) return;
-    setPlayingWord(true);
     audioPlayer.speak({
       text: explanation.word,
       lang: settings.defaultSourceLang || 'en',
@@ -31,8 +31,9 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
       rate: settings.ttsRate,
       apiKey: settings.geminiApiKey,
       providerConfigs: settings.providerConfigs,
-      onStart: () => setPlayingWord(true),
-      onEnd: () => setPlayingWord(false),
+      onStart: () => setWordPhase('generating'),
+      onAudioStart: () => setWordPhase('playing'),
+      onEnd: () => setWordPhase(null),
     });
   };
 
@@ -87,13 +88,24 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
             <button
               onClick={handlePlayWordAudio}
               className={`p-1.5 rounded-lg border transition-all ${
-                playingWord
-                  ? 'bg-indigo-600 text-white border-indigo-400 animate-bounce'
+                wordPhase
+                  ? 'bg-indigo-600 text-white border-indigo-400'
                   : 'bg-slate-800 text-indigo-300 hover:text-white border-slate-700 hover:bg-indigo-900/50'
               }`}
               title="Pronounce word"
             >
-              <Volume2 className="w-4 h-4" />
+              {wordPhase === 'generating' ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : wordPhase === 'playing' ? (
+                <span className="ft-eq" style={{ height: 16 }}>
+                  <span />
+                  <span />
+                  <span />
+                  <span />
+                </span>
+              ) : (
+                <Volume2 className="w-4 h-4" />
+              )}
             </button>
           </div>
           <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">

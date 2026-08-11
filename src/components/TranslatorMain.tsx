@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Volume2, Copy, Check, Eraser, RefreshCw, Settings, History, Sparkles, X, ArrowRightLeft } from 'lucide-react';
+import { Volume2, Loader2, Copy, Check, Eraser, RefreshCw, Settings, History, Sparkles, X, ArrowRightLeft } from 'lucide-react';
 import { AppSettings, TranslationResult, WordExplanation } from '../types';
 import { audioPlayer } from '../utils/audio';
 import { consumeSSE, extractPartialTranslation } from '../services/streaming';
@@ -19,6 +19,24 @@ interface TranslatorMainProps {
   openSettings: () => void;
   openHistory: () => void;
 }
+
+/** Small icon that reflects the current TTS state of a play button. */
+const PlayIndicator: React.FC<{ phase: 'generating' | 'playing' | null; size?: number }> = ({ phase, size = 16 }) => {
+  if (phase === 'generating') {
+    return <Loader2 className="animate-spin" style={{ width: size, height: size }} />;
+  }
+  if (phase === 'playing') {
+    return (
+      <span className="ft-eq" style={{ height: size }}>
+        <span />
+        <span />
+        <span />
+        <span />
+      </span>
+    );
+  }
+  return null;
+};
 
 export const TranslatorMain: React.FC<TranslatorMainProps> = ({
   sourceText,
@@ -41,6 +59,8 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
   // Tracks which side (source/target) is currently speaking, so only the
   // matching button highlights instead of both flashing together.
   const [playingTarget, setPlayingTarget] = useState<'source' | 'target' | null>(null);
+  // 'generating' = waiting for first audio chunk, 'playing' = audio is live
+  const [audioPhase, setAudioPhase] = useState<'generating' | 'playing' | null>(null);
 
   // Streaming typewriter state (grows while /api/translate/stream is live)
   const [streamingText, setStreamingText] = useState('');
@@ -364,8 +384,15 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
       rate: settings.ttsRate,
       apiKey: settings.geminiApiKey,
       providerConfigs: settings.providerConfigs,
-      onStart: () => setPlayingTarget(target),
-      onEnd: () => setPlayingTarget(null),
+      onStart: () => {
+        setPlayingTarget(target);
+        setAudioPhase('generating');
+      },
+      onAudioStart: () => setAudioPhase('playing'),
+      onEnd: () => {
+        setPlayingTarget(null);
+        setAudioPhase(null);
+      },
     });
   };
 
@@ -505,11 +532,15 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                 onClick={() => handlePlayAudio(selectedWord || sourceText, sourceLang, 'source')}
                 disabled={!sourceText.trim() && !selectedWord}
                 className={`p-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1 ${
-                  playingTarget === 'source' ? 'bg-indigo-100 text-indigo-700 animate-pulse' : 'hover:bg-slate-200/70 text-slate-600 hover:text-slate-900'
+                  playingTarget === 'source' ? 'bg-indigo-100 text-indigo-700' : 'hover:bg-slate-200/70 text-slate-600 hover:text-slate-900'
                 } disabled:opacity-30`}
                 title={selectedWord ? `播放 "${selectedWord}"` : "播放原文"}
               >
-                <Volume2 className="w-3.5 h-3.5" />
+                {playingTarget === 'source' ? (
+                  <PlayIndicator phase={audioPhase} size={14} />
+                ) : (
+                  <Volume2 className="w-3.5 h-3.5" />
+                )}
               </button>
 
               <button
@@ -599,11 +630,15 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                 onClick={() => handlePlayAudio(result?.translation || '', targetLang, 'target')}
                 disabled={!result?.translation}
                 className={`p-2 rounded-xl transition-colors cursor-pointer ${
-                  playingTarget === 'target' ? 'bg-indigo-100 text-indigo-700 animate-pulse' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+                  playingTarget === 'target' ? 'bg-indigo-100 text-indigo-700' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
                 } disabled:opacity-30`}
                 title={`Listen full translation (${targetLang})`}
               >
-                <Volume2 className="w-4 h-4" />
+                {playingTarget === 'target' ? (
+                  <PlayIndicator phase={audioPhase} size={16} />
+                ) : (
+                  <Volume2 className="w-4 h-4" />
+                )}
               </button>
 
               <button
@@ -650,7 +685,11 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                     className="p-1.5 text-indigo-300 hover:text-white hover:bg-indigo-900/60 rounded-xl border border-indigo-800/60 transition-colors cursor-pointer"
                     title={`Pronounce "${wordExplanation.word}"`}
                   >
-                    <Volume2 className="w-4 h-4" />
+                    {playingTarget === 'source' ? (
+                      <PlayIndicator phase={audioPhase} size={16} />
+                    ) : (
+                      <Volume2 className="w-4 h-4" />
+                    )}
                   </button>
 
                   {wordExplanation.phonetic && (
