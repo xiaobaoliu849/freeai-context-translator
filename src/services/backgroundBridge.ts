@@ -1,5 +1,5 @@
 import { AppSettings, WordExplanation } from '../types';
-import { DEFAULT_BASE_URLS, DEFAULT_MODELS, DEFAULT_SETTINGS, parseSavedSettings } from '../config';
+import { DEFAULT_BASE_URLS, DEFAULT_SETTINGS, parseSavedSettings } from '../config';
 import {
   EXPLAIN_SYSTEM_PROMPT,
   TRANSLATE_SYSTEM_PROMPT,
@@ -30,7 +30,7 @@ function resolveProviderConfig(settings: AppSettings, provider: string) {
   return {
     apiKey: cfg.apiKey || (provider === 'gemini' ? settings.geminiApiKey : ''),
     baseUrl: (cfg.baseUrl || DEFAULT_BASE_URLS[provider] || '').replace(/\/+$/, ''),
-    model: cfg.model || DEFAULT_MODELS[provider]?.[0] || '',
+    model: cfg.model || '',
   };
 }
 
@@ -61,7 +61,10 @@ async function* callLLMStreamRaw({
   jsonOutput?: boolean;
 }): AsyncGenerator<string> {
   const effectiveBaseUrl = (baseUrl || DEFAULT_BASE_URLS[provider] || '').replace(/\/+$/, '');
-  const effectiveModel = model || DEFAULT_MODELS[provider]?.[0] || 'gemini-3.6-flash';
+  const effectiveModel = model || '';
+  if (!effectiveModel) {
+    throw new Error('未设置模型，请先在设置中「自动获取可用模型」或手动填写模型');
+  }
 
   if (provider === 'gemini' || (!apiKey && provider !== 'custom')) {
     if (!apiKey) {
@@ -439,44 +442,56 @@ async function* callTTSStreamRaw({
 // Models listing
 // ---------------------------
 
-async function fetchModels({ provider, baseUrl, settings }: { provider: string; baseUrl?: string; settings: AppSettings }): Promise<{ models: string[]; source: 'live' | 'default' }> {
+async function fetchModels({ provider, baseUrl, apiKey, settings }: { provider: string; baseUrl?: string; apiKey?: string; settings: AppSettings }): Promise<{ models: string[]; source: 'live' | 'default' }> {
   const cfg = resolveProviderConfig(settings, provider);
+  const effectiveKey = apiKey || cfg.apiKey;
+  const effectiveBaseUrl = (baseUrl || cfg.baseUrl || DEFAULT_BASE_URLS[provider] || '').replace(/\/+$/, '');
+  // When the caller explicitly passes a key (typed in the settings form but not
+  // yet saved), surface request failures instead of silently falling back to
+  // the preset list — otherwise a wrong key looks like "no key configured".
+  const explicitKey = Boolean(apiKey);
 
   // Gemini: fetch the live list when a key is available.
-  if (provider === 'gemini' && cfg.apiKey) {
+  if (provider === 'gemini' && effectiveKey) {
     try {
-      const endpoint = `${(baseUrl || cfg.baseUrl || DEFAULT_BASE_URLS[provider] || '').replace(/\/+$/, '')}/v1beta/models?pageSize=1000`;
-      const res = await fetch(endpoint, { headers: { 'x-goog-api-key': cfg.apiKey, 'Content-Type': 'application/json' } });
+      const endpoint = `${effectiveBaseUrl}/v1beta/models?pageSize=1000`;
+      const res = await fetch(endpoint, { headers: { 'x-goog-api-key': effectiveKey, 'Content-Type': 'application/json' } });
       if (res.ok) {
         const data: any = await res.json();
         const ids = (data?.models || [])
           .map((m: any) => (typeof m === 'string' ? m : String(m.name || '').replace(/^models\//, '')))
           .filter((n: string) => n && /^gemini/i.test(n));
         if (ids.length > 0) return { models: ids, source: 'live' };
+      } else if (explicitKey) {
+        throw new Error(`Gemini models API error (${res.status}): ${(await res.text()).slice(0, 200)}`);
       }
-    } catch (e) {
-      // fall through to defaults
+    } catch (e: any) {
+      if (explicitKey) throw e;
+      // transient failure without a typed key → fall through to defaults
     }
   }
 
-  if (provider === 'gemini' || (!cfg.apiKey && provider !== 'custom')) {
-    return { models: DEFAULT_MODELS[provider] || DEFAULT_MODELS.gemini, source: 'default' };
+  if (provider === 'gemini' || (!effectiveKey && provider !== 'custom')) {
+    return { models: [], source: 'default' };
   }
   try {
-    const endpoint = `${(baseUrl || cfg.baseUrl || DEFAULT_BASE_URLS[provider] || '').replace(/\/+$/, '')}/models`;
+    const endpoint = `${effectiveBaseUrl}/models`;
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (cfg.apiKey) headers['Authorization'] = `Bearer ${cfg.apiKey}`;
+    if (effectiveKey) headers['Authorization'] = `Bearer ${effectiveKey}`;
     const res = await fetch(endpoint, { method: 'GET', headers });
     if (res.ok) {
       const data: any = await res.json();
       const rawList: any[] = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : Array.isArray(data?.models) ? data.models : [];
       const ids = rawList.map((m: any) => (typeof m === 'string' ? m : m.id || m.name || m.model)).filter(Boolean);
       if (ids.length > 0) return { models: ids, source: 'live' };
+    } else if (explicitKey) {
+      throw new Error(`${provider} models API error (${res.status}): ${(await res.text()).slice(0, 200)}`);
     }
-  } catch (e) {
+  } catch (e: any) {
+    if (explicitKey) throw e;
     // fall through to defaults
   }
-  return { models: DEFAULT_MODELS[provider] || DEFAULT_MODELS.gemini, source: 'default' };
+  return { models: [], source: 'default' };
 }
 
 // ---------------------------
@@ -577,8 +592,8 @@ export function handleBridgePort(port: chrome.runtime.Port) {
       }
 
       if (msg.kind === 'models') {
-        const { provider, baseUrl } = msg.payload || {};
-        const { models, source } = await fetchModels({ provider: provider || 'gemini', baseUrl, settings });
+        const { provider, baseUrl, apiKey } = msg.payload || {};
+        const { models, source } = await fetchModels({ provider: provider || 'gemini', baseUrl, apiKey, settings });
         reply('done', { result: { models, source } });
         return;
       }

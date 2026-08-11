@@ -18,7 +18,6 @@ import {
   Upload,
 } from 'lucide-react';
 import { AppSettings, ProviderType, TTSEngine, ProviderConfig } from '../types';
-import { DEFAULT_MODELS } from '../config';
 import { audioPlayer } from '../utils/audio';
 import { exportSettingsToFile, parseSettingsFile } from '../utils/settingsExport';
 import { bridgeModels, isExtensionContext } from '../services/bridge';
@@ -139,7 +138,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     source: 'live' | 'default';
     checkedModel: string;
     currentModelOk: boolean | null;
-    missingDefaults: string[];
     error?: string;
   } | null>(null);
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -190,9 +188,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const fetchModelsForProvider = async (): Promise<{ models: string[]; source: 'live' | 'default' }> => {
     if (isExtensionContext()) {
-      // In the extension, fetch models through the background bridge
-      // (the key stays in the service worker).
-      return bridgeModels({ provider: currentProvider, baseUrl: currentConfig.baseUrl });
+      // In the extension, fetch models through the background bridge.
+      // Pass the form's (possibly unsaved) key along so it works before the
+      // user hits Save; the background prefers it over the stored one.
+      return bridgeModels({
+        provider: currentProvider,
+        baseUrl: currentConfig.baseUrl,
+        apiKey: currentConfig.apiKey,
+      });
     }
     const res = await fetch('/api/models', {
       method: 'POST',
@@ -214,7 +217,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setFetchMessage(null);
 
     try {
-      const { models, source } = await fetchModelsForProvider();
+      const { models } = await fetchModelsForProvider();
 
       if (models.length > 0) {
         updateCurrentConfig({
@@ -222,15 +225,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           model: models.includes(currentConfig.model) ? currentConfig.model : models[0],
         });
         setFetchMessage({
-          text:
-            source === 'live'
-              ? `成功获取 ${models.length} 个可用模型！`
-              : `未配置 API Key，已载入预设列表（未实时校验）。`,
-          type: source === 'live' ? 'success' : 'error',
+          text: `成功获取 ${models.length} 个可用模型！`,
+          type: 'success',
         });
       } else {
         setFetchMessage({
-          text: '未返回模型，已载入默认预设列表。',
+          text: currentConfig.apiKey
+            ? '未返回模型，请检查 API Key / Base URL 是否正确。'
+            : '未配置 API Key，无法获取模型列表。请先填写 Key 后重试。',
           type: 'error',
         });
       }
@@ -259,28 +261,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         });
       }
 
-      if (source === 'default') {
+      if (models.length === 0) {
         setValidationResult({
           status: 'unverifiable',
           source,
           checkedModel: currentConfig.model || '',
           currentModelOk: null,
-          missingDefaults: [],
         });
         return;
       }
 
       const live = new Set(models);
       const current = currentConfig.model || '';
-      const currentModelOk = live.has(current);
-      const presets = DEFAULT_MODELS[currentProvider] || DEFAULT_MODELS.gemini;
-      const missingDefaults = presets.filter((m) => !live.has(m));
+      const currentModelOk = current ? live.has(current) : false;
       setValidationResult({
-        status: currentModelOk && missingDefaults.length === 0 ? 'ok' : 'issues',
+        status: currentModelOk ? 'ok' : 'issues',
         source,
         checkedModel: current,
         currentModelOk,
-        missingDefaults,
       });
     } catch (err: any) {
       console.error('Validate models error:', err);
@@ -289,7 +287,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         source: 'live',
         checkedModel: currentConfig.model || '',
         currentModelOk: null,
-        missingDefaults: [],
         error: err?.message || '校验失败',
       });
     } finally {
@@ -519,14 +516,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       onChange={(e) => updateCurrentConfig({ model: e.target.value })}
                       className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-indigo-500 font-semibold shadow-2xs text-xs"
                     >
-                      {(currentConfig.availableModels && currentConfig.availableModels.length > 0
-                        ? currentConfig.availableModels
-                        : [currentConfig.model || 'default']
-                      ).map((m) => (
-                        <option key={m} value={m}>
-                          {m}
+                      {currentConfig.availableModels?.length ? (
+                        currentConfig.availableModels.map((m) => (
+                          <option key={m} value={m}>
+                            {m}
+                          </option>
+                        ))
+                      ) : (
+                        <option value={currentConfig.model || ''} disabled={!currentConfig.model}>
+                          {currentConfig.model || '（请先获取或填写模型）'}
                         </option>
-                      ))}
+                      )}
                     </select>
 
                     <input
@@ -560,30 +560,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       }`}
                     >
                       {validationResult.status === 'ok' && (
-                        <p className="font-bold">✓ 当前模型可用，预设列表全部真实存在</p>
+                        <p className="font-bold">✓ 当前模型可用（实时获取）</p>
                       )}
                       {validationResult.status === 'unverifiable' && (
                         <p>
-                          未配置 API Key，无法实时校验。预设列表如下（{' '}
-                          {currentConfig.availableModels.length} 个），配置 Key 后可重新校验。
+                          {currentProvider === 'custom'
+                            ? '模型接口不可用（未填 Key 或请求失败），无法实时校验。请检查接口配置后重试。'
+                            : '未配置 API Key 或未获取到模型列表，无法实时校验。请先配置 Key 并获取模型。'}
                         </p>
                       )}
                       {validationResult.status === 'issues' && (
-                        <div>
-                          <p className="font-bold">
-                            {validationResult.currentModelOk ? '✓' : '✗'} 当前模型 "
-                            {validationResult.checkedModel}"{" "}
-                            {validationResult.currentModelOk ? '存在' : '不在实时列表中，可能已下线或更名'}
-                          </p>
-                          {validationResult.missingDefaults.length > 0 && (
-                            <p className="mt-1">
-                              预设列表中不存在/已下线的模型：{' '}
-                              <span className="font-mono">
-                                {validationResult.missingDefaults.join('、')}
-                              </span>
-                            </p>
-                          )}
-                        </div>
+                        <p className="font-bold">
+                          {validationResult.currentModelOk ? '✓' : '✗'} 当前模型 "
+                          {validationResult.checkedModel}"{" "}
+                          {validationResult.checkedModel
+                            ? validationResult.currentModelOk
+                              ? '存在'
+                              : '不在实时列表中，请重新获取或选择'
+                            : '尚未设置，请从列表中选择或手动填写'}
+                        </p>
                       )}
                       {validationResult.status === 'error' && (
                         <p>校验失败: {validationResult.error || '请检查网络或 API Key'}</p>

@@ -1,5 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
-import { DEFAULT_BASE_URLS, DEFAULT_MODELS } from "../config";
+import { DEFAULT_BASE_URLS } from "../config";
 import { bridgeExplain, bridgeTranslate, isExtensionContext } from "./bridge";
 import {
   EXPLAIN_SYSTEM_PROMPT,
@@ -27,7 +27,10 @@ export async function callLLMClient({
   jsonOutput?: boolean;
 }): Promise<string> {
   const effectiveBaseUrl = (baseUrl || DEFAULT_BASE_URLS[provider] || "").replace(/\/+$/, "");
-  const effectiveModel = model || DEFAULT_MODELS[provider]?.[0] || "gemini-3.6-flash";
+  const effectiveModel = model || "";
+  if (!effectiveModel) {
+    throw new Error("未设置模型，请先在设置中「自动获取可用模型」或手动填写模型");
+  }
 
   // Gemini API
   if (provider === "gemini" || (!apiKey && provider !== "custom")) {

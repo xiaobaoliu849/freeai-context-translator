@@ -91,12 +91,6 @@ export default function App() {
               }
               let availableModels = Array.isArray(savedCfg.availableModels) ? savedCfg.availableModels : defaultCfg.availableModels;
               availableModels = availableModels.filter((m: string) => !legacyList.includes(m));
-              // Merge in fresh default models
-              for (const m of defaultCfg.availableModels) {
-                if (!availableModels.includes(m)) {
-                  availableModels.push(m);
-                }
-              }
 
               mergedConfigs[pKey] = {
                 ...defaultCfg,

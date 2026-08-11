@@ -32,28 +32,16 @@ export const DEFAULT_BASE_URLS: Record<ProviderType, string> = {
   custom: 'http://localhost:11434/v1',
 };
 
-export const DEFAULT_MODELS: Record<ProviderType, string[]> = {
-  gemini: ['gemini-3.6-flash', 'gemini-3-flash', 'gemini-3.1-pro', 'gemini-3-pro'],
-  deepseek: ['deepseek-v4-flash', 'deepseek-v4-pro'],
-  qwen: ['qwen3.8-max', 'qwen3.7-plus', 'qwen3.7-flash', 'qwen-max', 'qwen-plus', 'qwen-turbo', 'qwen3-coder-plus', 'qwen-max-latest', 'qwen-plus-latest'],
-  doubao: ['doubao-1-5-pro-32k-250115', 'doubao-1-5-lite-32k-250115', 'doubao-pro-128k', 'doubao-lite-128k'],
-  moonshot: ['kimi-latest', 'moonshot-v1-auto', 'moonshot-v1-128k', 'moonshot-v1-32k'],
-  minimax: ['MiniMax-M3', 'MiniMax-M2.7', 'minimax-text-01'],
-  groq: ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant', 'deepseek-r1-distill-llama-70b'],
-  openai: ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-4o', 'gpt-4o-mini', 'o3', 'o3-mini'],
-  fishaudio: ['fish-speech-1.5', 'fish-speech-1.4'],
-  mimo: ['mimo-v2.5-tts'],
-  custom: ['llama3.3', 'qwen3', 'deepseek-v4-flash', 'mistral', 'phi4'],
-};
-
+// 模型列表不再内置预设：一律通过各服务商的 /models 接口实时获取（见
+// SettingsModal「自动获取可用模型」与 server /api/models）。
 export const DEFAULT_PROVIDER_CONFIGS: Record<ProviderType, ProviderConfig> = Object.fromEntries(
   (Object.keys(DEFAULT_BASE_URLS) as ProviderType[]).map((p) => [
     p,
     {
       apiKey: '',
       baseUrl: DEFAULT_BASE_URLS[p],
-      model: DEFAULT_MODELS[p][0],
-      availableModels: [...DEFAULT_MODELS[p]],
+      model: '',
+      availableModels: [],
     },
   ]),
 ) as Record<ProviderType, ProviderConfig>;
@@ -66,7 +54,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   deepseekApiKey: '',
   openaiApiKey: '',
   customEndpoint: '',
-  apiModel: DEFAULT_MODELS.gemini[0],
+  apiModel: '',
   defaultSourceLang: 'auto',
   defaultTargetLang: 'zh-CN',
   ttsEngine: 'gemini',

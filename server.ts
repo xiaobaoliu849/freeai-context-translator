@@ -3,7 +3,7 @@ import path from "path";
 import dns from "node:dns";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
-import { DEFAULT_BASE_URLS, DEFAULT_MODELS } from "./src/config";
+import { DEFAULT_BASE_URLS } from "./src/config";
 import {
   EXPLAIN_SYSTEM_PROMPT,
   TRANSLATE_SYSTEM_PROMPT,
@@ -110,11 +110,7 @@ function rateLimit(req: express.Request, res: express.Response, next: express.Ne
 
 // Helper with exponential retry and model fallback for 503 / 429 errors
 async function generateWithRetryAndFallback(ai: GoogleGenAI, primaryModel: string, config: any) {
-  const modelsToTry = [
-    primaryModel,
-    "gemini-3.6-flash",
-    "gemini-3-flash",
-  ].filter((m, i, arr) => m && arr.indexOf(m) === i);
+  const modelsToTry = [primaryModel].filter(Boolean);
 
   let lastError: any = null;
 
@@ -167,7 +163,10 @@ async function callLLM({
   jsonOutput?: boolean;
 }): Promise<string> {
   const effectiveBaseUrl = await assertSafeBaseUrl(customUrl, provider);
-  const effectiveModel = model || DEFAULT_MODELS[provider]?.[0] || "gemini-3.6-flash";
+  const effectiveModel = model || "";
+  if (!effectiveModel) {
+    throw new Error("未设置模型，请先在设置中「自动获取可用模型」或手动填写模型");
+  }
 
   // Use Google Gemini SDK if provider is gemini OR if no custom API key is supplied
   if (provider === "gemini" || (!apiKey && provider !== "custom")) {
@@ -251,7 +250,10 @@ async function* callLLMStream({
   signal?: AbortSignal;
 }): AsyncGenerator<string> {
   const effectiveBaseUrl = await assertSafeBaseUrl(customUrl, provider);
-  const effectiveModel = model || DEFAULT_MODELS[provider]?.[0] || "gemini-3.6-flash";
+  const effectiveModel = model || "";
+  if (!effectiveModel) {
+    throw new Error("未设置模型，请先在设置中「自动获取可用模型」或手动填写模型");
+  }
 
   // Use Google Gemini SDK if provider is gemini OR if no custom API key is supplied
   if (provider === "gemini" || (!apiKey && provider !== "custom")) {
@@ -260,11 +262,7 @@ async function* callLLMStream({
     if (systemInstruction) config.systemInstruction = systemInstruction;
     if (jsonOutput) config.responseMimeType = "application/json";
 
-    const modelsToTry = [
-      effectiveModel,
-      "gemini-3.6-flash",
-      "gemini-3-flash",
-    ].filter((m, i, arr) => m && arr.indexOf(m) === i);
+    const modelsToTry = [effectiveModel].filter(Boolean);
 
     let lastError: any = null;
     let yieldedAny = false;
@@ -485,9 +483,9 @@ app.post("/api/models", rateLimit, async (req, res) => {
       }
     }
 
-    // No usable key for this provider: preset defaults (cannot verify).
+    // No usable key for this provider: cannot verify — return an empty list.
     if (provider === "gemini" || (!apiKey && provider !== "custom")) {
-      return res.json({ models: DEFAULT_MODELS[provider] || DEFAULT_MODELS.gemini, source: "default" });
+      return res.json({ models: [], source: "default" });
     }
 
     try {
@@ -519,8 +517,8 @@ app.post("/api/models", rateLimit, async (req, res) => {
       console.warn(`Could not fetch live model list for ${provider}:`, err.message);
     }
 
-    // Fallback preset models
-    res.json({ models: DEFAULT_MODELS[provider] || DEFAULT_MODELS.gemini, source: "default" });
+    // Could not fetch a live list — return an empty list.
+    res.json({ models: [], source: "default" });
   } catch (err: any) {
     res.status(500).json({ error: err.message || "Failed to fetch models" });
   }

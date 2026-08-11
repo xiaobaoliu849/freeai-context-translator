@@ -86,7 +86,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
   const activeConfig = settings.providerConfigs?.[activeProvider] || {
     apiKey: activeProvider === 'gemini' ? settings.geminiApiKey : '',
     baseUrl: '',
-    model: settings.apiModel || 'gemini-3.6-flash',
+    model: settings.apiModel || '',
     availableModels: [],
   };
 

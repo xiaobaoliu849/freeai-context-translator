@@ -154,6 +154,6 @@ export function bridgeTtsStream(
   return bridgeClient.call('tts-stream', payload, onDelta);
 }
 
-export function bridgeModels(payload: { provider: string; baseUrl?: string }): Promise<{ models: string[]; source: 'live' | 'default' }> {
+export function bridgeModels(payload: { provider: string; baseUrl?: string; apiKey?: string }): Promise<{ models: string[]; source: 'live' | 'default' }> {
   return bridgeClient.call('models', payload);
 }

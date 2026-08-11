@@ -82,7 +82,7 @@ const SelectionPopover: React.FC<SelectionPopoverProps> = ({ selectedText, posit
         const activeConfig = settings.providerConfigs?.[activeProvider] || {
           apiKey: '',
           baseUrl: '',
-          model: settings.apiModel || 'gemini-3.6-flash',
+          model: settings.apiModel || '',
           availableModels: [],
         };
 
