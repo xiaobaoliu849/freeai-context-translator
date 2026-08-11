@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
-import { X, Trash2, Copy, Check, Clock, ArrowRight, Download, Search } from 'lucide-react';
-import { HistoryItem } from '../types';
+import { X, Trash2, Copy, Check, Clock, ArrowRight, Download, Search, Volume2, Loader2, RefreshCw } from 'lucide-react';
+import { HistoryItem, AppSettings } from '../types';
+import { audioPlayer } from '../utils/audio';
 
 interface HistoryDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   history: HistoryItem[];
+  settings: AppSettings;
   onSelectHistory: (item: HistoryItem) => void;
+  onRetranslate: (item: HistoryItem) => void;
   onClearHistory: () => void;
 }
 
@@ -14,11 +17,15 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
   isOpen,
   onClose,
   history,
+  settings,
   onSelectHistory,
+  onRetranslate,
   onClearHistory,
 }) => {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const [playPhase, setPlayPhase] = useState<'generating' | 'playing' | null>(null);
 
   if (!isOpen) return null;
 
@@ -27,6 +34,34 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
     navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 1500);
+  };
+
+  const handleReplay = (item: HistoryItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (playingId === item.id) {
+      audioPlayer.stopAll();
+      setPlayingId(null);
+      setPlayPhase(null);
+      return;
+    }
+    audioPlayer.speak({
+      text: item.translation,
+      lang: item.targetLang || 'zh-CN',
+      engine: settings.ttsEngine,
+      voice: settings.ttsVoice,
+      rate: settings.ttsRate,
+      apiKey: settings.geminiApiKey,
+      providerConfigs: settings.providerConfigs,
+      onStart: () => {
+        setPlayingId(item.id);
+        setPlayPhase('generating');
+      },
+      onAudioStart: () => setPlayPhase('playing'),
+      onEnd: () => {
+        setPlayingId(null);
+        setPlayPhase(null);
+      },
+    });
   };
 
   const handleExport = () => {
@@ -127,13 +162,50 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
                     Load sentence <ArrowRight className="w-3 h-3" />
                   </span>
 
-                  <button
-                    onClick={(e) => handleCopy(item.translation, item.id, e)}
-                    className="p-1 rounded text-slate-400 hover:text-slate-700 cursor-pointer"
-                    title="Copy translation"
-                  >
-                    {copiedId === item.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                  </button>
+                  <div className="flex items-center gap-0.5">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRetranslate(item);
+                        onClose();
+                      }}
+                      className="p-1 rounded text-slate-400 hover:text-indigo-600 cursor-pointer"
+                      title="再翻译 (retranslate with current settings)"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                    </button>
+
+                    <button
+                      onClick={(e) => handleReplay(item, e)}
+                      className={`p-1 rounded cursor-pointer ${
+                        playingId === item.id ? 'text-indigo-600' : 'text-slate-400 hover:text-indigo-600'
+                      }`}
+                      title="重播译文 (replay translation audio)"
+                    >
+                      {playingId === item.id ? (
+                        playPhase === 'generating' ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <span className="ft-eq" style={{ height: 14 }}>
+                            <span />
+                            <span />
+                            <span />
+                            <span />
+                          </span>
+                        )
+                      ) : (
+                        <Volume2 className="w-3.5 h-3.5" />
+                      )}
+                    </button>
+
+                    <button
+                      onClick={(e) => handleCopy(item.translation, item.id, e)}
+                      className="p-1 rounded text-slate-400 hover:text-slate-700 cursor-pointer"
+                      title="Copy translation"
+                    >
+                      {copiedId === item.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
                 </div>
               </div>
             ))

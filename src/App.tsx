@@ -49,6 +49,9 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
+  // Bumped when the user retranslates a history item (TranslatorMain reacts).
+  const [retranslateSignal, setRetranslateSignal] = useState(0);
+
   // Settings & History State with LocalStorage
   const [settings, setSettings] = useState<AppSettings>(() => {
     try {
@@ -218,6 +221,7 @@ export default function App() {
           onSaveHistory={handleSaveHistoryItem}
           openSettings={() => setIsSettingsOpen(true)}
           openHistory={() => setIsHistoryOpen(true)}
+          retranslateSignal={retranslateSignal}
         />
       </main>
 
@@ -234,10 +238,17 @@ export default function App() {
         isOpen={isHistoryOpen}
         onClose={() => setIsHistoryOpen(false)}
         history={history}
+        settings={settings}
         onSelectHistory={(item) => {
           setSourceText(item.sourceText);
           setSourceLang(item.sourceLang);
           setTargetLang(item.targetLang);
+        }}
+        onRetranslate={(item) => {
+          setSourceText(item.sourceText);
+          setSourceLang(item.sourceLang);
+          setTargetLang(item.targetLang);
+          setRetranslateSignal((s) => s + 1);
         }}
         onClearHistory={() => {
           setHistory([]);

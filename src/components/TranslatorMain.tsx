@@ -18,6 +18,8 @@ interface TranslatorMainProps {
   onSaveHistory: (item: { sourceText: string; translation: string; sourceLang: string; targetLang: string }) => void;
   openSettings: () => void;
   openHistory: () => void;
+  /** Bumped by App when the user retranslates a history item. */
+  retranslateSignal?: number;
 }
 
 /** Small icon that reflects the current TTS state of a play button. */
@@ -51,6 +53,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
   onSaveHistory,
   openSettings,
   openHistory,
+  retranslateSignal = 0,
 }) => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<TranslationResult | null>(null);
@@ -267,6 +270,18 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
     el.style.height = 'auto';
     el.style.height = `${Math.min(Math.max(el.scrollHeight, 90), 260)}px`;
   }, [sourceText]);
+
+  // History "retranslate" trigger: App bumps this counter after loading an
+  // item's text/langs, so we re-run the translation with current settings.
+  const retranslateHandledRef = useRef(0);
+  useEffect(() => {
+    if (retranslateSignal && retranslateSignal !== retranslateHandledRef.current) {
+      retranslateHandledRef.current = retranslateSignal;
+      if (sourceText.trim()) {
+        handleTranslate();
+      }
+    }
+  }, [retranslateSignal]);
 
   // Handle selecting a word in context with instant cache retrieval
   const handleSelectWord = async (word: string) => {
