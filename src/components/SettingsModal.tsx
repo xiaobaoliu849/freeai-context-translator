@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   X,
   Save,
@@ -14,10 +14,13 @@ import {
   ExternalLink,
   Volume2,
   VolumeX,
+  Download,
+  Upload,
 } from 'lucide-react';
 import { AppSettings, ProviderType, TTSEngine, ProviderConfig } from '../types';
 import { DEFAULT_MODELS } from '../config';
 import { audioPlayer } from '../utils/audio';
+import { exportSettingsToFile, parseSettingsFile } from '../utils/settingsExport';
 import { bridgeModels, isExtensionContext } from '../services/bridge';
 
 interface SettingsModalProps {
@@ -119,6 +122,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [fetchingModels, setFetchingModels] = useState(false);
   const [fetchMessage, setFetchMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [validating, setValidating] = useState(false);
+  const [backupMessage, setBackupMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const importFileRef = useRef<HTMLInputElement>(null);
   const [validationResult, setValidationResult] = useState<{
     status: 'ok' | 'issues' | 'unverifiable' | 'error';
     source: 'live' | 'default';
@@ -310,6 +315,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setSavedSuccess(false);
       onClose();
     }, 600);
+  };
+
+  const handleExportSettings = () => {
+    try {
+      exportSettingsToFile(formData);
+      setBackupMessage({ text: '配置已导出（文件内含 API Key，请妥善保管）', type: 'success' });
+    } catch (err: any) {
+      setBackupMessage({ text: `导出失败: ${err?.message || '未知错误'}`, type: 'error' });
+    }
+  };
+
+  const handleImportSettings = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-selecting the same file
+    if (!file) return;
+    try {
+      const imported = parseSettingsFile(await file.text());
+      setFormData(imported);
+      onSaveSettings(imported); // persist immediately (localStorage + chrome.storage mirror)
+      setBackupMessage({ text: '配置已导入并立即生效', type: 'success' });
+    } catch (err: any) {
+      setBackupMessage({ text: `导入失败: ${err?.message || '文件格式不正确'}`, type: 'error' });
+    }
   };
 
   return (
@@ -618,6 +646,51 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   onChange={(e) => setFormData({ ...formData, selectInputElementsText: e.target.checked })}
                   className="w-4 h-4 accent-indigo-600 rounded"
                 />
+              </div>
+
+              {/* Settings Backup / Restore */}
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                <p className="text-xs font-bold text-slate-700 flex items-center gap-1.5 mb-1">
+                  <Download className="w-3.5 h-3.5 text-slate-500" />
+                  配置备份 (Backup & Restore)
+                </p>
+                <p className="text-[11px] text-amber-600 mb-2 leading-relaxed">
+                  导出的 JSON 包含全部 API Key，可在另一台设备/浏览器一键恢复；请勿分享给他人。
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleExportSettings}
+                    className="px-3 py-1.5 text-[11px] font-bold text-slate-700 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    导出配置
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => importFileRef.current?.click()}
+                    className="px-3 py-1.5 text-[11px] font-bold text-slate-700 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    导入配置
+                  </button>
+                  <input
+                    ref={importFileRef}
+                    type="file"
+                    accept="application/json,.json"
+                    className="hidden"
+                    onChange={handleImportSettings}
+                  />
+                </div>
+                {backupMessage && (
+                  <p
+                    className={`mt-1.5 text-[11px] font-medium ${
+                      backupMessage.type === 'success' ? 'text-emerald-600' : 'text-amber-600'
+                    }`}
+                  >
+                    {backupMessage.text}
+                  </p>
+                )}
               </div>
             </div>
           )}
