@@ -30,6 +30,8 @@ export interface ProviderConfig {
 }
 
 export interface AppSettings {
+  /** Bumped when the stored settings format changes; used for one-time migrations. */
+  settingsVersion?: number;
   defaultProvider: ProviderType;
   providerConfigs: Record<ProviderType, ProviderConfig>;
   // Legacy compatibility fields

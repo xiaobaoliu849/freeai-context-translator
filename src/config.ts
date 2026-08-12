@@ -46,6 +46,11 @@ export const DEFAULT_PROVIDER_CONFIGS: Record<ProviderType, ProviderConfig> = Ob
   ]),
 ) as Record<ProviderType, ProviderConfig>;
 
+// Version of the stored settings schema. Increment + add a one-time migration
+// in migrateSettings whenever a default changes so existing installs are
+// brought in line instead of keeping stale values forever.
+export const SETTINGS_VERSION = 2;
+
 export const DEFAULT_SETTINGS: AppSettings = {
   defaultProvider: 'gemini',
   providerConfigs: DEFAULT_PROVIDER_CONFIGS,
@@ -67,6 +72,24 @@ export const DEFAULT_SETTINGS: AppSettings = {
 };
 
 /**
+ * One-time migrations for settings saved by older builds. Runs whenever the
+ * stored settings have no settingsVersion marker, then stamps the current
+ * version so the migration never re-applies.
+ *
+ * v1 → v2: autoTranslate used to default to `true`, so any settings saved by
+ * an older build silently keep auto-translating on input even though the new
+ * default is off. Reset it once (users who re-enable it explicitly later are
+ * unaffected — the marker prevents this from running again).
+ */
+export function migrateSettings(parsed: Partial<AppSettings>): Partial<AppSettings> {
+  if (parsed.settingsVersion === undefined) {
+    parsed.autoTranslate = false;
+    parsed.settingsVersion = SETTINGS_VERSION;
+  }
+  return parsed;
+}
+
+/**
  * Loads saved AppSettings from a JSON blob (localStorage / chrome.storage),
  * merging with defaults so newly added fields always exist.
  *
@@ -83,7 +106,7 @@ export function parseSavedSettings(raw: string | Partial<AppSettings> | null | u
       typeof raw === 'object' ? (raw as Partial<AppSettings>) : (JSON.parse(raw) as Partial<AppSettings>);
     return {
       ...fallback,
-      ...parsed,
+      ...migrateSettings(parsed),
       providerConfigs: {
         ...DEFAULT_PROVIDER_CONFIGS,
         ...(parsed.providerConfigs || {}),

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Volume2, Loader2, Copy, Check, Eraser, RefreshCw, Settings, History, Sparkles, X, ArrowRightLeft } from 'lucide-react';
+import { Volume2, Loader2, Copy, Check, Eraser, RefreshCw, Settings, History, Sparkles, X, ArrowRightLeft, Zap } from 'lucide-react';
 import { AppSettings, TranslationResult, WordExplanation } from '../types';
 import { audioPlayer } from '../utils/audio';
 import { consumeSSE, extractPartialTranslation } from '../services/streaming';
@@ -613,6 +613,16 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
           {/* Input Box Actions Toolbar */}
           <div className="flex items-center justify-between px-3.5 py-2 border-t border-slate-100 bg-slate-50/60 text-slate-500 text-xs">
             <div className="flex items-center gap-1.5">
+              {settings.autoTranslate && (
+                <button
+                  onClick={openSettings}
+                  title="「打字实时翻译」已开启：输入停顿 500ms 后自动翻译。点击可在设置中关闭"
+                  className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-600 hover:bg-indigo-100 transition-colors cursor-pointer shrink-0"
+                >
+                  <Zap className="w-3 h-3" />
+                  <span className="text-[10px] font-bold leading-none">实时翻译</span>
+                </button>
+              )}
               <span className={`text-[11px] font-bold ${
                 sourceText.length > 4500 ? 'text-rose-600' : sourceText.length > 3500 ? 'text-amber-600' : 'text-slate-400'
               }`}>

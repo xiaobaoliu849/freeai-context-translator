@@ -3,7 +3,7 @@ import { Header } from './components/Header';
 import { TranslatorMain } from './components/TranslatorMain';
 import { SettingsModal } from './components/SettingsModal';
 import { HistoryDrawer } from './components/HistoryDrawer';
-import { DEFAULT_PROVIDER_CONFIGS, DEFAULT_SETTINGS, SUPPORTED_LANGUAGES } from './config';
+import { DEFAULT_PROVIDER_CONFIGS, DEFAULT_SETTINGS, SUPPORTED_LANGUAGES, migrateSettings } from './config';
 import { AppSettings, HistoryItem } from './types';
 
 const STORAGE_KEYS = {
@@ -111,6 +111,11 @@ export default function App() {
         if (!apiModel || allLegacy.includes(apiModel)) {
           apiModel = mergedConfigs[activeProvider]?.model || DEFAULT_SETTINGS.apiModel;
         }
+
+        // One-time migration (v1 → v2): older builds saved autoTranslate=true
+        // (the old default), so stale installs keep auto-translating while
+        // typing. Reset it once and stamp the version — see migrateSettings.
+        migrateSettings(parsed);
 
         return {
           ...DEFAULT_SETTINGS,
