@@ -32,7 +32,7 @@ jobs:
       - name: Build extension
         run: npm run build:ext
 
-      - name: Sanity check: extension artifacts
+      - name: "Sanity check: extension artifacts"
         run: |
           set -euo pipefail
           # content script must be a classic script (IIFE) — a top-level
@@ -51,7 +51,7 @@ jobs:
           test -s dist/content.css
           echo "extension artifacts OK"
 
-      - name: Sanity check: server bundle
+      - name: "Sanity check: server bundle"
         run: |
           set -euo pipefail
           node --check dist-web/server.cjs
