@@ -72,6 +72,9 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
   // Streaming typewriter state (grows while /api/translate/stream is live)
   const [streamingText, setStreamingText] = useState('');
   const streamAbortRef = useRef<AbortController | null>(null);
+  // Mirrors the latest streamed text so a manual "stop" can preserve the
+  // partial translation (React state is async and can't be read in the catch).
+  const streamingTextRef = useRef('');
 
   // Selected word context state & cache
   const [selectedWord, setSelectedWord] = useState<string | null>(null);
@@ -118,6 +121,15 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
 
   // In-memory word explanation cache
   const wordCacheRef = useRef<Record<string, WordExplanation>>({});
+  // Cap the in-memory word cache so long sessions don't grow it unbounded.
+  const cacheWord = (key: string, value: WordExplanation) => {
+    const cache = wordCacheRef.current;
+    cache[key] = value;
+    const keys = Object.keys(cache);
+    if (keys.length > 200) {
+      delete cache[keys[0]];
+    }
+  };
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Guards against stale responses: only the latest translate request may
@@ -136,7 +148,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
    * Streaming translate through the background bridge (extension context):
    * deltas arrive over the port and drive the same typewriter UI.
    */
-  const translateViaBridge = async (): Promise<{ translation: string; detectedLang?: string }> => {
+  const translateViaBridge = async (signal: AbortSignal): Promise<{ translation: string; detectedLang?: string }> => {
     let raw = '';
     return bridgeTranslate(
       {
@@ -150,8 +162,12 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
       (delta) => {
         raw += delta;
         const partial = extractPartialTranslation(raw);
-        if (partial) setStreamingText(partial.text);
+        if (partial) {
+          streamingTextRef.current = partial.text;
+          setStreamingText(partial.text);
+        }
       },
+      signal,
     );
   };
 
@@ -160,15 +176,12 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
    * text as deltas arrive. Throws if the stream ends in an error without a
    * result, so the caller can fall back to the non-streaming path.
    */
-  const translateViaStream = async (body: string): Promise<{ translation: string; detectedLang?: string }> => {
-    const controller = new AbortController();
-    streamAbortRef.current = controller;
-
+  const translateViaStream = async (body: string, signal: AbortSignal): Promise<{ translation: string; detectedLang?: string }> => {
     const res = await fetch('/api/translate/stream', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body,
-      signal: controller.signal,
+      signal,
     });
     if (!res.ok || !res.body) {
       throw new Error('Streaming API unavailable');
@@ -191,7 +204,10 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
         if (evt.delta !== undefined) {
           raw += evt.delta;
           const partial = extractPartialTranslation(raw);
-          if (partial) setStreamingText(partial.text);
+          if (partial) {
+            streamingTextRef.current = partial.text;
+            setStreamingText(partial.text);
+          }
         } else if (evt.done && evt.result) {
           doneResult = evt.result;
         } else if (evt.error) {
@@ -211,11 +227,15 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
     if (!text || !text.trim()) return;
 
     const requestId = ++translateReqIdRef.current;
+    // Cancel any in-flight request from a previous translate (web SSE or the
+    // background bridge) before starting this one.
+    streamAbortRef.current?.abort();
+    const controller = new AbortController();
+    streamAbortRef.current = controller;
     setLoading(true);
     setError(null);
+    streamingTextRef.current = '';
     setStreamingText('');
-    // Cancel any in-flight stream from a previous request
-    streamAbortRef.current?.abort();
 
     try {
       let data: any;
@@ -233,11 +253,12 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
       try {
         // 1. Prefer streaming. In the extension this goes through the
         // background bridge; in the web app through the server SSE endpoint.
-        data = isExtensionContext() ? await translateViaBridge() : await translateViaStream(body);
+        data = isExtensionContext() ? await translateViaBridge(controller.signal) : await translateViaStream(body, controller.signal);
       } catch (err: any) {
-        // If this request was aborted because a newer one started, don't
-        // waste a call on the fallback path — just propagate.
+        // If this request was aborted (superseded by a newer one, or the user
+        // pressed Stop), don't waste a call on the fallback path — propagate.
         if (requestId !== translateReqIdRef.current) throw err;
+        if (controller.signal.aborted) throw err;
         // 2. Fall back to the non-streaming server endpoint
         try {
           const res = await fetch('/api/translate', {
@@ -278,6 +299,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
         timestamp: Date.now(),
       };
 
+      streamingTextRef.current = '';
       setStreamingText('');
       setResult(translationObj);
       onSaveHistory({
@@ -288,11 +310,37 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
       });
     } catch (err: any) {
       if (requestId !== translateReqIdRef.current) return;
+      if (controller.signal.aborted) {
+        // Stopped by the user (or superseded): keep whatever was streamed so
+        // far visible instead of showing an error banner.
+        const partial = streamingTextRef.current;
+        if (partial) {
+          setResult({
+            id: Date.now().toString(),
+            sourceText: text,
+            translation: partial,
+            sourceLang,
+            targetLang,
+            timestamp: Date.now(),
+          });
+          streamingTextRef.current = '';
+          setStreamingText('');
+        }
+        return;
+      }
       console.error('Translation error:', err);
       setError(err.message || 'Translation failed');
     } finally {
-      if (requestId === translateReqIdRef.current) setLoading(false);
+      if (requestId === translateReqIdRef.current) {
+        setLoading(false);
+        if (streamAbortRef.current === controller) streamAbortRef.current = null;
+      }
     }
+  };
+
+  /** Aborts the in-flight stream (web SSE or background bridge). */
+  const handleStop = () => {
+    streamAbortRef.current?.abort();
   };
 
   // Auto-translate debounce
@@ -381,7 +429,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
         });
       }
 
-      wordCacheRef.current[cacheKey] = data; // Store in cache
+      cacheWord(cacheKey, data); // Store in cache
       setWordExplanation(data);
     } catch (err) {
       console.error('Failed to explain word:', err);
@@ -390,7 +438,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
         contextualMeaning: cleanWord,
         contextExplanation: `In-context analysis for "${cleanWord}".`,
       };
-      wordCacheRef.current[cacheKey] = fallbackObj;
+      cacheWord(cacheKey, fallbackObj);
       setWordExplanation(fallbackObj);
     } finally {
       setExplainingWord(false);
@@ -534,15 +582,28 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
           ))}
         </div>
 
-        {/* Translate Button */}
+        {/* Translate / Stop Button */}
         <button
-          onClick={() => handleTranslate()}
-          disabled={loading || !sourceText.trim()}
-          className="flex items-center justify-center gap-1.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white text-xs font-extrabold px-3.5 py-1.5 rounded-xl transition-all shadow-2xs hover:shadow-xs disabled:opacity-40 cursor-pointer shrink-0"
-          title="快捷键: Enter（Shift+Enter 换行）"
+          onClick={() => (loading ? handleStop() : handleTranslate())}
+          disabled={!sourceText.trim()}
+          className={`flex items-center justify-center gap-1.5 text-white text-xs font-extrabold px-3.5 py-1.5 rounded-xl transition-all shadow-2xs hover:shadow-xs disabled:opacity-40 cursor-pointer shrink-0 ${
+            loading
+              ? 'bg-rose-500 hover:bg-rose-600'
+              : 'bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700'
+          }`}
+          title={loading ? '停止生成' : '快捷键: Enter（Shift+Enter 换行）'}
         >
-          <Sparkles className="w-3.5 h-3.5 text-indigo-200 shrink-0" />
-          <span>{loading ? '翻译中...' : '翻译'}</span>
+          {loading ? (
+            <>
+              <X className="w-3.5 h-3.5 shrink-0" />
+              <span>停止</span>
+            </>
+          ) : (
+            <>
+              <Sparkles className="w-3.5 h-3.5 text-indigo-200 shrink-0" />
+              <span>翻译</span>
+            </>
+          )}
         </button>
       </div>
 

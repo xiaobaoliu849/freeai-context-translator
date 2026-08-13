@@ -51,6 +51,7 @@ async function* callLLMStreamRaw({
   prompt,
   systemInstruction,
   jsonOutput = false,
+  signal,
 }: {
   provider: string;
   apiKey?: string;
@@ -59,6 +60,7 @@ async function* callLLMStreamRaw({
   prompt: string;
   systemInstruction?: string;
   jsonOutput?: boolean;
+  signal?: AbortSignal;
 }): AsyncGenerator<string> {
   const effectiveBaseUrl = (baseUrl || DEFAULT_BASE_URLS[provider] || '').replace(/\/+$/, '');
   const effectiveModel = model || '';
@@ -79,6 +81,7 @@ async function* callLLMStreamRaw({
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
       body: JSON.stringify(body),
+      signal,
     });
     if (!res.ok) {
       const errText = await res.text();
@@ -96,6 +99,7 @@ async function* callLLMStreamRaw({
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
+      if (signal?.aborted) break;
       const chunk = decoder.decode(value, { stream: true });
       allRaw += chunk;
       buffer += chunk;
@@ -173,6 +177,7 @@ async function* callLLMStreamRaw({
     method: 'POST',
     headers,
     body: JSON.stringify(payload),
+    signal,
   });
   if (!res.ok) {
     const errText = await res.text();
@@ -186,6 +191,7 @@ async function* callLLMStreamRaw({
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
+    if (signal?.aborted) break;
     buffer += decoder.decode(value, { stream: true });
     const lines = buffer.split('\n');
     buffer = lines.pop() ?? '';
@@ -546,6 +552,15 @@ async function fetchModels({ provider, baseUrl, apiKey, settings }: { provider: 
 export function handleBridgePort(port: chrome.runtime.Port) {
   if (port.name !== BRIDGE_PORT_NAME) return;
 
+  // Abort controllers for in-flight streaming requests, keyed by request id.
+  // The client posts a `cancel` message when its AbortSignal fires, and we
+  // abort the matching upstream fetch so aborted streams stop burning tokens.
+  const inFlight = new Map<number, AbortController>();
+  port.onDisconnect.addListener(() => {
+    for (const ctrl of inFlight.values()) ctrl.abort();
+    inFlight.clear();
+  });
+
   port.onMessage.addListener(async (msg: any) => {
     if (msg?.type !== 'request' || typeof msg.id !== 'number') return;
     const reply = (type: 'delta' | 'done' | 'error', extra: Record<string, any> = {}) => {
@@ -556,6 +571,12 @@ export function handleBridgePort(port: chrome.runtime.Port) {
       }
     };
 
+    if (msg.kind === 'cancel') {
+      inFlight.get(msg.id)?.abort();
+      inFlight.delete(msg.id);
+      return;
+    }
+
     try {
       const settings = await getBridgeSettings();
 
@@ -564,36 +585,47 @@ export function handleBridgePort(port: chrome.runtime.Port) {
         if (!text || !text.trim()) throw new Error('Text is required');
         const cfg = resolveProviderConfig(settings, provider);
         console.log('[bg:translate]', { provider, model: model || cfg.model, baseUrl: baseUrl || cfg.baseUrl, hasKey: !!cfg.apiKey, textLen: text.length });
-        let raw = '';
-        for await (const delta of callLLMStreamRaw({
-          provider,
-          apiKey: cfg.apiKey,
-          baseUrl: baseUrl || cfg.baseUrl,
-          model: model || cfg.model,
-          prompt: buildTranslatePrompt(text, sourceLang, targetLang),
-          systemInstruction: TRANSLATE_SYSTEM_PROMPT,
-          jsonOutput: true,
-        })) {
-          raw += delta;
-          reply('delta', { text: delta });
-        }
-        const parsed = parseLLMJson(raw);
-        console.log('[bg:translate] rawLen', raw.length, 'rawHead', raw.slice(0, 200));
-        if (!raw.trim() || !parsed.translation) {
-          // A silent empty response usually means the model name doesn't exist
-          // (the provider returns 200 with an empty stream) — surface it
-          // instead of showing a confusing "Translation unavailable.".
-          reply('error', {
-            error: '模型未返回有效内容，可能模型名不存在。请在设置中重新「自动获取可用模型」并选择一个模型。',
+        const ctrl = new AbortController();
+        inFlight.set(msg.id, ctrl);
+        try {
+          let raw = '';
+          for await (const delta of callLLMStreamRaw({
+            provider,
+            apiKey: cfg.apiKey,
+            baseUrl: baseUrl || cfg.baseUrl,
+            model: model || cfg.model,
+            prompt: buildTranslatePrompt(text, sourceLang, targetLang),
+            systemInstruction: TRANSLATE_SYSTEM_PROMPT,
+            jsonOutput: true,
+            signal: ctrl.signal,
+          })) {
+            raw += delta;
+            reply('delta', { text: delta });
+          }
+          if (ctrl.signal.aborted) return; // client cancelled — no reply
+          const parsed = parseLLMJson(raw);
+          console.log('[bg:translate] rawLen', raw.length, 'rawHead', raw.slice(0, 200));
+          if (!raw.trim() || !parsed.translation) {
+            // A silent empty response usually means the model name doesn't exist
+            // (the provider returns 200 with an empty stream) — surface it
+            // instead of showing a confusing "Translation unavailable.".
+            reply('error', {
+              error: '模型未返回有效内容，可能模型名不存在。请在设置中重新「自动获取可用模型」并选择一个模型。',
+            });
+            return;
+          }
+          reply('done', {
+            result: {
+              translation: parsed.translation,
+              detectedLang: parsed.detectedLang || 'Auto',
+            },
           });
-          return;
+        } catch (err: any) {
+          if (ctrl.signal.aborted) return; // cancelled — no error reply
+          throw err;
+        } finally {
+          inFlight.delete(msg.id);
         }
-        reply('done', {
-          result: {
-            translation: parsed.translation,
-            detectedLang: parsed.detectedLang || 'Auto',
-          },
-        });
         return;
       }
 

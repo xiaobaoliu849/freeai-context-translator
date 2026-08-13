@@ -46,6 +46,8 @@ interface PendingCall {
   resolve: (value: any) => void;
   reject: (err: Error) => void;
   onDelta?: (text: string) => void;
+  /** Removes the abort listener once the call settles (prevents leaks). */
+  cleanup?: () => void;
 }
 
 class BridgeClient {
@@ -62,9 +64,11 @@ class BridgeClient {
       if (msg.type === 'delta') {
         p.onDelta?.(msg.text ?? '');
       } else if (msg.type === 'done') {
+        p.cleanup?.();
         this.pending.delete(msg.id);
         p.resolve(msg.result);
       } else if (msg.type === 'error') {
+        p.cleanup?.();
         this.pending.delete(msg.id);
         p.reject(new Error(msg.error || 'Bridge request failed'));
       }
@@ -72,21 +76,56 @@ class BridgeClient {
     port.onDisconnect.addListener(() => {
       this.port = null;
       const err = new Error('Background bridge disconnected');
-      this.pending.forEach((p) => p.reject(err));
+      this.pending.forEach((p) => {
+        p.cleanup?.();
+        p.reject(err);
+      });
       this.pending.clear();
     });
     this.port = port;
     return port;
   }
 
-  /** Sends a request to the background and resolves when `done` arrives. */
-  call<T = any>(kind: string, payload: Record<string, any>, onDelta?: (text: string) => void): Promise<T> {
+  /**
+   * Sends a request to the background and resolves when `done` arrives.
+   * Passing an AbortSignal rejects with an AbortError and tells the background
+   * to cancel the in-flight work (so aborted streams stop burning tokens).
+   */
+  call<T = any>(
+    kind: string,
+    payload: Record<string, any>,
+    onDelta?: (text: string) => void,
+    signal?: AbortSignal,
+  ): Promise<T> {
     const id = this.nextId++;
     return new Promise<T>((resolve, reject) => {
-      this.pending.set(id, { resolve, reject, onDelta });
+      const onAbort = () => {
+        if (!this.pending.has(id)) return;
+        this.pending.delete(id);
+        try {
+          this.ensurePort().postMessage({ id, kind: 'cancel', type: 'request', payload: {} });
+        } catch {
+          // port closed — nothing to cancel
+        }
+        const err = new Error('Aborted');
+        err.name = 'AbortError';
+        reject(err);
+      };
+      const cleanup = () => signal?.removeEventListener('abort', onAbort);
+
+      if (signal) {
+        if (signal.aborted) {
+          onAbort();
+          return;
+        }
+        signal.addEventListener('abort', onAbort, { once: true });
+      }
+
+      this.pending.set(id, { resolve, reject, onDelta, cleanup });
       try {
         this.ensurePort().postMessage({ id, kind, type: 'request', payload });
       } catch (err) {
+        cleanup();
         this.pending.delete(id);
         reject(err);
       }
@@ -112,8 +151,9 @@ export interface BridgeTranslatePayload {
 export function bridgeTranslate(
   payload: BridgeTranslatePayload,
   onDelta?: (text: string) => void,
+  signal?: AbortSignal,
 ): Promise<{ translation: string; detectedLang?: string }> {
-  return bridgeClient.call('translate', payload, onDelta);
+  return bridgeClient.call('translate', payload, onDelta, signal);
 }
 
 export function bridgeExplain(payload: {

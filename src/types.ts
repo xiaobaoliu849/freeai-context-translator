@@ -104,5 +104,4 @@ export interface HistoryItem {
   sourceLang: string;
   targetLang: string;
   timestamp: number;
-  favorite?: boolean;
 }

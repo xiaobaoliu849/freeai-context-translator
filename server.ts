@@ -67,6 +67,13 @@ const privateHostCache = new Map<string, { private: boolean; at: number }>();
 async function isPrivateHost(hostname: string): Promise<boolean> {
   const cached = privateHostCache.get(hostname);
   if (cached && Date.now() - cached.at < 60_000) return cached.private;
+  // Bound the cache: evict expired entries once it grows large.
+  if (privateHostCache.size > 500) {
+    const now = Date.now();
+    for (const [h, v] of privateHostCache) {
+      if (now - v.at >= 60_000) privateHostCache.delete(h);
+    }
+  }
   const hosts = await dns.promises.lookup(hostname, { all: true });
   const privateHost = hosts.some((h) => isPrivateIp(h.address));
   privateHostCache.set(hostname, { private: privateHost, at: Date.now() });
@@ -98,6 +105,12 @@ function rateLimit(req: express.Request, res: express.Response, next: express.Ne
   const key = req.ip || req.socket?.remoteAddress || "unknown";
   const now = Date.now();
   const windowStart = now - 60_000;
+  // Opportunistically drop expired buckets so the map can't grow unbounded.
+  if (rateBuckets.size > 1000) {
+    for (const [k, arr] of rateBuckets) {
+      if (!arr.some((t) => t > windowStart)) rateBuckets.delete(k);
+    }
+  }
   const hits = (rateBuckets.get(key) || []).filter((t) => t > windowStart);
   if (hits.length >= RATE_LIMIT_PER_MIN) {
     res.setHeader("Retry-After", "60");
