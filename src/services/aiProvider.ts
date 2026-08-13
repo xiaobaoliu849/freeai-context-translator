@@ -1,5 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
-import { DEFAULT_BASE_URLS } from "../config";
+import { callLLM } from "./llm";
 import { bridgeExplain, bridgeTranslate, isExtensionContext } from "./bridge";
 import {
   EXPLAIN_SYSTEM_PROMPT,
@@ -8,87 +7,6 @@ import {
   buildTranslatePrompt,
   parseLLMJson,
 } from "./prompts";
-
-export async function callLLMClient({
-  provider = "gemini",
-  apiKey = "",
-  baseUrl = "",
-  model = "",
-  prompt,
-  systemInstruction = "",
-  jsonOutput = false,
-}: {
-  provider?: string;
-  apiKey?: string;
-  baseUrl?: string;
-  model?: string;
-  prompt: string;
-  systemInstruction?: string;
-  jsonOutput?: boolean;
-}): Promise<string> {
-  const effectiveBaseUrl = (baseUrl || DEFAULT_BASE_URLS[provider] || "").replace(/\/+$/, "");
-  const effectiveModel = model || "";
-  if (!effectiveModel) {
-    throw new Error("未设置模型，请先在设置中「自动获取可用模型」或手动填写模型");
-  }
-
-  // Gemini API
-  if (provider === "gemini" || (!apiKey && provider !== "custom")) {
-    if (!apiKey) {
-      throw new Error("Gemini API Key is required. Please set it in Settings.");
-    }
-    const ai = new GoogleGenAI({ apiKey });
-    const config: any = {};
-    if (systemInstruction) config.systemInstruction = systemInstruction;
-    if (jsonOutput) config.responseMimeType = "application/json";
-
-    const response = await ai.models.generateContent({
-      model: effectiveModel,
-      contents: prompt,
-      config,
-    });
-    return response.text || "";
-  }
-
-  // OpenAI-Compatible REST API
-  const endpoint = `${effectiveBaseUrl}/chat/completions`;
-  const messages: any[] = [];
-  if (systemInstruction) {
-    messages.push({ role: "system", content: systemInstruction });
-  }
-  messages.push({ role: "user", content: prompt });
-
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-  if (apiKey) {
-    headers["Authorization"] = `Bearer ${apiKey}`;
-  }
-
-  const payload: any = {
-    model: effectiveModel,
-    messages,
-    temperature: 0.3,
-  };
-
-  if (jsonOutput) {
-    payload.response_format = { type: "json_object" };
-  }
-
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`${provider.toUpperCase()} API error (${response.status}): ${errText}`);
-  }
-
-  const data = await response.json();
-  return data?.choices?.[0]?.message?.content || "";
-}
 
 export async function translateTextClient(params: {
   text: string;
@@ -127,7 +45,7 @@ export async function translateTextClient(params: {
     };
   }
 
-  const raw = await callLLMClient({
+  const raw = await callLLM({
     provider,
     apiKey,
     baseUrl,
@@ -176,7 +94,7 @@ export async function explainWordClient(params: {
     });
   }
 
-  const raw = await callLLMClient({
+  const raw = await callLLM({
     provider,
     apiKey,
     baseUrl,

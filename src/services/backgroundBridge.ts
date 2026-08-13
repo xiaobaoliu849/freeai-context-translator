@@ -8,6 +8,7 @@ import {
   parseLLMJson,
 } from './prompts';
 import { BRIDGE_PORT_NAME, SETTINGS_STORAGE_KEY } from './bridge';
+import { callLLM, callLLMStream } from './llm';
 
 // ---------------------------
 // Settings (keys live only here, in the extension's own context)
@@ -32,191 +33,6 @@ function resolveProviderConfig(settings: AppSettings, provider: string) {
     baseUrl: (cfg.baseUrl || DEFAULT_BASE_URLS[provider] || '').replace(/\/+$/, ''),
     model: cfg.model || '',
   };
-}
-
-// ---------------------------
-// Raw-fetch LLM streaming (works in the service worker, no SDK needed)
-// ---------------------------
-
-/**
- * Yields text deltas from the LLM provider. Gemini uses the REST
- * streamGenerateContent SSE endpoint; everything else uses the OpenAI-compatible
- * chat completions stream.
- */
-async function* callLLMStreamRaw({
-  provider,
-  apiKey,
-  baseUrl,
-  model,
-  prompt,
-  systemInstruction,
-  jsonOutput = false,
-  signal,
-}: {
-  provider: string;
-  apiKey?: string;
-  baseUrl?: string;
-  model?: string;
-  prompt: string;
-  systemInstruction?: string;
-  jsonOutput?: boolean;
-  signal?: AbortSignal;
-}): AsyncGenerator<string> {
-  const effectiveBaseUrl = (baseUrl || DEFAULT_BASE_URLS[provider] || '').replace(/\/+$/, '');
-  const effectiveModel = model || '';
-  if (!effectiveModel) {
-    throw new Error('未设置模型，请先在设置中「自动获取可用模型」或手动填写模型');
-  }
-
-  if (provider === 'gemini' || (!apiKey && provider !== 'custom')) {
-    if (!apiKey) {
-      throw new Error('Gemini API Key is required. Please set it in Settings.');
-    }
-    const url = `${effectiveBaseUrl}/v1beta/models/${encodeURIComponent(effectiveModel)}:streamGenerateContent?alt=sse`;
-    const body: any = { contents: [{ parts: [{ text: prompt }] }] };
-    if (systemInstruction) body.systemInstruction = { parts: [{ text: systemInstruction }] };
-    if (jsonOutput) body.generationConfig = { responseMimeType: 'application/json' };
-
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-      body: JSON.stringify(body),
-      signal,
-    });
-    if (!res.ok) {
-      const errText = await res.text();
-      console.warn('[bg:gemini] HTTP', res.status, errText.slice(0, 300));
-      throw new Error(`Gemini API error (${res.status}): ${errText}`);
-    }
-    if (!res.body) throw new Error('Gemini API returned no stream body');
-    console.log('[bg:gemini] stream start', { url, model: effectiveModel });
-
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    let allRaw = '';
-    let yielded = false;
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (signal?.aborted) break;
-      const chunk = decoder.decode(value, { stream: true });
-      allRaw += chunk;
-      buffer += chunk;
-      const parts = buffer.split('\n\n');
-      buffer = parts.pop() ?? '';
-      for (const part of parts) {
-        const line = part.split('\n').find((l) => l.startsWith('data:'));
-        if (!line) continue;
-        const data = line.slice(5).trim();
-        if (!data || data === '[DONE]') continue;
-        try {
-          const parsed = JSON.parse(data);
-          const text = parsed?.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('') ?? '';
-          if (text) {
-            yielded = true;
-            yield text;
-          }
-        } catch {
-          // ignore partial events
-        }
-      }
-    }
-    // Some models respond with a plain JSON body (no SSE framing), or the
-    // final SSE event lacks the trailing blank line and stayed in `buffer`.
-    // Handle only UNPROCESSED data — parsing `allRaw` again would duplicate
-    // text that the loop already yielded.
-    const tail = buffer.trim();
-    if (tail) {
-      console.log('[bg:gemini] tail', JSON.stringify(tail.slice(0, 400)));
-      const dataLine = tail.split('\n').find((l) => l.startsWith('data:'));
-      const payload = dataLine ? dataLine.slice(5).trim() : tail;
-      try {
-        const parsed = JSON.parse(payload);
-        if (parsed?.error) {
-          throw new Error(`Gemini API error: ${parsed.error.message || JSON.stringify(parsed.error)}`);
-        }
-        const text = parsed?.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('') ?? '';
-        if (text) yield text;
-      } catch (e: any) {
-        // Re-throw API errors, but swallow harmless JSON parse failures
-        // (e.g. a partial SSE event whose text was already yielded).
-        if (e?.message?.startsWith('Gemini API error')) throw e;
-      }
-    }
-    // Whole-body fallback for pretty-printed JSON bodies (multi-line, with
-    // blank lines) that the newline-newline split may have fragmented.
-    if (!yielded && allRaw.trim()) {
-      try {
-        const parsed = JSON.parse(allRaw.trim());
-        if (parsed?.error) {
-          throw new Error(`Gemini API error: ${parsed.error.message || JSON.stringify(parsed.error)}`);
-        }
-        const text = parsed?.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('') ?? '';
-        if (text) yield text;
-      } catch (e: any) {
-        if (e?.message?.startsWith('Gemini API error')) throw e;
-      }
-    }
-    return;
-  }
-
-  // OpenAI-compatible SSE
-  const endpoint = `${effectiveBaseUrl}/chat/completions`;
-  const messages: any[] = [];
-  if (systemInstruction) messages.push({ role: 'system', content: systemInstruction });
-  messages.push({ role: 'user', content: prompt });
-
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
-
-  const payload: any = { model: effectiveModel, messages, temperature: 0.3, stream: true };
-  if (jsonOutput) payload.response_format = { type: 'json_object' };
-
-  const res = await fetch(endpoint, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(payload),
-    signal,
-  });
-  if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`${provider.toUpperCase()} API error (${res.status}): ${errText}`);
-  }
-  if (!res.body) throw new Error(`${provider.toUpperCase()} API returned no stream body`);
-
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    if (signal?.aborted) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split('\n');
-    buffer = lines.pop() ?? '';
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed.startsWith('data:')) continue;
-      const data = trimmed.slice(5).trim();
-      if (!data || data === '[DONE]') continue;
-      try {
-        const parsed = JSON.parse(data);
-        const delta = parsed?.choices?.[0]?.delta?.content;
-        if (delta) yield delta;
-      } catch {
-        // ignore partial lines
-      }
-    }
-  }
-}
-
-async function collectRaw(params: Parameters<typeof callLLMStreamRaw>[0]): Promise<string> {
-  let raw = '';
-  for await (const delta of callLLMStreamRaw(params)) {
-    raw += delta;
-  }
-  return raw;
 }
 
 // ---------------------------
@@ -589,7 +405,7 @@ export function handleBridgePort(port: chrome.runtime.Port) {
         inFlight.set(msg.id, ctrl);
         try {
           let raw = '';
-          for await (const delta of callLLMStreamRaw({
+          for await (const delta of callLLMStream({
             provider,
             apiKey: cfg.apiKey,
             baseUrl: baseUrl || cfg.baseUrl,
@@ -633,7 +449,7 @@ export function handleBridgePort(port: chrome.runtime.Port) {
         const { sentence, selectedWord, targetLang, provider, model, baseUrl } = msg.payload || {};
         if (!selectedWord || !selectedWord.trim()) throw new Error('Selected word is required');
         const cfg = resolveProviderConfig(settings, provider);
-        const raw = await collectRaw({
+        const raw = await callLLM({
           provider,
           apiKey: cfg.apiKey,
           baseUrl: baseUrl || cfg.baseUrl,

@@ -11,6 +11,7 @@ import {
   buildTranslatePrompt,
   parseLLMJson,
 } from "./src/services/prompts";
+import { callLLM as llmCallLLM, callLLMStream as llmCallLLMStream } from "./src/services/llm";
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
@@ -121,47 +122,23 @@ function rateLimit(req: express.Request, res: express.Response, next: express.Ne
   next();
 }
 
-// Helper with exponential retry and model fallback for 503 / 429 errors
-async function generateWithRetryAndFallback(ai: GoogleGenAI, primaryModel: string, config: any) {
-  const modelsToTry = [primaryModel].filter(Boolean);
-
-  let lastError: any = null;
-
-  for (const modelName of modelsToTry) {
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        const response = await ai.models.generateContent({
-          ...config,
-          model: modelName,
-        });
-        return response;
-      } catch (err: any) {
-        lastError = err;
-        const errStr = String(err?.message || err);
-        const isTransient =
-          errStr.includes("503") ||
-          errStr.includes("429") ||
-          errStr.includes("UNAVAILABLE") ||
-          errStr.includes("high demand") ||
-          errStr.includes("RESOURCE_EXHAUSTED");
-
-        if (isTransient && attempt < 2) {
-          // Wait 600ms, 1200ms
-          await new Promise((resolve) => setTimeout(resolve, (attempt + 1) * 600));
-          continue;
-        }
-        break;
-      }
-    }
-  }
-  throw lastError;
+/**
+ * Resolves the server's own API key when the client didn't supply one, so a
+ * self-hosted deployment can hold keys server-side (Gemini's env key is also
+ * used for the legacy "no key → Gemini" fallback).
+ */
+function resolveServerApiKey(provider: string, apiKey: string | undefined): string | undefined {
+  const geminiPath = provider === "gemini" || (!apiKey && provider !== "custom");
+  return geminiPath ? apiKey || process.env.GEMINI_API_KEY : apiKey;
 }
 
-// Universal LLM caller supporting Google Gemini & OpenAI-compatible APIs
+// Universal LLM caller supporting Google Gemini & OpenAI-compatible APIs.
+// Wraps the shared llm module with the server's SSRF guard and env-key
+// fallback; transient 429/503 errors are retried (matching the old SDK path).
 async function callLLM({
   provider = "gemini",
   apiKey,
-  baseUrl: customUrl,
+  baseUrl,
   model,
   prompt,
   systemInstruction,
@@ -175,78 +152,28 @@ async function callLLM({
   systemInstruction?: string;
   jsonOutput?: boolean;
 }): Promise<string> {
-  const effectiveBaseUrl = await assertSafeBaseUrl(customUrl, provider);
-  const effectiveModel = model || "";
-  if (!effectiveModel) {
-    throw new Error("未设置模型，请先在设置中「自动获取可用模型」或手动填写模型");
-  }
-
-  // Use Google Gemini SDK if provider is gemini OR if no custom API key is supplied
-  if (provider === "gemini" || (!apiKey && provider !== "custom")) {
-    const ai = getGeminiClient(apiKey);
-    const config: any = {};
-    if (systemInstruction) config.systemInstruction = systemInstruction;
-    if (jsonOutput) config.responseMimeType = "application/json";
-
-    const response = await generateWithRetryAndFallback(ai, effectiveModel, {
-      contents: prompt,
-      config,
-    });
-    return response.text || "";
-  }
-
-  // OpenAI-Compatible REST API
-  const endpoint = `${effectiveBaseUrl}/chat/completions`;
-  const messages: any[] = [];
-  if (systemInstruction) {
-    messages.push({ role: "system", content: systemInstruction });
-  }
-  messages.push({ role: "user", content: prompt });
-
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-  if (apiKey) {
-    headers["Authorization"] = `Bearer ${apiKey}`;
-  }
-
-  const payload: any = {
-    model: effectiveModel,
-    messages,
-    temperature: 0.3,
-  };
-
-  if (jsonOutput) {
-    payload.response_format = { type: "json_object" };
-  }
-
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(payload),
+  const safeBaseUrl = await assertSafeBaseUrl(baseUrl, provider);
+  return llmCallLLM({
+    provider,
+    apiKey: resolveServerApiKey(provider, apiKey),
+    baseUrl: safeBaseUrl,
+    model,
+    prompt,
+    systemInstruction,
+    jsonOutput,
+    retries: 2,
   });
-
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`${provider.toUpperCase()} API error (${response.status}): ${errText}`);
-  }
-
-  const data = await response.json();
-  const textContent = data?.choices?.[0]?.message?.content || "";
-  return textContent;
 }
 
 /**
- * Streaming variant of callLLM. Yields text deltas as they arrive:
- * - Gemini: generateContentStream (each chunk's text is a delta)
- * - OpenAI-compatible providers: SSE with "stream": true
- * For Gemini, transient errors before any output fall back to flash models;
- * after partial output we surface the error instead of duplicating text.
+ * Streaming variant of callLLM. Yields text deltas as they arrive (Gemini and
+ * OpenAI-compatible providers). Same SSRF guard and env-key fallback as
+ * callLLM; no retry, since retrying mid-stream would duplicate text.
  */
 async function* callLLMStream({
   provider = "gemini",
   apiKey,
-  baseUrl: customUrl,
+  baseUrl,
   model,
   prompt,
   systemInstruction,
@@ -262,113 +189,17 @@ async function* callLLMStream({
   jsonOutput?: boolean;
   signal?: AbortSignal;
 }): AsyncGenerator<string> {
-  const effectiveBaseUrl = await assertSafeBaseUrl(customUrl, provider);
-  const effectiveModel = model || "";
-  if (!effectiveModel) {
-    throw new Error("未设置模型，请先在设置中「自动获取可用模型」或手动填写模型");
-  }
-
-  // Use Google Gemini SDK if provider is gemini OR if no custom API key is supplied
-  if (provider === "gemini" || (!apiKey && provider !== "custom")) {
-    const ai = getGeminiClient(apiKey);
-    const config: any = {};
-    if (systemInstruction) config.systemInstruction = systemInstruction;
-    if (jsonOutput) config.responseMimeType = "application/json";
-
-    const modelsToTry = [effectiveModel].filter(Boolean);
-
-    let lastError: any = null;
-    let yieldedAny = false;
-    for (const modelName of modelsToTry) {
-      try {
-        const stream = await ai.models.generateContentStream({
-          model: modelName,
-          contents: prompt,
-          config,
-        });
-        for await (const chunk of stream) {
-          if (signal?.aborted) break;
-          const delta = chunk.text ?? "";
-          if (delta) {
-            yieldedAny = true;
-            yield delta;
-          }
-        }
-        return;
-      } catch (err: any) {
-        lastError = err;
-        // Never retry after partial output: it would duplicate text.
-        if (yieldedAny) break;
-      }
-    }
-    throw lastError;
-  }
-
-  // OpenAI-Compatible REST API (streaming SSE)
-  const endpoint = `${effectiveBaseUrl}/chat/completions`;
-  const messages: any[] = [];
-  if (systemInstruction) {
-    messages.push({ role: "system", content: systemInstruction });
-  }
-  messages.push({ role: "user", content: prompt });
-
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-  if (apiKey) {
-    headers["Authorization"] = `Bearer ${apiKey}`;
-  }
-
-  const payload: any = {
-    model: effectiveModel,
-    messages,
-    temperature: 0.3,
-    stream: true,
-  };
-
-  if (jsonOutput) {
-    payload.response_format = { type: "json_object" };
-  }
-
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(payload),
+  const safeBaseUrl = await assertSafeBaseUrl(baseUrl, provider);
+  yield* llmCallLLMStream({
+    provider,
+    apiKey: resolveServerApiKey(provider, apiKey),
+    baseUrl: safeBaseUrl,
+    model,
+    prompt,
+    systemInstruction,
+    jsonOutput,
     signal,
   });
-
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`${provider.toUpperCase()} API error (${response.status}): ${errText}`);
-  }
-  if (!response.body) {
-    throw new Error(`${provider.toUpperCase()} API returned no stream body`);
-  }
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  while (true) {
-    if (signal?.aborted) break;
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() ?? "";
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed.startsWith("data:")) continue;
-      const data = trimmed.slice(5).trim();
-      if (!data || data === "[DONE]") continue;
-      try {
-        const parsed = JSON.parse(data);
-        const delta = parsed?.choices?.[0]?.delta?.content;
-        if (delta) yield delta;
-      } catch {
-        // Ignore partial/incomplete SSE lines
-      }
-    }
-  }
 }
 
 // ---------------------------
