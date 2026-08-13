@@ -63,7 +63,7 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
 
   const handleCopyWord = () => {
     if (!explanation?.word) return;
-    navigator.clipboard.writeText(explanation.word);
+    navigator.clipboard.writeText(explanation.word).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };

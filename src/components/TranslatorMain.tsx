@@ -452,7 +452,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
   };
 
   const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text);
+    navigator.clipboard.writeText(text).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };

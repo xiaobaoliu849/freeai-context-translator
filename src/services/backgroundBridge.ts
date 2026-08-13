@@ -106,7 +106,6 @@ async function* callLLMStreamRaw({
         if (!line) continue;
         const data = line.slice(5).trim();
         if (!data || data === '[DONE]') continue;
-        console.log('[bg:gemini] event', data.slice(0, 500));
         try {
           const parsed = JSON.parse(data);
           const text = parsed?.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('') ?? '';

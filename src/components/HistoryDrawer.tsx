@@ -31,7 +31,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
 
   const handleCopy = (text: string, id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    navigator.clipboard.writeText(text);
+    navigator.clipboard.writeText(text).catch(() => {});
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 1500);
   };

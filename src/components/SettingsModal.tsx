@@ -155,6 +155,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     return () => clearTimeout(t);
   }, [formData]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Re-sync the form whenever the modal opens, so settings changed elsewhere
+  // (import, another tab, an earlier save) show up instead of stale values —
+  // and can't be written back over newer settings by the debounce above.
+  useEffect(() => {
+    if (isOpen) {
+      setFormData(settings);
+      setFetchMessage(null);
+    }
+  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (!isOpen) return null;
 
   const currentProvider = formData.defaultProvider || 'gemini';

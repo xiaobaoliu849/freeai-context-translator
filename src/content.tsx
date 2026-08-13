@@ -172,6 +172,23 @@ getSavedSettings().then((s) => {
   currentSettings = s;
 });
 
+// The popup/options page mirrors settings into chrome.storage.local as the
+// user edits them. Refresh our cache on change so already-open pages pick up
+// the new word-hover mode / input-field option immediately instead of waiting
+// for a reload.
+if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== 'local' || !changes[SETTINGS_STORAGE_KEY]) return;
+    try {
+      currentSettings = parseSavedSettings(changes[SETTINGS_STORAGE_KEY].newValue);
+      // Keys live only in the background — keep the page context scrubbed.
+      currentSettings = scrubApiKeys(currentSettings);
+    } catch (e) {
+      // ignore malformed writes
+    }
+  });
+}
+
 function removePopover() {
   removeFloatBtn();
   if (reactRootInstance) {
