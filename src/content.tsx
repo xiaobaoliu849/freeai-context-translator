@@ -4,6 +4,7 @@ import { WordContextCard } from './components/WordContextCard';
 import { bridgeExplain, bridgeTranslate, isExtensionContext } from './services/bridge';
 import { DEFAULT_SETTINGS, parseSavedSettings } from './config';
 import { AppSettings, WordExplanation } from './types';
+import { initPageTranslate } from './pageTranslate';
 import './content.css';
 
 const SETTINGS_STORAGE_KEY = 'freetranslate_settings';
@@ -351,3 +352,6 @@ window.addEventListener('keydown', (e) => {
     removePopover();
   }
 });
+
+// Whole-page bilingual translation + TTS reading toolbar (extension only).
+initPageTranslate();

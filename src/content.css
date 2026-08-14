@@ -94,3 +94,100 @@
     height: 100%;
   }
 }
+
+/* ---------- Whole-page translation (pageTranslate.ts) ---------- */
+
+.ftpt-toolbar {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483646;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.ftpt-panel {
+  background: #0f172a;
+  color: #f8fafc;
+  border: 1px solid #334155;
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  padding: 10px 12px;
+  width: 220px;
+}
+
+.ftpt-title {
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: #e2e8f0;
+}
+
+.ftpt-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ftpt-btn {
+  flex: 1;
+  min-width: 60px;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 8px;
+  background: #6366f1;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+
+.ftpt-btn:hover {
+  background: #4f46e5;
+}
+
+.ftpt-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.ftpt-btn-restore {
+  background: #334155;
+}
+
+.ftpt-btn-restore:hover {
+  background: #475569;
+}
+
+.ftpt-status {
+  margin-top: 8px;
+  font-size: 11px;
+  color: #94a3b8;
+  line-height: 1.4;
+  min-height: 14px;
+}
+
+/* Bilingual translation block inserted after each paragraph */
+.ftpt-translation {
+  display: block !important;
+  margin: 6px 0 10px 0 !important;
+  padding: 6px 10px !important;
+  border-left: 3px solid #6366f1 !important;
+  background: rgba(99, 102, 241, 0.08) !important;
+  border-radius: 0 6px 6px 0 !important;
+  font-size: 0.95em !important;
+  line-height: 1.6 !important;
+  color: inherit !important;
+}
+
+/* Paragraph currently being read aloud */
+.ftpt-reading {
+  outline: 2px solid #6366f1 !important;
+  outline-offset: 3px !important;
+  border-radius: 4px !important;
+  transition: outline-color 0.2s ease;
+}
+
+li > .ftpt-translation {
+  margin: 4px 0 6px 0 !important;
+}

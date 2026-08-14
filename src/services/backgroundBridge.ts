@@ -306,6 +306,94 @@ async function* callTTSStreamRaw({
 }
 
 // ---------------------------
+// Page translation (batched, numbered segments)
+// ---------------------------
+
+const PAGE_BATCH_MAX_SEGS = 8;
+const PAGE_BATCH_MAX_CHARS = 2400;
+
+/**
+ * Translates an array of paragraphs in batches. Each batch asks the model for
+ * numbered translations (`1: ...`), and the output is parsed back into an
+ * array aligned with the input. A segment the model skipped stays an empty
+ * string so the content script can keep the original text for it.
+ */
+async function translatePageParagraphs({
+  paragraphs,
+  targetLang,
+  provider,
+  apiKey,
+  baseUrl,
+  model,
+}: {
+  paragraphs: string[];
+  targetLang: string;
+  provider: string;
+  apiKey: string;
+  baseUrl: string;
+  model: string;
+}): Promise<string[]> {
+  const out: string[] = new Array(paragraphs.length).fill('');
+
+  // Group consecutive paragraphs into batches under the char/segment budget.
+  const batches: number[][] = [];
+  let current: number[] = [];
+  let currentChars = 0;
+  for (let i = 0; i < paragraphs.length; i++) {
+    const seg = paragraphs[i];
+    const segChars = seg.length + 8; // room for the "N: " prefix
+    if (
+      current.length > 0 &&
+      (current.length >= PAGE_BATCH_MAX_SEGS || currentChars + segChars > PAGE_BATCH_MAX_CHARS)
+    ) {
+      batches.push(current);
+      current = [];
+      currentChars = 0;
+    }
+    current.push(i);
+    currentChars += segChars;
+  }
+  if (current.length > 0) batches.push(current);
+
+  for (const batch of batches) {
+    const parts = batch.map((idx, j) => `${j + 1}: ${paragraphs[idx]}`).join('\n');
+    const prompt = `Translate each numbered segment into ${targetLang}. Return ONLY the numbered translations, one per line, in the same order and with the same numbers. Never merge, skip, or reorder segments. Preserve formatting like line breaks inside a segment as-is.
+
+${parts}`;
+    const raw = await callLLM({
+      provider,
+      apiKey,
+      baseUrl,
+      model,
+      prompt,
+      retries: 1,
+    });
+
+    // Parse numbered lines, tolerating "1: ...", "1. ...", "[1] ...", "(1) ...",
+    // and even "1 ..." (no separator). Continuation lines that don't start
+    // with a number are appended to the previous segment.
+    const parsed = new Array<string>(batch.length).fill('');
+    let lastIdx = -1;
+    for (const line of raw.split(/\r?\n/)) {
+      const m = line.match(/^\s*[\[\(]?(\d+)[\]\)]?\s*[:.)、-]?\s*(.*)$/);
+      if (m && line.trim().length > 0) {
+        const idx = parseInt(m[1], 10) - 1;
+        if (idx >= 0 && idx < batch.length) {
+          lastIdx = idx;
+          parsed[idx] = m[2];
+        }
+      } else if (lastIdx >= 0 && parsed[lastIdx]) {
+        parsed[lastIdx] += '\n' + line;
+      }
+    }
+    for (let j = 0; j < batch.length; j++) {
+      if (parsed[j]) out[batch[j]] = parsed[j].trim();
+    }
+  }
+  return out;
+}
+
+// ---------------------------
 // Models listing
 // ---------------------------
 
@@ -492,6 +580,22 @@ export function handleBridgePort(port: chrome.runtime.Port) {
           reply('delta', { text: delta });
         }
         reply('done', { result: { sampleRate: 24000 } });
+        return;
+      }
+
+      if (msg.kind === 'page-translate') {
+        const { paragraphs, targetLang, provider, model, baseUrl } = msg.payload || {};
+        if (!Array.isArray(paragraphs) || paragraphs.length === 0) throw new Error('paragraphs are required');
+        const cfg = resolveProviderConfig(settings, provider);
+        const translations = await translatePageParagraphs({
+          paragraphs,
+          targetLang: targetLang || 'zh-CN',
+          provider,
+          apiKey: cfg.apiKey,
+          baseUrl: baseUrl || cfg.baseUrl,
+          model: model || cfg.model,
+        });
+        reply('done', { result: { translations } });
         return;
       }
 

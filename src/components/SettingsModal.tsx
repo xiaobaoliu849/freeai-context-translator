@@ -29,6 +29,26 @@ interface SettingsModalProps {
   languages: Array<{ code: string; name: string }>;
 }
 
+/** Sample sentence per language, used for the TTS preview so users hear the
+ * voice in the language they actually translate into (falls back to English). */
+const TTS_SAMPLE_BY_LANG: Record<string, { text: string; lang: string }> = {
+  'zh-CN': { text: '欢迎使用智能翻译，多引擎语音朗读，让学习更轻松。', lang: 'zh-CN' },
+  'zh-TW': { text: '歡迎使用智慧翻譯，多引擎語音朗讀，讓學習更輕鬆。', lang: 'zh-TW' },
+  en: { text: 'Welcome to AI Translate. Multi-engine speech, making learning easier.', lang: 'en-US' },
+  ja: { text: 'ようこそ、AI翻訳へ。マルチエンジンの音声で、学習をもっと楽に。', lang: 'ja-JP' },
+  ko: { text: 'AI 번역에 오신 것을 환영합니다. 여러 엔진의 음성으로 학습을 더 쉽게.', lang: 'ko-KR' },
+  es: { text: 'Bienvenido a AI Translate. Voz multilingüe para aprender más fácil.', lang: 'es-ES' },
+  fr: { text: 'Bienvenue sur AI Translate. La voix multilingue pour apprendre plus facilement.', lang: 'fr-FR' },
+  de: { text: 'Willkommen bei AI Translate. Mehrsprachige Stimme für leichteres Lernen.', lang: 'de-DE' },
+  ru: { text: 'Добро пожаловать в AI Translate. Многоголосый синтез для лёгкого обучения.', lang: 'ru-RU' },
+  it: { text: 'Benvenuto su AI Translate. Voce multilingue per imparare più facilmente.', lang: 'it-IT' },
+  pt: { text: 'Bem-vindo ao AI Translate. Voz multilíngue para aprender mais fácil.', lang: 'pt-PT' },
+  ar: { text: 'مرحباً بك في AI Translate. صوت متعدد اللغات لتعلّم أسهل.', lang: 'ar-SA' },
+  hi: { text: 'AI अनुवाद में आपका स्वागत है। आसान सीखने के लिए बहु-भाषा आवाज़।', lang: 'hi-IN' },
+  vi: { text: 'Chào mừng đến với AI Translate. Giọng đọc đa ngôn ngữ giúp việc học dễ dàng hơn.', lang: 'vi-VN' },
+  th: { text: 'ยินดีต้อนรับสู่ AI Translate เสียงหลายภาษาเพื่อการเรียนรู้ที่ง่ายขึ้น', lang: 'th-TH' },
+};
+
 const PROVIDERS_INFO: Array<{
   id: ProviderType;
   name: string;
@@ -323,10 +343,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       return;
     }
 
+    // Preview in the target language the user actually translates into, so the
+    // voice and pronunciation match what they'll hear in real use.
+    const sample = TTS_SAMPLE_BY_LANG[formData.defaultTargetLang] || TTS_SAMPLE_BY_LANG.en;
     setTestingTts(true);
     audioPlayer.speak({
-      text: "Hello! Welcome to FreeTranslate AI. 欢迎体验多引擎智能语音朗读。",
-      lang: "zh-CN",
+      text: sample.text,
+      lang: sample.lang,
       engine: formData.ttsEngine,
       voice: formData.ttsVoice,
       rate: formData.ttsRate || 1.0,
@@ -830,17 +853,32 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <label className="block text-xs font-bold text-slate-700 mb-1">
                   发音人 / 音色
                 </label>
-                <select
-                  value={formData.ttsVoice}
-                  onChange={(e) => setFormData({ ...formData, ttsVoice: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-indigo-500 font-medium"
-                >
-                  {(TTS_VOICES_BY_ENGINE[formData.ttsEngine] || []).map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={formData.ttsVoice}
+                    onChange={(e) => setFormData({ ...formData, ttsVoice: e.target.value })}
+                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-indigo-500 font-medium"
+                  >
+                    {(TTS_VOICES_BY_ENGINE[formData.ttsEngine] || []).map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={handleTestTts}
+                    title="试听当前音色"
+                    className={`shrink-0 px-2.5 py-2 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                      testingTts
+                        ? 'bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100'
+                        : 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100'
+                    }`}
+                  >
+                    {testingTts ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+                    <span className="hidden sm:inline">{testingTts ? '停止' : '试听'}</span>
+                  </button>
+                </div>
               </div>
 
               <div>
@@ -866,7 +904,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     试听音色
                   </div>
                   <div className="text-[11px] text-indigo-700/80 mt-0.5">
-                    试听当前引擎与音色的朗读效果
+                    试听当前引擎与音色的朗读效果（按目标语言发音）
                   </div>
                 </div>
 

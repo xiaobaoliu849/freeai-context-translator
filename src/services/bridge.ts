@@ -197,3 +197,21 @@ export function bridgeTtsStream(
 export function bridgeModels(payload: { provider: string; baseUrl?: string; apiKey?: string }): Promise<{ models: string[]; source: 'live' | 'default' }> {
   return bridgeClient.call('models', payload);
 }
+
+/**
+ * Batch page translation: translates an array of paragraph strings in the
+ * background (keys stay in the service worker), returning one translation per
+ * input paragraph (empty string for any segment the model skipped).
+ */
+export function bridgePageTranslate(
+  payload: {
+    paragraphs: string[];
+    targetLang: string;
+    provider: string;
+    model?: string;
+    baseUrl?: string;
+  },
+  signal?: AbortSignal,
+): Promise<{ translations: string[] }> {
+  return bridgeClient.call('page-translate', payload, undefined, signal);
+}
