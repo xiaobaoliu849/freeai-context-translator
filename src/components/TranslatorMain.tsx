@@ -95,11 +95,29 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
   const workspaceRef = useRef<HTMLDivElement>(null);
   const splitDragRef = useRef<{ x: number; split: number }>({ x: 0, split: 50 });
 
+  // Vertical split between upper and lower panels in popup mode
+  const [vSplitPercent, setVSplitPercent] = useState<number>(() => {
+    try {
+      const saved = Number(localStorage.getItem('freetranslate_vsplit'));
+      return saved >= 20 && saved <= 75 ? saved : 42;
+    } catch {
+      return 42;
+    }
+  });
+  const [vSplitDragging, setVSplitDragging] = useState(false);
+  const vSplitDragRef = useRef<{ y: number; split: number }>({ y: 0, split: 42 });
+
   useEffect(() => {
     try {
       localStorage.setItem('freetranslate_layout_split', String(splitPercent));
     } catch {}
   }, [splitPercent]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('freetranslate_vsplit', String(vSplitPercent));
+    } catch {}
+  }, [vSplitPercent]);
 
   const handleSplitPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -118,6 +136,24 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
     setSplitPercent(Math.min(80, Math.max(20, next)));
   };
   const handleSplitPointerUp = () => setSplitDragging(false);
+
+  const handleVSplitPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    vSplitDragRef.current = { y: e.clientY, split: vSplitPercent };
+    setVSplitDragging(true);
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const handleVSplitPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!vSplitDragging) return;
+    const grid = workspaceRef.current;
+    if (!grid) return;
+    const rect = grid.getBoundingClientRect();
+    if (rect.height === 0) return;
+    const delta = ((e.clientY - vSplitDragRef.current.y) / rect.height) * 100;
+    const next = Math.round(vSplitDragRef.current.split + delta);
+    setVSplitPercent(Math.min(75, Math.max(20, next)));
+  };
+  const handleVSplitPointerUp = () => setVSplitDragging(false);
 
   // In-memory word explanation cache
   const wordCacheRef = useRef<Record<string, WordExplanation>>({});
@@ -641,15 +677,18 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
         ref={workspaceRef}
         className={
           isPopup
-            ? 'flex-1 min-h-0 flex flex-col gap-2.5'
-            : `grid grid-cols-1 gap-y-3 sm:gap-y-4 md:[grid-template-columns:minmax(0,var(--split))_12px_minmax(0,1fr)] ${splitDragging ? 'select-none' : ''}`
+            ? 'flex-1 min-h-0 flex flex-col gap-1.5'
+            : `grid grid-cols-1 gap-y-3 sm:gap-y-4 md:[grid-template-columns:minmax(0,var(--split))_12px_minmax(0,1fr)] ${splitDragging || vSplitDragging ? 'select-none' : ''}`
         }
         style={{ '--split': `${splitPercent}%` } as React.CSSProperties}
       >
-        {/* LEFT COLUMN: SOURCE INPUT BOX */}
-        <div className={`bg-white border border-slate-200/90 rounded-2xl shadow-2xs overflow-hidden flex flex-col justify-between focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/10 transition-all ${
-          isPopup ? 'flex-[2] min-h-0' : 'min-h-[240px] sm:min-h-[300px]'
-        }`}>
+        {/* LEFT / TOP COLUMN: SOURCE INPUT BOX */}
+        <div
+          style={isPopup ? { flex: `0 0 calc(${vSplitPercent}% - 6px)` } : undefined}
+          className={`bg-white border border-slate-200/90 rounded-2xl shadow-2xs overflow-hidden flex flex-col justify-between focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/10 transition-all ${
+            isPopup ? 'min-h-[85px]' : 'min-h-[240px] sm:min-h-[300px]'
+          }`}
+        >
           <textarea
             ref={textareaRef}
             value={sourceText}
@@ -735,6 +774,22 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
           </div>
         </div>
 
+        {/* Vertical drag handle in popup mode */}
+        {isPopup && (
+          <div
+            onPointerDown={handleVSplitPointerDown}
+            onPointerMove={handleVSplitPointerMove}
+            onPointerUp={handleVSplitPointerUp}
+            onPointerCancel={handleVSplitPointerUp}
+            className="h-2.5 flex items-center justify-center cursor-row-resize touch-none group select-none py-0.5 shrink-0"
+            title="拖动调整上下高度"
+          >
+            <div className={`h-[3px] rounded-full transition-all ${
+              vSplitDragging ? 'bg-indigo-500 w-16' : 'bg-slate-200 group-hover:bg-indigo-400 w-10'
+            }`} />
+          </div>
+        )}
+
         {/* Drag handle to freely resize the source/target split (desktop) */}
         {!isPopup && (
           <div
@@ -751,10 +806,15 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
           </div>
         )}
 
-        {/* RIGHT COLUMN: TRANSLATION RESULT BOX / DICTIONARY MODE */}
-        <div className={`bg-white border border-slate-200/90 rounded-2xl shadow-2xs relative flex flex-col justify-between transition-all ${
-          isPopup ? 'flex-[3] min-h-0 overflow-y-auto p-3' : 'p-3.5 sm:p-4 min-h-[240px] sm:min-h-[300px]'
-        }`}>
+        {/* RIGHT / BOTTOM COLUMN: TRANSLATION RESULT BOX / DICTIONARY MODE */}
+        <div
+          style={isPopup ? { flex: '1 1 0%' } : undefined}
+          className={`bg-white border border-slate-200/90 rounded-2xl shadow-2xs relative flex flex-col justify-between transition-all ${
+            isPopup
+              ? (selectedWord ? 'min-h-[110px] overflow-hidden p-0' : 'min-h-[110px] overflow-y-auto p-3')
+              : (selectedWord ? 'min-h-[240px] sm:min-h-[300px] overflow-hidden p-0' : 'p-3.5 sm:p-4 min-h-[240px] sm:min-h-[300px]')
+          }`}
+        >
           {selectedWord ? (
             /* In-place In-Context Word Dictionary view */
             <WordContextCard
@@ -799,10 +859,8 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                   )}
                 </div>
 
-                {/* Full Sentence Translation */}
+                {/* Full Sentence Translation - selectable and copyable without hijacking */}
                 <div
-                  onMouseUp={detectSelection}
-                  onDoubleClick={detectSelection}
                   className="text-slate-900 text-base sm:text-lg font-medium leading-relaxed tracking-tight select-text min-h-[60px]"
                 >
                   {result?.translation || (

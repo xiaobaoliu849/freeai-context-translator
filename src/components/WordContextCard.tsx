@@ -113,17 +113,17 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
   const examplesCount = examplesList.length;
 
   return (
-    <div className="bg-white text-slate-800 overflow-hidden transition-all duration-300 animate-in fade-in slide-in-from-top-2">
+    <div className="h-full min-h-0 flex flex-col bg-white text-slate-800 rounded-2xl overflow-hidden transition-all duration-300 animate-in fade-in slide-in-from-top-2">
       {/* Top Accent Gradient Line */}
-      <div className="h-1 w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
+      <div className="h-1 w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 shrink-0" />
 
       {/* Card Header */}
-      <div className="p-4 sm:p-5 pb-3">
+      <div className="p-3 sm:p-4 pb-2.5 shrink-0">
         <div className="flex items-start justify-between gap-3">
           {/* Left: Word, Phonetic, Badges */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="text-2xl font-black text-slate-900 tracking-tight">{explanation.word}</h3>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-none">{explanation.word}</h3>
 
               {/* Audio Pronunciation Button */}
               <button
@@ -136,35 +136,35 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
                 title="播放单词发音"
               >
                 {wordPhase === 'generating' ? (
-                  <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" />
                 ) : wordPhase === 'playing' ? (
-                  <span className="ft-eq flex items-end gap-0.5 h-4 px-0.5">
-                    <span className="w-0.5 bg-indigo-600 rounded-full animate-bounce h-3" />
-                    <span className="w-0.5 bg-indigo-600 rounded-full animate-bounce h-4 delay-75" />
+                  <span className="ft-eq flex items-end gap-0.5 h-3.5 px-0.5">
+                    <span className="w-0.5 bg-indigo-600 rounded-full animate-bounce h-2.5" />
+                    <span className="w-0.5 bg-indigo-600 rounded-full animate-bounce h-3.5 delay-75" />
                     <span className="w-0.5 bg-indigo-600 rounded-full animate-bounce h-2 delay-150" />
                   </span>
                 ) : (
-                  <Volume2 className="w-4 h-4" />
+                  <Volume2 className="w-3.5 h-3.5" />
                 )}
               </button>
 
               {/* Phonetic Tag */}
               {explanation.phonetic && (
-                <span className="text-xs font-mono px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 border border-slate-200">
+                <span className="text-[11px] font-mono px-1.5 py-0.5 rounded-lg bg-slate-100 text-slate-600 border border-slate-200">
                   {explanation.phonetic.startsWith('/') ? explanation.phonetic : `[/${explanation.phonetic}/]`}
                 </span>
               )}
 
               {/* POS Tag */}
               {posTag && (
-                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-lg bg-purple-50 text-purple-700 border border-purple-200/80">
+                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-lg bg-purple-50 text-purple-700 border border-purple-200/80">
                   {posTag}
                 </span>
               )}
 
               {/* CEFR Tag */}
               {explanation.cefrLevel && (
-                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200/90">
+                <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200/90">
                   CEFR: {explanation.cefrLevel}
                 </span>
               )}
@@ -172,7 +172,7 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
 
             {/* Context Sentence */}
             {sentence && (
-              <p className="text-xs text-slate-500 mt-1.5 flex items-center gap-1.5 truncate">
+              <p className="text-[11px] text-slate-500 mt-1 flex items-center gap-1 truncate">
                 <span className="text-indigo-600 font-bold shrink-0">原句语境:</span>
                 <span className="italic text-slate-600 truncate">"{sentence}"</span>
               </p>
@@ -183,14 +183,14 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
           <div className="flex items-center gap-1 shrink-0">
             <button
               onClick={handleCopyWord}
-              className="p-1.5 text-slate-500 hover:text-slate-800 rounded-xl hover:bg-slate-100 border border-transparent hover:border-slate-200 transition-colors cursor-pointer"
+              className="p-1 text-slate-500 hover:text-slate-800 rounded-lg hover:bg-slate-100 border border-transparent hover:border-slate-200 transition-colors cursor-pointer"
               title="复制单词"
             >
-              {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+              {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
             </button>
             <button
               onClick={onClose}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/80 rounded-xl transition-all cursor-pointer shadow-2xs"
+              className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200/80 rounded-xl transition-all cursor-pointer shadow-2xs whitespace-nowrap"
               title="返回整句翻译 (Esc)"
             >
               <ArrowLeft className="w-3.5 h-3.5 text-indigo-600" />
@@ -201,29 +201,29 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
       </div>
 
       {/* Tabs Header */}
-      <div className="flex items-center gap-1 px-4 bg-slate-50/90 border-y border-slate-200/90">
+      <div className="flex items-center gap-1 px-3 bg-slate-50/90 border-y border-slate-200/90 shrink-0">
         <button
           onClick={() => setActiveTab('overview')}
-          className={`px-3 py-2 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 cursor-pointer ${
+          className={`px-2.5 py-1.5 text-xs font-semibold border-b-2 transition-all flex items-center gap-1 cursor-pointer ${
             activeTab === 'overview'
               ? 'border-indigo-600 text-indigo-700 bg-white shadow-2xs font-bold'
               : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'
           }`}
         >
-          <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+          <Sparkles className="w-3 h-3 text-indigo-600" />
           <span>语境释义</span>
         </button>
 
         {(collocationsCount > 0 || synonymsCount > 0) && (
           <button
             onClick={() => setActiveTab('collocations')}
-            className={`px-3 py-2 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 cursor-pointer ${
+            className={`px-2.5 py-1.5 text-xs font-semibold border-b-2 transition-all flex items-center gap-1 cursor-pointer ${
               activeTab === 'collocations'
                 ? 'border-indigo-600 text-indigo-700 bg-white shadow-2xs font-bold'
                 : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'
             }`}
           >
-            <Layers className="w-3.5 h-3.5 text-purple-600" />
+            <Layers className="w-3 h-3 text-purple-600" />
             <span>常用搭配 & 同义词</span>
             <span className="px-1.5 py-0.2 rounded-full bg-slate-200 text-[10px] text-slate-700 font-bold">
               {collocationsCount + synonymsCount}
@@ -234,13 +234,13 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
         {examplesCount > 0 && (
           <button
             onClick={() => setActiveTab('examples')}
-            className={`px-3 py-2 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 cursor-pointer ${
+            className={`px-2.5 py-1.5 text-xs font-semibold border-b-2 transition-all flex items-center gap-1 cursor-pointer ${
               activeTab === 'examples'
                 ? 'border-indigo-600 text-indigo-700 bg-white shadow-2xs font-bold'
                 : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'
             }`}
           >
-            <BookOpen className="w-3.5 h-3.5 text-emerald-600" />
+            <BookOpen className="w-3 h-3 text-emerald-600" />
             <span>经典例句</span>
             <span className="px-1.5 py-0.2 rounded-full bg-slate-200 text-[10px] text-slate-700 font-bold">
               {examplesCount}
@@ -250,7 +250,7 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
       </div>
 
       {/* Tab Body */}
-      <div className="p-4 sm:p-5">
+      <div className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4">
         {activeTab === 'overview' && (
           <div className="space-y-3.5">
             {/* Primary In-Context Meaning Box */}
