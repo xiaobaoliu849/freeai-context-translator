@@ -8,17 +8,14 @@ chrome.runtime.onConnect.addListener(handleBridgePort);
 chrome.runtime.onInstalled.addListener(() => {
   // Remove old menus first so re-installs/updates don't throw duplicate-id errors.
   chrome.contextMenus.removeAll(() => {
-    // Plain translation for any selection length (paragraphs included).
+    // Right-click directly on a selection is intercepted by the content script
+    // for an instant translation popup (no menu at all). This item is only a
+    // fallback — e.g. right-click outside the selected text, or pages where
+    // the interception can't run. Word deep-dive stays reachable via Alt+T and
+    // the selection popup's smart mode (short word → analysis, longer → text).
     chrome.contextMenus.create({
       id: 'freetranslate-translate',
       title: '翻译选中文本',
-      contexts: ['selection'],
-    });
-    // Word-level deep-dive (meaning, collocations, examples) — best for a
-    // single word or a short phrase.
-    chrome.contextMenus.create({
-      id: 'freetranslate-explain',
-      title: '✨ 深度解析选中词句',
       contexts: ['selection'],
     });
   });
@@ -28,8 +25,6 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (!info.selectionText || !tab?.id) return;
   if (info.menuItemId === 'freetranslate-translate') {
     chrome.tabs.sendMessage(tab.id, { action: 'TRANSLATE_SELECTION', text: info.selectionText });
-  } else if (info.menuItemId === 'freetranslate-explain') {
-    chrome.tabs.sendMessage(tab.id, { action: 'EXPLAIN_SELECTION', text: info.selectionText });
   }
 });
 

@@ -354,12 +354,61 @@ function handleSelectionEvent(e: MouseEvent | TouchEvent) {
   if (mode === 'select') {
     showPopover(selection, clientX, clientY);
   } else {
+    // The floating "译" button is a word-level affordance (deep-dive on a word
+    // or short phrase). Longer selections (paragraphs) skip it — those translate
+    // via right-click on the selection, the Alt+T shortcut, or "选中即翻译".
+    const wordCount = selection.trim().split(/\s+/).length;
+    if (wordCount > 8) return;
     showFloatBtn(selection, clientX, clientY, mode);
   }
 }
 
 document.addEventListener('mouseup', handleSelectionEvent);
 document.addEventListener('touchend', handleSelectionEvent);
+
+/** True when the viewport point (x, y) falls inside the current selection's
+ * bounding box — used to decide whether a right-click on a selection should
+ * translate directly instead of showing the browser's native menu. Uses the
+ * union rect (not per-line glyph rects) so right-clicks in the inter-line gap
+ * of a multi-line paragraph still count as "inside the selection". */
+function isPointInSelection(x: number, y: number): boolean {
+  const sel = window.getSelection();
+  if (!sel || sel.isCollapsed || sel.rangeCount === 0) return false;
+  const r = sel.getRangeAt(0).getBoundingClientRect();
+  if (!r.width && !r.height) return false;
+  const m = 4;
+  return x >= r.left - m && x <= r.right + m && y >= r.top - m && y <= r.bottom + m;
+}
+
+// Right-click on an active selection translates immediately — the browser's
+// native context menu (and our menu items) are skipped for that gesture, so a
+// selected paragraph's translation pops up directly. Smart mode: a short word
+// gets the deep-dive card, a longer selection gets the plain translation.
+// Right-clicks outside a selection keep the native menu untouched.
+//
+// Registered in the CAPTURE phase: it runs before any page handler, so pages
+// that stopPropagation() contextmenu (right-click-protected sites, custom
+// menus) can't swallow it, and the native menu is reliably suppressed.
+document.addEventListener('contextmenu', (e) => {
+  const target = e.target as HTMLElement | null;
+  if (target?.closest?.('.freetranslate-modal-card, .freetranslate-float-btn, .ftpt-toolbar, .ftpt-fab')) return;
+  // Inside form fields / rich-text editors the native copy-paste menu matters
+  // more than instant translation — leave those alone.
+  if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target?.isContentEditable) return;
+
+  const { text, insideFormField } = getSelectionFromEvent(e);
+  if (insideFormField || !text || text.length === 0 || text.length >= 3000) return;
+  if (!isPointInSelection(e.clientX, e.clientY)) return;
+
+  // Suppress the native menu AND stop the page from reacting (e.g. opening its
+  // own custom context menu) — we own this gesture on a selection now.
+  e.preventDefault();
+  e.stopPropagation();
+  removeFloatBtn();
+  showPopover(text, e.clientX, e.clientY, 'auto').catch((err) => {
+    console.error('Right-click translation failed:', err);
+  });
+}, true);
 // Hide the floating button when clicking elsewhere — but not when the click
 // targets the button itself (otherwise its click handler never fires).
 document.addEventListener('mousedown', (e) => {
