@@ -64,9 +64,10 @@ interface SelectionPopoverProps {
   selectedText: string;
   position: { x: number; y: number };
   onClose: () => void;
+  settings: AppSettings;
 }
 
-const SelectionPopover: React.FC<SelectionPopoverProps> = ({ selectedText, position, onClose }) => {
+const SelectionPopover: React.FC<SelectionPopoverProps> = ({ selectedText, position, onClose, settings }) => {
   const [isPinned, setIsPinned] = useState(false);
 
   // Position state (absolute document coordinates)
@@ -80,8 +81,8 @@ const SelectionPopover: React.FC<SelectionPopoverProps> = ({ selectedText, posit
   const dragStartRef = useRef<{ startX: number; startY: number; initX: number; initY: number }>({
     startX: 0,
     startY: 0,
-    initX: 0,
-    initY: 0,
+    initX: pos.x,
+    initY: pos.y,
   });
 
   // Handle Dragging
@@ -156,11 +157,12 @@ const SelectionPopover: React.FC<SelectionPopoverProps> = ({ selectedText, posit
         boxShadow: '0 20px 50px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.08)',
         borderRadius: '16px',
         overflow: 'hidden',
-        background: '#ffffff',
+        background: '#f8fafc',
       }}
     >
       <App
         initialText={selectedText}
+        initialSettings={settings}
         isFloating={true}
         isPinned={isPinned}
         onTogglePin={() => setIsPinned(!isPinned)}
@@ -286,6 +288,7 @@ async function showPopover(text: string, x: number, y: number, mode: 'auto' | 't
       selectedText={text}
       position={{ x, y }}
       onClose={removePopover}
+      settings={settings}
     />
   );
 }

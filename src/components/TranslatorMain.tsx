@@ -558,8 +558,8 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
       {/* 1. ELEGANT LANGUAGE SELECTOR TOOLBAR */}
       <div className="bg-white border border-slate-200/90 rounded-2xl p-2 sm:p-2.5 shadow-2xs flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
         {/* Source Language Select */}
-        <div className="flex items-center gap-1 flex-1 min-w-[130px]">
-          <span className="text-[11px] font-extrabold text-slate-400 pl-1 uppercase tracking-wider hidden sm:inline">From</span>
+        <div className="flex items-center gap-1 flex-1 min-w-[120px]">
+          {!isPopup && <span className="text-[11px] font-extrabold text-slate-400 pl-1 uppercase tracking-wider hidden sm:inline">From</span>}
           <select
             value={sourceLang}
             onChange={(e) => setSourceLang(e.target.value)}
@@ -584,8 +584,8 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
         </button>
 
         {/* Target Language Select */}
-        <div className="flex items-center gap-1 flex-1 min-w-[130px]">
-          <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider hidden sm:inline">To</span>
+        <div className="flex items-center gap-1 flex-1 min-w-[120px]">
+          {!isPopup && <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider hidden sm:inline">To</span>}
           <select
             value={targetLang}
             onChange={(e) => setTargetLang(e.target.value)}

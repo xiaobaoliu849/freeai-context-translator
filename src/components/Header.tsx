@@ -27,7 +27,7 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const providerName = settings?.defaultProvider ? settings.defaultProvider.toUpperCase() : 'GEMINI';
   const logoUrl = typeof chrome !== 'undefined' && chrome.runtime?.getURL
-    ? chrome.runtime.getURL('assets/icon48.png')
+    ? chrome.runtime.getURL('assets/logo.png')
     : '/assets/logo.png';
 
   const handleOpenFullTab = () => {
@@ -53,9 +53,6 @@ export const Header: React.FC<HeaderProps> = ({
             src={logoUrl}
             alt="FreeTranslate Logo"
             className="w-6 h-6 rounded-lg shadow-2xs border border-indigo-200/50 object-cover shrink-0"
-            onError={(e) => {
-              (e.target as HTMLElement).style.display = 'none';
-            }}
           />
           <div className="flex items-center gap-1.5">
             <h1 className="font-extrabold text-slate-900 text-xs sm:text-sm tracking-tight leading-none">
@@ -94,21 +91,21 @@ export const Header: React.FC<HeaderProps> = ({
           {/* History Button */}
           <button
             onClick={openHistory}
-            className="p-1.5 sm:px-2 rounded-xl text-xs font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer border border-slate-200/80 bg-white flex items-center gap-1"
+            className="p-1.5 sm:px-2 rounded-xl text-xs font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer border border-slate-200/80 bg-white flex items-center justify-center gap-1"
             title="历史翻译记录"
           >
             <History className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-            <span className="hidden sm:inline">历史</span>
+            {!isPopup && !isFloating && <span className="hidden sm:inline">历史</span>}
           </button>
 
           {/* Settings Button */}
           <button
             onClick={openSettings}
-            className="p-1.5 sm:px-2 rounded-xl text-xs font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer border border-slate-200/80 bg-white flex items-center gap-1"
+            className="p-1.5 sm:px-2 rounded-xl text-xs font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer border border-slate-200/80 bg-white flex items-center justify-center gap-1"
             title="设置 API Key 与偏好"
           >
             <Settings className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-            <span className="hidden sm:inline">设置</span>
+            {!isPopup && !isFloating && <span className="hidden sm:inline">设置</span>}
           </button>
 
           {/* Floating window only: Pin & Close */}

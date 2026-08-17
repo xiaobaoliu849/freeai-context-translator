@@ -25,6 +25,7 @@ function mirrorToExtensionStorage(items: Record<string, any>) {
 
 export interface AppProps {
   initialText?: string;
+  initialSettings?: AppSettings;
   isFloating?: boolean;
   isPinned?: boolean;
   onTogglePin?: () => void;
@@ -34,6 +35,7 @@ export interface AppProps {
 
 export default function App({
   initialText,
+  initialSettings,
   isFloating = false,
   isPinned = false,
   onTogglePin,
@@ -101,8 +103,9 @@ export default function App({
   // Bumped when the user retranslates a history item (TranslatorMain reacts).
   const [retranslateSignal, setRetranslateSignal] = useState(initialText ? 1 : 0);
 
-  // Settings & History State with LocalStorage
+  // Settings & History State with LocalStorage and chrome.storage
   const [settings, setSettings] = useState<AppSettings>(() => {
+    if (initialSettings) return initialSettings;
     try {
       const savedNew = localStorage.getItem(STORAGE_KEYS.settings);
       const savedOld = localStorage.getItem('nextai_translator_settings');
@@ -115,61 +118,10 @@ export default function App({
 
       if (saved) {
         const parsed = JSON.parse(saved);
-
-        // Map of obsolete / fictitious legacy models to strip across providers.
-        // These include the old hardcoded presets (e.g. gemini-3.6-flash) that
-        // never existed as real model IDs — keep them so saved settings get
-        // reset and the user re-fetches real model names.
-        const legacyModelsMap: Record<string, string[]> = {
-          gemini: ['gemini-3.6-flash', 'gemini-3-flash', 'gemini-3.1-pro', 'gemini-3-pro', 'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.5-flash-lite', 'gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-1.0-pro'],
-          deepseek: ['deepseek-v4-flash', 'deepseek-v4-pro', 'deepseek-chat', 'deepseek-reasoner', 'deepseek-coder'],
-          openai: ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-3.5-turbo', 'gpt-4-turbo', 'gpt-4', 'o1-mini', 'o1'],
-          qwen: ['qwen3.8-max', 'qwen3.7-plus', 'qwen3.7-flash', 'qwen3.5-plus', 'qwen3.5-flash', 'qwen2.5-72b-instruct', 'qwen2.5-coder-32b-instruct', 'qwen3-72b-instruct', 'qwen-long'],
-          minimax: ['MiniMax-M3', 'MiniMax-M2.7', 'minimax-text-01', 'abab6.5s-chat', 'abab6.5g-chat', 'MiniMax-M2.5'],
-          groq: ['mixtral-8x7b-32768', 'gemma2-9b-it', 'llama-3.2-11b-vision-preview'],
-        };
-
-        const mergedConfigs: any = { ...DEFAULT_PROVIDER_CONFIGS };
-
-        if (parsed.providerConfigs) {
-          for (const pKey of Object.keys(DEFAULT_PROVIDER_CONFIGS) as Array<keyof typeof DEFAULT_PROVIDER_CONFIGS>) {
-            const defaultCfg = DEFAULT_PROVIDER_CONFIGS[pKey];
-            const savedCfg = parsed.providerConfigs[pKey];
-            if (savedCfg) {
-              const legacyList = legacyModelsMap[pKey] || [];
-              let model = savedCfg.model;
-              if (!model || legacyList.includes(model)) {
-                model = defaultCfg.model;
-              }
-              let availableModels = Array.isArray(savedCfg.availableModels) ? savedCfg.availableModels : defaultCfg.availableModels;
-              availableModels = availableModels.filter((m: string) => !legacyList.includes(m));
-
-              mergedConfigs[pKey] = {
-                ...defaultCfg,
-                ...savedCfg,
-                model,
-                availableModels,
-              };
-            }
-          }
-        }
-
-        const activeProvider = (parsed.defaultProvider || DEFAULT_SETTINGS.defaultProvider) as keyof typeof DEFAULT_PROVIDER_CONFIGS;
-        let apiModel = parsed.apiModel;
-        const allLegacy = Object.values(legacyModelsMap).flat();
-        if (!apiModel || allLegacy.includes(apiModel)) {
-          apiModel = mergedConfigs[activeProvider]?.model || DEFAULT_SETTINGS.apiModel;
-        }
-
-        // One-time migration (v1 → v2): older builds saved autoTranslate=true
-        // (the old default), so stale installs keep auto-translating while
-        // typing. Reset it once and stamp the version — see migrateSettings.
-        migrateSettings(parsed);
-
+        const mergedConfigs: any = { ...DEFAULT_PROVIDER_CONFIGS, ...(parsed.providerConfigs || {}) };
         return {
           ...DEFAULT_SETTINGS,
           ...parsed,
-          apiModel,
           providerConfigs: mergedConfigs,
         };
       }
@@ -178,6 +130,28 @@ export default function App({
       return DEFAULT_SETTINGS;
     }
   });
+
+  // Sync settings and history from chrome.storage.local on mount
+  useEffect(() => {
+    if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+      chrome.storage.local.get([STORAGE_KEYS.settings, STORAGE_KEYS.history], (result) => {
+        if (result[STORAGE_KEYS.settings]) {
+          try {
+            const raw = result[STORAGE_KEYS.settings];
+            const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+            setSettings((prev) => ({ ...prev, ...parsed }));
+          } catch (e) {}
+        }
+        if (result[STORAGE_KEYS.history]) {
+          try {
+            const rawH = result[STORAGE_KEYS.history];
+            const parsedH = typeof rawH === 'string' ? JSON.parse(rawH) : rawH;
+            if (Array.isArray(parsedH)) setHistory(parsedH);
+          } catch (e) {}
+        }
+      });
+    }
+  }, []);
 
   const [history, setHistory] = useState<HistoryItem[]>(() => {
     try {
