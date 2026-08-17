@@ -325,12 +325,12 @@ function getSelectionFromEvent(e: MouseEvent | TouchEvent): { text: string; insi
   return { text: window.getSelection()?.toString().trim() ?? '', insideFormField: false };
 }
 
-// Selection listener (mouse & touch) — three word-hover modes:
+// Selection listener (mouse & touch) — word-hover modes:
 //  select: open the popover directly
 //  click / hover: show a small floating button first
+//  off: do not show any floating icon
 function handleSelectionEvent(e: MouseEvent | TouchEvent) {
-  // Right-click opens the browser context menu (and possibly our own items) —
-  // it must not also fire the selection popover / floating button.
+  // Right-click opens the browser context menu — do not show floating button
   if (e instanceof MouseEvent && e.button !== 0) return;
 
   const target = e.target as HTMLElement | null;
@@ -339,13 +339,22 @@ function handleSelectionEvent(e: MouseEvent | TouchEvent) {
   }
 
   const { text: selection, insideFormField } = getSelectionFromEvent(e);
-  if (!selection || selection.length === 0 || selection.length >= 3000) return;
+  if (!selection || selection.length === 0 || selection.length >= 3000) {
+    removeFloatBtn();
+    return;
+  }
 
   if (insideFormField && !currentSettings.selectInputElementsText) {
+    removeFloatBtn();
     return;
   }
 
   const mode = currentSettings.wordHoverMode || 'click';
+  if (mode === 'off') {
+    removeFloatBtn();
+    return;
+  }
+
   // On touchend the touches list is empty; the lifted finger lives in changedTouches.
   const touch = e instanceof TouchEvent ? e.changedTouches[0] : null;
   const clientX = touch?.clientX ?? (e instanceof MouseEvent ? e.clientX : 0);
@@ -354,11 +363,9 @@ function handleSelectionEvent(e: MouseEvent | TouchEvent) {
   if (mode === 'select') {
     showPopover(selection, clientX, clientY);
   } else {
-    // The floating "译" button is a word-level affordance (deep-dive on a word
-    // or short phrase). Longer selections (paragraphs) skip it — those translate
-    // via right-click on the selection, the Alt+T shortcut, or "选中即翻译".
+    // Floating "译" button for word or short selections
     const wordCount = selection.trim().split(/\s+/).length;
-    if (wordCount > 8) return;
+    if (wordCount > 15) return;
     showFloatBtn(selection, clientX, clientY, mode);
   }
 }
@@ -366,51 +373,7 @@ function handleSelectionEvent(e: MouseEvent | TouchEvent) {
 document.addEventListener('mouseup', handleSelectionEvent);
 document.addEventListener('touchend', handleSelectionEvent);
 
-/** True when the viewport point (x, y) falls inside the current selection's
- * bounding box — used to decide whether a right-click on a selection should
- * translate directly instead of showing the browser's native menu. Uses the
- * union rect (not per-line glyph rects) so right-clicks in the inter-line gap
- * of a multi-line paragraph still count as "inside the selection". */
-function isPointInSelection(x: number, y: number): boolean {
-  const sel = window.getSelection();
-  if (!sel || sel.isCollapsed || sel.rangeCount === 0) return false;
-  const r = sel.getRangeAt(0).getBoundingClientRect();
-  if (!r.width && !r.height) return false;
-  const m = 4;
-  return x >= r.left - m && x <= r.right + m && y >= r.top - m && y <= r.bottom + m;
-}
-
-// Right-click on an active selection translates immediately — the browser's
-// native context menu (and our menu items) are skipped for that gesture, so a
-// selected paragraph's translation pops up directly. Smart mode: a short word
-// gets the deep-dive card, a longer selection gets the plain translation.
-// Right-clicks outside a selection keep the native menu untouched.
-//
-// Registered in the CAPTURE phase: it runs before any page handler, so pages
-// that stopPropagation() contextmenu (right-click-protected sites, custom
-// menus) can't swallow it, and the native menu is reliably suppressed.
-document.addEventListener('contextmenu', (e) => {
-  const target = e.target as HTMLElement | null;
-  if (target?.closest?.('.freetranslate-modal-card, .freetranslate-float-btn, .ftpt-toolbar, .ftpt-fab')) return;
-  // Inside form fields / rich-text editors the native copy-paste menu matters
-  // more than instant translation — leave those alone.
-  if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target?.isContentEditable) return;
-
-  const { text, insideFormField } = getSelectionFromEvent(e);
-  if (insideFormField || !text || text.length === 0 || text.length >= 3000) return;
-  if (!isPointInSelection(e.clientX, e.clientY)) return;
-
-  // Suppress the native menu AND stop the page from reacting (e.g. opening its
-  // own custom context menu) — we own this gesture on a selection now.
-  e.preventDefault();
-  e.stopPropagation();
-  removeFloatBtn();
-  showPopover(text, e.clientX, e.clientY, 'auto').catch((err) => {
-    console.error('Right-click translation failed:', err);
-  });
-}, true);
-// Hide the floating button when clicking elsewhere — but not when the click
-// targets the button itself (otherwise its click handler never fires).
+// Hide the floating button when clicking elsewhere or scrolling
 document.addEventListener('mousedown', (e) => {
   if ((e.target as HTMLElement | null)?.closest?.('.freetranslate-float-btn')) return;
   removeFloatBtn();
@@ -419,19 +382,44 @@ document.addEventListener('touchstart', (e) => {
   if ((e.target as HTMLElement | null)?.closest?.('.freetranslate-float-btn')) return;
   removeFloatBtn();
 });
+window.addEventListener('scroll', () => {
+  removeFloatBtn();
+}, { passive: true });
+
+function getSelectionPosition(): { x: number; y: number } {
+  const sel = window.getSelection();
+  if (sel && sel.rangeCount > 0) {
+    const rect = sel.getRangeAt(0).getBoundingClientRect();
+    if (rect.width > 0 || rect.height > 0) {
+      return {
+        x: Math.max(12, Math.min(rect.left, window.innerWidth - 440)),
+        y: Math.max(12, Math.min(rect.bottom + 8, window.innerHeight - 200)),
+      };
+    }
+  }
+  return {
+    x: Math.max(12, window.innerWidth / 2 - 210),
+    y: Math.max(12, window.innerHeight / 3),
+  };
+}
 
 // Chrome extension context menu / keyboard shortcut listener
 if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message.action === 'TRANSLATE_SELECTION' && message.text) {
-      showPopover(message.text, window.innerWidth / 2 - 200, 100, 'translate');
+      removeFloatBtn();
+      const pos = getSelectionPosition();
+      showPopover(message.text, pos.x, pos.y, 'translate');
     } else if (message.action === 'EXPLAIN_SELECTION' && message.text) {
-      showPopover(message.text, window.innerWidth / 2 - 200, 100, 'explain');
+      removeFloatBtn();
+      const pos = getSelectionPosition();
+      showPopover(message.text, pos.x, pos.y, 'explain');
     } else if (message.action === 'AUTO_SELECTION' && message.text) {
-      showPopover(message.text, window.innerWidth / 2 - 200, 100, 'auto');
+      removeFloatBtn();
+      const pos = getSelectionPosition();
+      showPopover(message.text, pos.x, pos.y, 'auto');
     } else if (message.action === 'REQUEST_SELECTION') {
-      // Reply with the page's current selection so the background service
-      // worker can translate it (used by the Alt+T keyboard shortcut).
+      // Reply with the page's current selection so popup or background can translate it
       sendResponse({ text: window.getSelection()?.toString().trim() || '' });
       return true;
     }

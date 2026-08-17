@@ -679,12 +679,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   onChange={(e) => setFormData({ ...formData, wordHoverMode: e.target.value as any })}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-indigo-500 font-medium"
                 >
-                  <option value="select">选中即翻译</option>
-                  <option value="click">显示图标，点击翻译</option>
-                  <option value="hover">显示图标，悬停翻译</option>
+                  <option value="click">显示小图标，点击翻译（推荐）</option>
+                  <option value="hover">显示小图标，悬停翻译</option>
+                  <option value="select">选中即翻译（直接弹出卡片）</option>
+                  <option value="off">关闭划词图标（仅通过右键菜单或 Alt+T 翻译）</option>
                 </select>
                 <p className="text-[11px] text-slate-400 mt-1">
-                  划词后直接翻译，或先显示小图标再点击/悬停触发。
+                  划词后显示小图标、直接翻译或完全关闭浮标（避免选词干扰）。
                 </p>
               </div>
 

@@ -39,9 +39,32 @@ export default function App() {
   const [sourceLang, setSourceLang] = useState<string>('auto');
   const [targetLang, setTargetLang] = useState<string>('zh-CN');
 
+  // If opened inside Chrome extension popup, check if the current active tab has selected text
+  useEffect(() => {
+    if (isPopup && typeof chrome !== 'undefined' && chrome.tabs?.query) {
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        const activeTab = tabs[0];
+        if (activeTab?.id) {
+          chrome.tabs.sendMessage(activeTab.id, { action: 'REQUEST_SELECTION' }, (response) => {
+            if (chrome.runtime.lastError) return;
+            const sel = response?.text?.trim();
+            if (sel) {
+              setSourceText(sel);
+              setRetranslateSignal((s) => s + 1);
+            }
+          });
+        }
+      });
+    }
+  }, [isPopup]);
+
   useEffect(() => {
     try {
-      localStorage.setItem('freetranslate_draft', sourceText);
+      if (sourceText) {
+        localStorage.setItem('freetranslate_draft', sourceText);
+      } else {
+        localStorage.removeItem('freetranslate_draft');
+      }
     } catch (e) {}
   }, [sourceText]);
 
@@ -179,6 +202,9 @@ export default function App() {
   };
 
   const handleSaveHistoryItem = (item: { sourceText: string; translation: string; sourceLang: string; targetLang: string }) => {
+    try {
+      localStorage.removeItem('freetranslate_draft');
+    } catch (e) {}
     setHistory((prev) => {
       // Skip saving when it's identical to the most recent item (e.g. repeated
       // auto-translates of unchanged text) to avoid duplicate history spam.

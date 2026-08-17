@@ -15,6 +15,9 @@ declare namespace chrome {
     const onInstalled: {
       addListener(callback: (details: OnInstalledDetails) => void): void;
     };
+    const onStartup: {
+      addListener(callback: () => void): void;
+    };
     const onMessage: {
       addListener(
         callback: (
@@ -27,6 +30,7 @@ declare namespace chrome {
     const onConnect: {
       addListener(callback: (port: chrome.runtime.Port) => void): void;
     };
+    const lastError: { message?: string } | undefined;
     const id: string | undefined;
     function getURL(path: string): string;
 
@@ -66,9 +70,32 @@ declare namespace chrome {
     interface Tab {
       id?: number;
       url?: string;
+      active?: boolean;
+      currentWindow?: boolean;
     }
+    interface QueryInfo {
+      active?: boolean;
+      currentWindow?: boolean;
+      status?: string;
+      url?: string | string[];
+    }
+    function query(queryInfo: QueryInfo, callback: (result: Tab[]) => void): void;
+    function query(queryInfo: QueryInfo): Promise<Tab[]>;
     function sendMessage(tabId: number, message: any, callback?: (response: any) => void): void;
     function create(properties: { url: string }): void;
+  }
+
+  namespace scripting {
+    interface ScriptInjection {
+      target: {
+        tabId: number;
+        allFrames?: boolean;
+        frameIds?: number[];
+      };
+      files?: string[];
+    }
+    function executeScript(injection: ScriptInjection, callback?: (results: any[]) => void): void;
+    function executeScript(injection: ScriptInjection): Promise<any[]>;
   }
 
   namespace commands {

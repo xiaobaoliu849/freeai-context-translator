@@ -49,7 +49,7 @@ export interface AppSettings {
   ttsRate: number;
   ttsApiKey?: string;
   ttsBaseUrl?: string;
-  wordHoverMode: 'hover' | 'click' | 'select';
+  wordHoverMode: 'hover' | 'click' | 'select' | 'off';
   // Whether selection inside input/textarea fields also triggers translation
   selectInputElementsText?: boolean;
   autoTranslate: boolean;
