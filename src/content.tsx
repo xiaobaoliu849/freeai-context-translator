@@ -248,6 +248,7 @@ const SelectionPopover: React.FC<SelectionPopoverProps> = ({ selectedText, posit
 };
 
 let activeRootContainer: HTMLDivElement | null = null;
+let shadowRootInstance: ShadowRoot | null = null;
 let reactRootInstance: any = null;
 let activeFloatBtn: HTMLButtonElement | null = null;
 let floatBtnHoverTimer: number | null = null;
@@ -285,6 +286,7 @@ function removePopover() {
   if (activeRootContainer) {
     activeRootContainer.remove();
     activeRootContainer = null;
+    shadowRootInstance = null;
   }
 }
 
@@ -299,11 +301,6 @@ function removeFloatBtn() {
   }
 }
 
-/**
- * Small floating "译" button shown next to a selection (click/hover modes,
- * borrowed from the NextAI Translator interaction model). Clicking or hovering
- * it opens the translation popover.
- */
 function showFloatBtn(text: string, x: number, y: number, mode: 'click' | 'hover') {
   removeFloatBtn();
 
@@ -350,17 +347,31 @@ async function showPopover(text: string, x: number, y: number, mode: 'auto' | 't
   currentSettings = settings;
 
   activeRootContainer = document.createElement('div');
-  activeRootContainer.className = 'freetranslate-host-reset';
+  activeRootContainer.id = 'freetranslate-host-container';
+  activeRootContainer.style.cssText = 'all: initial; position: absolute; z-index: 2147483647; top: 0; left: 0; pointer-events: none;';
   document.body.appendChild(activeRootContainer);
 
-  reactRootInstance = createRoot(activeRootContainer);
+  shadowRootInstance = activeRootContainer.attachShadow({ mode: 'open' });
+
+  // Inject content.css inside Shadow DOM for 100% true style isolation
+  if (typeof chrome !== 'undefined' && chrome.runtime?.getURL) {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = chrome.runtime.getURL('content.css');
+    shadowRootInstance.appendChild(link);
+  }
+
+  const mountPoint = document.createElement('div');
+  mountPoint.style.cssText = 'pointer-events: auto;';
+  shadowRootInstance.appendChild(mountPoint);
+
+  reactRootInstance = createRoot(mountPoint);
   reactRootInstance.render(
     <SelectionPopover
       selectedText={text}
       position={{ x, y }}
       onClose={removePopover}
       settings={settings}
-      mode={mode}
     />
   );
 }
