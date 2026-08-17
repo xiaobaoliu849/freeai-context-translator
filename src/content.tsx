@@ -57,28 +57,22 @@ async function getSavedSettings(): Promise<AppSettings> {
   return DEFAULT_SETTINGS;
 }
 
-import { TranslatorMain } from './components/TranslatorMain';
-import { SUPPORTED_LANGUAGES } from './config';
+import App from './App';
 import { Pin, X } from 'lucide-react';
 
 interface SelectionPopoverProps {
   selectedText: string;
   position: { x: number; y: number };
   onClose: () => void;
-  settings: AppSettings;
 }
 
-const SelectionPopover: React.FC<SelectionPopoverProps> = ({ selectedText, position, onClose, settings }) => {
-  const [currentText, setCurrentText] = useState(selectedText || '');
-  const [srcLang, setSrcLang] = useState(settings.defaultSourceLang || 'auto');
-  const [tgtLang, setTgtLang] = useState(settings.defaultTargetLang || 'zh-CN');
-  const [retranslateSignal, setRetranslateSignal] = useState(1);
+const SelectionPopover: React.FC<SelectionPopoverProps> = ({ selectedText, position, onClose }) => {
   const [isPinned, setIsPinned] = useState(false);
 
   // Position state (absolute document coordinates)
   const [pos, setPos] = useState(() => ({
-    x: Math.min(Math.max(position.x + window.scrollX, window.scrollX + 8), window.scrollX + Math.max(8, window.innerWidth - 490)),
-    y: Math.min(Math.max(position.y + 10 + window.scrollY, window.scrollY + 8), window.scrollY + Math.max(8, window.innerHeight - 440)),
+    x: Math.min(Math.max(position.x + window.scrollX, window.scrollX + 8), window.scrollX + Math.max(8, window.innerWidth - 470)),
+    y: Math.min(Math.max(position.y + 10 + window.scrollY, window.scrollY + 8), window.scrollY + Math.max(8, window.innerHeight - 560)),
   }));
 
   const cardRef = useRef<HTMLDivElement>(null);
@@ -126,24 +120,6 @@ const SelectionPopover: React.FC<SelectionPopoverProps> = ({ selectedText, posit
     window.addEventListener('pointercancel', handlePointerUp);
   };
 
-  const handleSwapLanguages = () => {
-    const prevSrc = srcLang;
-    setSrcLang(tgtLang);
-    setTgtLang(prevSrc === 'auto' ? 'zh-CN' : prevSrc);
-  };
-
-  const handleSaveHistory = (item: { sourceText: string; translation: string; sourceLang: string; targetLang: string }) => {
-    try {
-      if (typeof chrome !== 'undefined' && chrome.storage?.local) {
-        chrome.storage.local.get('freetranslate_history', (res) => {
-          const prev = res.freetranslate_history || [];
-          const next = [{ ...item, id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, timestamp: Date.now() }, ...prev].slice(0, 100);
-          chrome.storage.local.set({ freetranslate_history: next });
-        });
-      }
-    } catch (e) {}
-  };
-
   // Close on outside click if NOT pinned
   useEffect(() => {
     if (isPinned) return;
@@ -166,8 +142,6 @@ const SelectionPopover: React.FC<SelectionPopoverProps> = ({ selectedText, posit
     };
   }, [isPinned, onClose]);
 
-  const activeProvider = (settings.defaultProvider || 'gemini').toUpperCase();
-
   return (
     <div
       ref={cardRef}
@@ -175,74 +149,24 @@ const SelectionPopover: React.FC<SelectionPopoverProps> = ({ selectedText, posit
       style={{
         left: `${pos.x}px`,
         top: `${pos.y}px`,
+        width: '450px',
+        height: '560px',
+        maxWidth: '95vw',
+        maxHeight: '85vh',
+        boxShadow: '0 20px 50px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.08)',
+        borderRadius: '16px',
+        overflow: 'hidden',
+        background: '#ffffff',
       }}
     >
-      <div className="w-full h-full bg-white/95 backdrop-blur-2xl rounded-2xl shadow-2xl border border-slate-200/90 flex flex-col overflow-hidden text-slate-800 animate-in fade-in zoom-in-95 duration-150">
-        {/* Top Accent Gradient Bar */}
-        <div className="h-1 w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 shrink-0" />
-
-        {/* Draggable Title Header */}
-        <div
-          onPointerDown={handleDragStart}
-          className="px-3 py-2 bg-slate-50/95 border-b border-slate-200/80 flex items-center justify-between cursor-move select-none shrink-0"
-          title="按住拖拽移动悬浮窗"
-        >
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-black text-[10px] shadow-xs">
-              FT
-            </div>
-            <span className="text-xs font-black text-slate-800 tracking-tight">FreeTranslate AI</span>
-            <span className="px-1.5 py-0.5 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-700 text-[9px] font-extrabold tracking-wide uppercase">
-              {activeProvider}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setIsPinned(!isPinned)}
-              className={`p-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1 ${
-                isPinned
-                  ? 'bg-indigo-100 text-indigo-700 font-bold'
-                  : 'text-slate-400 hover:text-slate-700 hover:bg-slate-200/60'
-              }`}
-              title={isPinned ? '已钉住（点击取消固定）' : '钉住悬浮窗（防止点击页面空白处自动关闭）'}
-            >
-              <Pin className={`w-3.5 h-3.5 ${isPinned ? 'fill-indigo-600 rotate-45' : ''}`} />
-            </button>
-            <button
-              onClick={onClose}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors cursor-pointer"
-              title="关闭 (Esc)"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Studio Body: TranslatorMain */}
-        <div className="flex-1 min-h-0 overflow-hidden flex flex-col p-2.5 bg-slate-50/30">
-          <TranslatorMain
-            sourceText={currentText}
-            setSourceText={setCurrentText}
-            sourceLang={srcLang}
-            setSourceLang={setSrcLang}
-            targetLang={tgtLang}
-            setTargetLang={setTgtLang}
-            onSwapLanguages={handleSwapLanguages}
-            languages={SUPPORTED_LANGUAGES}
-            settings={settings}
-            onSaveHistory={handleSaveHistory}
-            openSettings={() => {
-              if (typeof chrome !== 'undefined' && chrome.runtime?.openOptionsPage) {
-                chrome.runtime.openOptionsPage();
-              }
-            }}
-            openHistory={() => {}}
-            retranslateSignal={retranslateSignal}
-            isPopup={true}
-          />
-        </div>
-      </div>
+      <App
+        initialText={selectedText}
+        isFloating={true}
+        isPinned={isPinned}
+        onTogglePin={() => setIsPinned(!isPinned)}
+        onClose={onClose}
+        onDragStart={handleDragStart}
+      />
     </div>
   );
 };
@@ -362,7 +286,6 @@ async function showPopover(text: string, x: number, y: number, mode: 'auto' | 't
       selectedText={text}
       position={{ x, y }}
       onClose={removePopover}
-      settings={settings}
     />
   );
 }

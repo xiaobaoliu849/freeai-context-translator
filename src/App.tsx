@@ -23,12 +23,31 @@ function mirrorToExtensionStorage(items: Record<string, any>) {
   }
 }
 
-export default function App() {
-  // The same App is mounted by index.html (full web app) and popup.html
+export interface AppProps {
+  initialText?: string;
+  isFloating?: boolean;
+  isPinned?: boolean;
+  onTogglePin?: () => void;
+  onClose?: () => void;
+  onDragStart?: (e: React.PointerEvent<HTMLDivElement>) => void;
+}
+
+export default function App({
+  initialText,
+  isFloating = false,
+  isPinned = false,
+  onTogglePin,
+  onClose,
+  onDragStart,
+}: AppProps = {}) {
+  // The same App is mounted by index.html (full web app), popup.html, and in-page floating window
   const isPopup =
-    typeof window !== 'undefined' && /popup\.html($|\?)/.test(window.location.pathname);
+    isFloating || (typeof window !== 'undefined' && /popup\.html($|\?)/.test(window.location.pathname));
 
   const [sourceText, setSourceText] = useState<string>(() => {
+    if (initialText !== undefined) {
+      return initialText;
+    }
     if (isPopup) {
       // In extension popup, always start clean unless active webpage text is selected
       try {
@@ -47,7 +66,7 @@ export default function App() {
 
   // If opened inside Chrome extension popup, check if the current active tab has selected text
   useEffect(() => {
-    if (isPopup && typeof chrome !== 'undefined' && chrome.tabs?.query) {
+    if (!isFloating && isPopup && typeof chrome !== 'undefined' && chrome.tabs?.query) {
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         const activeTab = tabs[0];
         if (activeTab?.id) {
@@ -62,7 +81,7 @@ export default function App() {
         }
       });
     }
-  }, [isPopup]);
+  }, [isPopup, isFloating]);
 
   useEffect(() => {
     if (isPopup) return;
@@ -80,7 +99,7 @@ export default function App() {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   // Bumped when the user retranslates a history item (TranslatorMain reacts).
-  const [retranslateSignal, setRetranslateSignal] = useState(0);
+  const [retranslateSignal, setRetranslateSignal] = useState(initialText ? 1 : 0);
 
   // Settings & History State with LocalStorage
   const [settings, setSettings] = useState<AppSettings>(() => {
@@ -242,6 +261,11 @@ export default function App() {
         openHistory={() => setIsHistoryOpen(true)}
         settings={settings}
         isPopup={isPopup}
+        isFloating={isFloating}
+        isPinned={isPinned}
+        onTogglePin={onTogglePin}
+        onClose={onClose}
+        onDragStart={onDragStart}
       />
 
       {/* Main App Content View */}
