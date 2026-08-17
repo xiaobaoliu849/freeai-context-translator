@@ -280,13 +280,14 @@ if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
 function removePopover() {
   removeFloatBtn();
   if (reactRootInstance) {
-    reactRootInstance.unmount();
+    try {
+      reactRootInstance.unmount();
+    } catch(e) {}
     reactRootInstance = null;
   }
   if (activeRootContainer) {
     activeRootContainer.remove();
     activeRootContainer = null;
-    shadowRootInstance = null;
   }
 }
 
@@ -351,19 +352,9 @@ async function showPopover(text: string, x: number, y: number, mode: 'auto' | 't
   activeRootContainer.style.cssText = 'all: initial; position: absolute; z-index: 2147483647; top: 0; left: 0; pointer-events: none;';
   document.body.appendChild(activeRootContainer);
 
-  shadowRootInstance = activeRootContainer.attachShadow({ mode: 'open' });
-
-  // Inject content.css inside Shadow DOM for 100% true style isolation
-  if (typeof chrome !== 'undefined' && chrome.runtime?.getURL) {
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = chrome.runtime.getURL('content.css');
-    shadowRootInstance.appendChild(link);
-  }
-
   const mountPoint = document.createElement('div');
   mountPoint.style.cssText = 'pointer-events: auto;';
-  shadowRootInstance.appendChild(mountPoint);
+  activeRootContainer.appendChild(mountPoint);
 
   reactRootInstance = createRoot(mountPoint);
   reactRootInstance.render(
