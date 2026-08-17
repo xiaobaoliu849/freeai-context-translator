@@ -1,5 +1,5 @@
 import { AppSettings, WordExplanation } from '../types';
-import { DEFAULT_BASE_URLS, DEFAULT_SETTINGS, parseSavedSettings } from '../config';
+import { DEFAULT_BASE_URLS, DEFAULT_SETTINGS, mergeKnownFreeModels, parseSavedSettings } from '../config';
 import {
   EXPLAIN_SYSTEM_PROMPT,
   TRANSLATE_SYSTEM_PROMPT,
@@ -438,7 +438,7 @@ async function fetchModels({ provider, baseUrl, apiKey, settings }: { provider: 
       const data: any = await res.json();
       const rawList: any[] = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : Array.isArray(data?.models) ? data.models : [];
       const ids = rawList.map((m: any) => (typeof m === 'string' ? m : m.id || m.name || m.model)).filter(Boolean);
-      if (ids.length > 0) return { models: ids, source: 'live' };
+      if (ids.length > 0) return { models: mergeKnownFreeModels(provider as any, ids), source: 'live' };
     } else if (explicitKey) {
       throw new Error(`${provider} models API error (${res.status}): ${(await res.text()).slice(0, 200)}`);
     }

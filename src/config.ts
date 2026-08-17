@@ -41,6 +41,18 @@ export const DEFAULT_MODELS: Partial<Record<ProviderType, string>> = {
   cerebras: 'llama-3.3-70b',
 };
 
+// 智谱 /models 接口不返回免费的 flash 系列模型（上游已知行为，见
+// https://github.com/liliMozi/openhanako/issues/1266），但直接调用是有效的。
+// 「自动获取可用模型」时把已知免费 flash 模型合并进列表，保证免费模型可被发现。
+export const GLM_FLASH_MODELS = ['glm-4.7-flash', 'glm-4-flash'];
+
+/** 合并已知免费模型到拉取结果（目前仅智谱需要）；其余 provider 原样返回。 */
+export function mergeKnownFreeModels(provider: ProviderType, models: string[]): string[] {
+  if (provider !== 'glm') return models;
+  const extra = GLM_FLASH_MODELS.filter((m) => !models.includes(m));
+  return extra.length ? [...extra, ...models] : models;
+}
+
 // 模型列表不再内置预设：一律通过各服务商的 /models 接口实时获取（见
 // SettingsModal「自动获取可用模型」与 server /api/models）。
 export const DEFAULT_PROVIDER_CONFIGS: Record<ProviderType, ProviderConfig> = Object.fromEntries(

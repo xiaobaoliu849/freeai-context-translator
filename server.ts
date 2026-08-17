@@ -3,7 +3,7 @@ import path from "path";
 import dns from "node:dns";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
-import { DEFAULT_BASE_URLS } from "./src/config";
+import { DEFAULT_BASE_URLS, mergeKnownFreeModels } from "./src/config";
 import {
   EXPLAIN_SYSTEM_PROMPT,
   TRANSLATE_SYSTEM_PROMPT,
@@ -362,7 +362,7 @@ app.post("/api/models", rateLimit, async (req, res) => {
           .filter(Boolean);
 
         if (modelIds.length > 0) {
-          return res.json({ models: modelIds, source: "live" });
+          return res.json({ models: mergeKnownFreeModels(provider, modelIds), source: "live" });
         }
       }
     } catch (err: any) {
