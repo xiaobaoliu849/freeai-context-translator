@@ -19,7 +19,10 @@ import { bridgePageTranslate, getExtensionSettings, isExtensionContext } from '.
  *     when an action finishes.
  */
 
-const BLOCK_SELECTOR = 'p, li, h1, h2, h3, h4, h5, h6, blockquote, td, th, figcaption, dt, dd, summary, cite';
+// `div` is included because many modern layouts keep their paragraphs in divs;
+// div candidates are held to a higher text-length bar below so layout
+// fragments (timestamps, stray labels) don't sneak in.
+const BLOCK_SELECTOR = 'p, li, h1, h2, h3, h4, h5, h6, blockquote, td, th, figcaption, dt, dd, summary, cite, div';
 const MAX_BLOCKS = 400;
 /** Paragraphs longer than this are split into sentence chunks before translating. */
 const SPLIT_BLOCK_CHARS = 1200;
@@ -115,6 +118,8 @@ export function collectBlocks(root: ParentNode = document): PageBlock[] {
 
   for (const el of candidates) {
     if (isOwnNode(el)) continue;
+    // Cheap pre-filter: skip textless nodes before any layout/visibility work.
+    if ((el.textContent || '').trim().length < 2) continue;
     if (!isVisible(el)) continue;
     if (hasNoiseAncestor(el)) continue;
 
@@ -123,7 +128,8 @@ export function collectBlocks(root: ParentNode = document): PageBlock[] {
     if (blocks.some((b) => b.el === el || b.el.contains(el))) continue;
 
     const ownText = ownTextOf(el, new Set(candidates));
-    if (ownText.length < 2) continue;
+    // divs need paragraph-like heft; everything else just needs a couple chars.
+    if (ownText.length < (el.tagName === 'DIV' ? 20 : 2)) continue;
     if (ownText.length > MAX_BLOCK_CHARS) continue;
     if (ownText.length >= 20 && linkDensity(el, ownText) > 0.5) continue;
 
@@ -244,8 +250,8 @@ export async function translatePage(): Promise<void> {
 
   state.blocks = collectBlocks();
   if (state.blocks.length === 0) {
-    setStatus('未找到可翻译的正文内容');
-    scheduleAutoCollapse(2500);
+    setStatus('没有可翻译的正文段落：搜索/导航/列表类页面会被自动过滤，请在文章类页面使用');
+    scheduleAutoCollapse(3500);
     return;
   }
 
@@ -403,8 +409,8 @@ export async function readPage(): Promise<void> {
   state.settings = await loadSettings();
   if (state.blocks.length === 0) state.blocks = collectBlocks();
   if (state.blocks.length === 0) {
-    setStatus('未找到可朗读的正文内容');
-    scheduleAutoCollapse(2500);
+    setStatus('没有可朗读的正文段落：搜索/导航/列表类页面会被自动过滤，请在文章类页面使用');
+    scheduleAutoCollapse(3500);
     return;
   }
 

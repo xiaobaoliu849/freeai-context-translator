@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { WordContextCard } from './components/WordContextCard';
+import { TranslationCard } from './components/TranslationCard';
 import { bridgeExplain, bridgeTranslate, isExtensionContext } from './services/bridge';
 import { DEFAULT_SETTINGS, parseSavedSettings } from './config';
 import { AppSettings, WordExplanation } from './types';
@@ -61,17 +62,28 @@ interface SelectionPopoverProps {
   position: { x: number; y: number };
   onClose: () => void;
   settings: AppSettings;
+  /**
+   * 'translate'  — always show the plain translation card
+   * 'explain'    — always show the word deep-dive card (short text only;
+   *                a long selection falls back to translation)
+   * 'auto'       — short selection → explain, longer → translate
+   */
+  mode?: 'auto' | 'translate' | 'explain';
 }
 
-const SelectionPopover: React.FC<SelectionPopoverProps> = ({ selectedText, position, onClose, settings }) => {
+const SelectionPopover: React.FC<SelectionPopoverProps> = ({ selectedText, position, onClose, settings, mode = 'auto' }) => {
   const [loading, setLoading] = useState(true);
   const [translation, setTranslation] = useState<string>('');
+  const [detectedLang, setDetectedLang] = useState<string>('');
   const [explanation, setExplanation] = useState<WordExplanation | null>(null);
+  const [resolvedMode, setResolvedMode] = useState<'translate' | 'explain'>(mode === 'explain' ? 'explain' : 'translate');
+  const [modeNote, setModeNote] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     let isMounted = true;
     async function analyze() {
       setLoading(true);
+      let useExplain = false;
       try {
         // This content script only runs inside the extension, where all LLM
         // work is relayed to the background bridge — no API key here.
@@ -87,8 +99,19 @@ const SelectionPopover: React.FC<SelectionPopoverProps> = ({ selectedText, posit
           availableModels: [],
         };
 
-        // If it's a short text (word/phrase), fetch detailed word explanation
-        if (selectedText.trim().split(/\s+/).length <= 4) {
+        // Decide the view: a word deep-dive for short selections, a plain
+        // translation for paragraphs. An explicit 'explain' request still
+        // downgrades to translation when the selection is clearly a paragraph.
+        const wordCount = selectedText.trim().split(/\s+/).length;
+        useExplain = mode === 'explain' ? wordCount <= 8 : mode === 'auto' ? wordCount <= 4 : false;
+        if (isMounted) {
+          setResolvedMode(useExplain ? 'explain' : 'translate');
+          setModeNote(mode === 'explain' && !useExplain
+            ? '选中文本较长，已自动转为整句翻译。深度解析请选中单个词或短语。'
+            : undefined);
+        }
+
+        if (useExplain) {
           const expData = await bridgeExplain({
             sentence: selectedText,
             selectedWord: selectedText,
@@ -99,10 +122,8 @@ const SelectionPopover: React.FC<SelectionPopoverProps> = ({ selectedText, posit
           });
           if (isMounted) {
             setExplanation(expData);
-            setTranslation(expData.contextualMeaning || expData.literalMeaning);
           }
         } else {
-          // For longer sentences, translate overall text
           const transData = await bridgeTranslate({
             text: selectedText,
             sourceLang: 'auto',
@@ -113,20 +134,20 @@ const SelectionPopover: React.FC<SelectionPopoverProps> = ({ selectedText, posit
           });
           if (isMounted) {
             setTranslation(transData.translation);
-            setExplanation({
-              word: selectedText,
-              contextualMeaning: transData.translation,
-              contextExplanation: `Overall translation (${transData.detectedLang} → ${settings.defaultTargetLang})`,
-            });
+            setDetectedLang(transData.detectedLang || '');
           }
         }
       } catch (err: any) {
         if (isMounted) {
-          setExplanation({
-            word: selectedText,
-            contextualMeaning: 'Analysis error',
-            contextExplanation: err?.message || 'Failed to analyze text. Please check API Key in Extension Settings.',
-          });
+          if (useExplain) {
+            setExplanation({
+              word: selectedText,
+              contextualMeaning: 'Analysis error',
+              contextExplanation: err?.message || 'Failed to analyze text. Please check API Key in Extension Settings.',
+            });
+          } else {
+            setTranslation(`翻译失败：${err?.message || '请检查 API Key / 模型设置'}`);
+          }
         }
       } finally {
         if (isMounted) setLoading(false);
@@ -150,13 +171,26 @@ const SelectionPopover: React.FC<SelectionPopoverProps> = ({ selectedText, posit
         top: `${Math.min(Math.max(position.y + 10 + window.scrollY, window.scrollY + 8), window.scrollY + Math.max(8, window.innerHeight - 380))}px`,
       }}
     >
-      <WordContextCard
-        explanation={explanation}
-        loading={loading}
-        onClose={onClose}
-        sentence={selectedText}
-        settings={settings}
-      />
+      {resolvedMode === 'translate' ? (
+        <TranslationCard
+          sourceText={selectedText}
+          translation={translation}
+          loading={loading}
+          sourceLang={detectedLang}
+          targetLang={settings.defaultTargetLang || 'zh-CN'}
+          settings={settings}
+          note={modeNote}
+          onClose={onClose}
+        />
+      ) : (
+        <WordContextCard
+          explanation={explanation}
+          loading={loading}
+          onClose={onClose}
+          sentence={selectedText}
+          settings={settings}
+        />
+      )}
     </div>
   );
 };
@@ -257,7 +291,7 @@ function showFloatBtn(text: string, x: number, y: number, mode: 'click' | 'hover
   activeFloatBtn = btn;
 }
 
-async function showPopover(text: string, x: number, y: number) {
+async function showPopover(text: string, x: number, y: number, mode: 'auto' | 'translate' | 'explain' = 'auto') {
   removePopover();
 
   const settings = await getSavedSettings();
@@ -274,6 +308,7 @@ async function showPopover(text: string, x: number, y: number) {
       position={{ x, y }}
       onClose={removePopover}
       settings={settings}
+      mode={mode}
     />
   );
 }
@@ -294,6 +329,10 @@ function getSelectionFromEvent(e: MouseEvent | TouchEvent): { text: string; insi
 //  select: open the popover directly
 //  click / hover: show a small floating button first
 function handleSelectionEvent(e: MouseEvent | TouchEvent) {
+  // Right-click opens the browser context menu (and possibly our own items) —
+  // it must not also fire the selection popover / floating button.
+  if (e instanceof MouseEvent && e.button !== 0) return;
+
   const target = e.target as HTMLElement | null;
   if (target?.closest?.('.freetranslate-modal-card') || target?.closest?.('.freetranslate-float-btn')) {
     return;
@@ -335,8 +374,12 @@ document.addEventListener('touchstart', (e) => {
 // Chrome extension context menu / keyboard shortcut listener
 if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    if (message.action === 'EXPLAIN_SELECTION' && message.text) {
-      showPopover(message.text, window.innerWidth / 2 - 200, 100);
+    if (message.action === 'TRANSLATE_SELECTION' && message.text) {
+      showPopover(message.text, window.innerWidth / 2 - 200, 100, 'translate');
+    } else if (message.action === 'EXPLAIN_SELECTION' && message.text) {
+      showPopover(message.text, window.innerWidth / 2 - 200, 100, 'explain');
+    } else if (message.action === 'AUTO_SELECTION' && message.text) {
+      showPopover(message.text, window.innerWidth / 2 - 200, 100, 'auto');
     } else if (message.action === 'REQUEST_SELECTION') {
       // Reply with the page's current selection so the background service
       // worker can translate it (used by the Alt+T keyboard shortcut).
