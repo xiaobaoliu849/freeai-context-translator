@@ -10,7 +10,7 @@ function setupContextMenu() {
     chrome.contextMenus.create({
       id: 'freetranslate-translate',
       title: 'FreeTranslate AI',
-      contexts: ['selection'],
+      contexts: ['selection', 'page'],
     });
   });
 }
@@ -43,9 +43,10 @@ function sendOrInject(tabId: number, message: any) {
 }
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
-  if (!info.selectionText || !tab?.id) return;
+  if (!tab?.id) return;
   if (info.menuItemId === 'freetranslate-translate' || info.menuItemId === 'nextai-translate') {
-    sendOrInject(tab.id, { action: 'TRANSLATE_SELECTION', text: info.selectionText });
+    const text = info.selectionText || '';
+    sendOrInject(tab.id, { action: 'TRANSLATE_SELECTION', text });
   }
 });
 

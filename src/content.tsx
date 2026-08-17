@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { WordContextCard } from './components/WordContextCard';
 import { TranslationCard } from './components/TranslationCard';
@@ -72,21 +72,99 @@ interface SelectionPopoverProps {
 }
 
 const SelectionPopover: React.FC<SelectionPopoverProps> = ({ selectedText, position, onClose, settings, mode = 'auto' }) => {
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(Boolean(selectedText.trim()));
   const [translation, setTranslation] = useState<string>('');
   const [detectedLang, setDetectedLang] = useState<string>('');
   const [explanation, setExplanation] = useState<WordExplanation | null>(null);
   const [resolvedMode, setResolvedMode] = useState<'translate' | 'explain'>(mode === 'explain' ? 'explain' : 'translate');
   const [modeNote, setModeNote] = useState<string | undefined>(undefined);
+  const [isPinned, setIsPinned] = useState(false);
+
+  // Position state (absolute document coordinates)
+  const [pos, setPos] = useState(() => ({
+    x: Math.min(Math.max(position.x + window.scrollX, window.scrollX + 8), window.scrollX + Math.max(8, window.innerWidth - 460)),
+    y: Math.min(Math.max(position.y + 10 + window.scrollY, window.scrollY + 8), window.scrollY + Math.max(8, window.innerHeight - 380)),
+  }));
+
+  const cardRef = useRef<HTMLDivElement>(null);
+  const isDraggingRef = useRef(false);
+  const dragStartRef = useRef<{ startX: number; startY: number; initX: number; initY: number }>({
+    startX: 0,
+    startY: 0,
+    initX: 0,
+    initY: 0,
+  });
+
+  // Handle Dragging
+  const handleDragStart = (e: React.PointerEvent<HTMLDivElement>) => {
+    // Only drag with left click and ignore button clicks
+    if (e.button !== 0) return;
+    if ((e.target as HTMLElement).closest('button, select, input, textarea')) return;
+
+    e.preventDefault();
+    isDraggingRef.current = true;
+    dragStartRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      initX: pos.x,
+      initY: pos.y,
+    };
+
+    const handlePointerMove = (moveEv: PointerEvent) => {
+      if (!isDraggingRef.current) return;
+      const dx = moveEv.clientX - dragStartRef.current.startX;
+      const dy = moveEv.clientY - dragStartRef.current.startY;
+      const nextX = Math.max(window.scrollX + 8, Math.min(window.scrollX + window.innerWidth - 300, dragStartRef.current.initX + dx));
+      const nextY = Math.max(window.scrollY + 8, dragStartRef.current.initY + dy);
+      setPos({ x: nextX, y: nextY });
+    };
+
+    const handlePointerUp = () => {
+      isDraggingRef.current = false;
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerUp);
+  };
+
+  // Close on outside click if NOT pinned
+  useEffect(() => {
+    if (isPinned) return;
+
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (isDraggingRef.current) return;
+      const card = cardRef.current;
+      if (card && !card.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+
+    const timer = setTimeout(() => {
+      document.addEventListener('mousedown', handleOutsideClick);
+    }, 150);
+
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('mousedown', handleOutsideClick);
+    };
+  }, [isPinned, onClose]);
 
   useEffect(() => {
+    if (!selectedText || !selectedText.trim()) {
+      setLoading(false);
+      setResolvedMode('translate');
+      return;
+    }
+
     let isMounted = true;
     async function analyze() {
       setLoading(true);
       let useExplain = false;
       try {
-        // This content script only runs inside the extension, where all LLM
-        // work is relayed to the background bridge — no API key here.
         if (!isExtensionContext()) {
           throw new Error('划词翻译仅在 Chrome 扩展中可用');
         }
@@ -99,9 +177,6 @@ const SelectionPopover: React.FC<SelectionPopoverProps> = ({ selectedText, posit
           availableModels: [],
         };
 
-        // Decide the view: a word deep-dive for short selections, a plain
-        // translation for paragraphs. An explicit 'explain' request still
-        // downgrades to translation when the selection is clearly a paragraph.
         const wordCount = selectedText.trim().split(/\s+/).length;
         useExplain = mode === 'explain' ? wordCount <= 8 : mode === 'auto' ? wordCount <= 4 : false;
         if (isMounted) {
@@ -162,13 +237,11 @@ const SelectionPopover: React.FC<SelectionPopoverProps> = ({ selectedText, posit
 
   return (
     <div
+      ref={cardRef}
       className="freetranslate-modal-card"
       style={{
-        // The card is absolutely positioned against the document body, so
-        // viewport coordinates (clientX/clientY) need scroll offsets added.
-        // Clamp so the 420px-wide card stays inside the visible area.
-        left: `${Math.min(Math.max(position.x + window.scrollX, window.scrollX + 8), window.scrollX + Math.max(8, window.innerWidth - 440))}px`,
-        top: `${Math.min(Math.max(position.y + 10 + window.scrollY, window.scrollY + 8), window.scrollY + Math.max(8, window.innerHeight - 380))}px`,
+        left: `${pos.x}px`,
+        top: `${pos.y}px`,
       }}
     >
       {resolvedMode === 'translate' ? (
@@ -181,6 +254,9 @@ const SelectionPopover: React.FC<SelectionPopoverProps> = ({ selectedText, posit
           settings={settings}
           note={modeNote}
           onClose={onClose}
+          isPinned={isPinned}
+          onTogglePin={() => setIsPinned(!isPinned)}
+          onDragStart={handleDragStart}
         />
       ) : (
         <WordContextCard
@@ -386,38 +462,43 @@ window.addEventListener('scroll', () => {
   removeFloatBtn();
 }, { passive: true });
 
+let lastContextMenuPos = { x: Math.max(12, window.innerWidth / 2 - 220), y: Math.max(12, window.innerHeight / 3) };
+document.addEventListener('contextmenu', (e) => {
+  lastContextMenuPos = { x: e.clientX, y: e.clientY };
+}, true);
+
 function getSelectionPosition(): { x: number; y: number } {
   const sel = window.getSelection();
-  if (sel && sel.rangeCount > 0) {
+  if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
     const rect = sel.getRangeAt(0).getBoundingClientRect();
     if (rect.width > 0 || rect.height > 0) {
       return {
-        x: Math.max(12, Math.min(rect.left, window.innerWidth - 440)),
+        x: Math.max(12, Math.min(rect.left, window.innerWidth - 460)),
         y: Math.max(12, Math.min(rect.bottom + 8, window.innerHeight - 200)),
       };
     }
   }
   return {
-    x: Math.max(12, window.innerWidth / 2 - 210),
-    y: Math.max(12, window.innerHeight / 3),
+    x: Math.max(12, Math.min(lastContextMenuPos.x, window.innerWidth - 460)),
+    y: Math.max(12, Math.min(lastContextMenuPos.y + 8, window.innerHeight - 200)),
   };
 }
 
 // Chrome extension context menu / keyboard shortcut listener
 if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    if (message.action === 'TRANSLATE_SELECTION' && message.text) {
+    if (message.action === 'TRANSLATE_SELECTION') {
       removeFloatBtn();
       const pos = getSelectionPosition();
-      showPopover(message.text, pos.x, pos.y, 'translate');
+      showPopover(message.text || '', pos.x, pos.y, 'translate');
     } else if (message.action === 'EXPLAIN_SELECTION' && message.text) {
       removeFloatBtn();
       const pos = getSelectionPosition();
       showPopover(message.text, pos.x, pos.y, 'explain');
-    } else if (message.action === 'AUTO_SELECTION' && message.text) {
+    } else if (message.action === 'AUTO_SELECTION') {
       removeFloatBtn();
       const pos = getSelectionPosition();
-      showPopover(message.text, pos.x, pos.y, 'auto');
+      showPopover(message.text || '', pos.x, pos.y, 'auto');
     } else if (message.action === 'REQUEST_SELECTION') {
       // Reply with the page's current selection so popup or background can translate it
       sendResponse({ text: window.getSelection()?.toString().trim() || '' });
