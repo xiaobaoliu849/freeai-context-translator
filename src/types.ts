@@ -8,6 +8,8 @@ export type ProviderType =
   | 'openai'
   | 'fishaudio'
   | 'mimo'
+  | 'glm'
+  | 'cerebras'
   | 'custom';
 
 export type TTSEngine = 

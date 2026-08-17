@@ -62,6 +62,8 @@ const PROVIDERS_INFO: Array<{
   { id: 'groq', name: 'Groq' },
   { id: 'openai', name: 'OpenAI (Audio Speech)' },
   { id: 'fishaudio', name: 'Fish Audio (Fish Speech)' },
+  { id: 'glm', name: '智谱 GLM（glm-4.7-flash / glm-4-flash 免费）' },
+  { id: 'cerebras', name: 'Cerebras（免费额度，1M tokens/天）' },
   { id: 'custom', name: '自定义 API' },
 ];
 

@@ -270,7 +270,9 @@ export async function callLLM(params: LLMCallParams): Promise<string> {
   const apiKey = params.apiKey || '';
   const geminiPath = isGeminiPath(provider, apiKey);
   if (geminiPath && !apiKey) {
-    throw new Error('Gemini API Key is required. Please set it in Settings.');
+    // A keyless non-gemini provider still lands on the Gemini path (legacy
+    // fallback) — name the provider so the user knows which key to set.
+    throw new Error(`${provider === 'gemini' ? 'Gemini' : provider} API Key is required. Please set it in Settings.`);
   }
 
   const resolved: ResolvedParams = {
@@ -311,7 +313,7 @@ export async function* callLLMStream(params: LLMCallParams): AsyncGenerator<stri
   const apiKey = params.apiKey || '';
   const geminiPath = isGeminiPath(provider, apiKey);
   if (geminiPath && !apiKey) {
-    throw new Error('Gemini API Key is required. Please set it in Settings.');
+    throw new Error(`${provider === 'gemini' ? 'Gemini' : provider} API Key is required. Please set it in Settings.`);
   }
 
   const resolved: ResolvedParams = {

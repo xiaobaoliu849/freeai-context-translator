@@ -128,8 +128,16 @@ function rateLimit(req: express.Request, res: express.Response, next: express.Ne
  * used for the legacy "no key → Gemini" fallback).
  */
 function resolveServerApiKey(provider: string, apiKey: string | undefined): string | undefined {
-  const geminiPath = provider === "gemini" || (!apiKey && provider !== "custom");
-  return geminiPath ? apiKey || process.env.GEMINI_API_KEY : apiKey;
+  // Direct key wins; then a provider-specific env key (GLM_API_KEY,
+  // CEREBRAS_API_KEY, ...); then the legacy "no key → Gemini" fallback.
+  const direct = apiKey || {
+    gemini: process.env.GEMINI_API_KEY,
+    glm: process.env.GLM_API_KEY,
+    cerebras: process.env.CEREBRAS_API_KEY,
+  }[provider];
+  if (direct) return direct;
+  const geminiPath = provider === "gemini" || (provider !== "custom");
+  return geminiPath ? process.env.GEMINI_API_KEY : undefined;
 }
 
 // Universal LLM caller supporting Google Gemini & OpenAI-compatible APIs.

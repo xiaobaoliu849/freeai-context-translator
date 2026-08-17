@@ -29,7 +29,16 @@ export const DEFAULT_BASE_URLS: Record<ProviderType, string> = {
   openai: 'https://api.openai.com/v1',
   fishaudio: 'https://api.fish.audio/v1',
   mimo: 'https://api.xiaomimimo.com/v1',
+  glm: 'https://open.bigmodel.cn/api/paas/v4',
+  cerebras: 'https://api.cerebras.ai/v1',
   custom: 'http://localhost:11434/v1',
+};
+
+// 首次使用时的默认模型（免费端点优先，方便开箱即用）。完整模型列表仍可
+// 通过各服务商的 /models 接口实时获取（见 SettingsModal「自动获取可用模型」）。
+export const DEFAULT_MODELS: Partial<Record<ProviderType, string>> = {
+  glm: 'glm-4.7-flash',
+  cerebras: 'llama-3.3-70b',
 };
 
 // 模型列表不再内置预设：一律通过各服务商的 /models 接口实时获取（见
@@ -40,7 +49,7 @@ export const DEFAULT_PROVIDER_CONFIGS: Record<ProviderType, ProviderConfig> = Ob
     {
       apiKey: '',
       baseUrl: DEFAULT_BASE_URLS[p],
-      model: '',
+      model: DEFAULT_MODELS[p] || '',
       availableModels: [],
     },
   ]),
