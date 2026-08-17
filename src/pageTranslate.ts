@@ -14,7 +14,9 @@ import { bridgePageTranslate, getExtensionSettings, isExtensionContext } from '.
  *     right after each original paragraph (bilingual view, originals intact).
  *  3. readPage() plays the English content block by block with a highlighted
  *     reading position, skipping the same noise regions.
- *  4. A fixed bottom-right toolbar toggles translation / reading.
+ *  4. A bottom-right floating button (collapsed by default) expands into a
+ *     panel that toggles translation / reading, and folds back automatically
+ *     when an action finishes.
  */
 
 const BLOCK_SELECTOR = 'p, li, h1, h2, h3, h4, h5, h6, blockquote, td, th, figcaption, dt, dd, summary, cite';
@@ -243,6 +245,7 @@ export async function translatePage(): Promise<void> {
   state.blocks = collectBlocks();
   if (state.blocks.length === 0) {
     setStatus('未找到可翻译的正文内容');
+    scheduleAutoCollapse(2500);
     return;
   }
 
@@ -289,9 +292,13 @@ export async function translatePage(): Promise<void> {
     if (state.abort?.signal.aborted) {
       // Same rule as the catch path: 恢复原文 already cleared the page, so
       // don't overwrite its empty status with 已取消.
-      if (document.querySelector('.ftpt-translation')) setStatus('已取消');
+      if (document.querySelector('.ftpt-translation')) {
+        setStatus('已取消');
+        scheduleAutoCollapse();
+      }
     } else {
       setStatus(`已完成 ${done}/${total} 段，点击「恢复原文」可还原`);
+      scheduleAutoCollapse();
     }
   } catch (err: any) {
     if (err?.name === 'AbortError') {
@@ -302,6 +309,7 @@ export async function translatePage(): Promise<void> {
     } else {
       console.warn('Page translate error:', err);
       setStatus(`翻译出错：${err?.message || '请检查 API Key / 模型设置'}`);
+      scheduleAutoCollapse(6000);
     }
   } finally {
     state.active = false;
@@ -396,6 +404,7 @@ export async function readPage(): Promise<void> {
   if (state.blocks.length === 0) state.blocks = collectBlocks();
   if (state.blocks.length === 0) {
     setStatus('未找到可朗读的正文内容');
+    scheduleAutoCollapse(2500);
     return;
   }
 
@@ -412,6 +421,7 @@ export async function readPage(): Promise<void> {
     setReading(false);
     clearReadingHighlight();
     if (!document.querySelector('.ftpt-translation')) setStatus('');
+    scheduleAutoCollapse(1500);
   }
 }
 
@@ -424,43 +434,266 @@ export function stopReading(): void {
 
 // ---------------------------
 // Floating toolbar
+//
+// Collapsed by default: a small round FAB (book icon) in the bottom-right
+// corner. Clicking it expands the action panel; the panel folds back to the
+// FAB automatically once a translation / reading run finishes.
 // ---------------------------
 
 let toolbarEl: HTMLDivElement | null = null;
+let collapseTimer: number | null = null;
+/** Set after a drag ends so the trailing click doesn't toggle the panel. */
+let suppressFabClick = false;
+
+/** Feather-style inline icons (stroke=currentColor, inherit button color). */
+const ICON_BOOK =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>';
+const ICON_GLOBE =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>';
+const ICON_SPEAKER =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>';
+const ICON_STOP =
+  '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
+const ICON_RESTORE =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>';
+const ICON_CLOSE =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+const ICON_HOME =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>';
 
 function setStatus(text: string): void {
-  const status = document.querySelector('.ftpt-status');
-  if (status) status.textContent = text;
+  const status = document.querySelector<HTMLElement>('.ftpt-status');
+  if (!status) return;
+  status.textContent = text;
+  status.hidden = !text;
 }
 
 function setTranslating(active: boolean): void {
   const btn = document.querySelector<HTMLButtonElement>('.ftpt-btn-translate');
-  if (btn) {
-    btn.textContent = active ? '取消翻译' : '翻译本页';
-    // NOTE: must NOT set `disabled` here — the button doubles as the cancel
-    // control and a disabled button never receives the click.
-  }
+  if (!btn) return;
+  btn.innerHTML = active ? `${ICON_STOP}<span>取消翻译</span>` : `${ICON_GLOBE}<span>翻译本页</span>`;
+  // NOTE: must NOT set `disabled` here — the button doubles as the cancel
+  // control and a disabled button never receives the click.
 }
 
 function setReading(active: boolean): void {
   const btn = document.querySelector<HTMLButtonElement>('.ftpt-btn-read');
-  if (btn) btn.textContent = active ? '⏹ 停止朗读' : '🔊 朗读英文';
+  if (!btn) return;
+  btn.innerHTML = active ? `${ICON_STOP}<span>停止朗读</span>` : `${ICON_SPEAKER}<span>朗读英文</span>`;
 }
 
-function buildToolbar(settings: PageSettings): void {
+function clearCollapseTimer(): void {
+  if (collapseTimer !== null) {
+    window.clearTimeout(collapseTimer);
+    collapseTimer = null;
+  }
+}
+
+/** Fold the panel back into the small FAB once an action has finished. */
+function scheduleAutoCollapse(delay = 2600): void {
+  clearCollapseTimer();
+  collapseTimer = window.setTimeout(() => {
+    collapseTimer = null;
+    const panel = toolbarEl?.querySelector<HTMLDivElement>('.ftpt-panel');
+    const fab = toolbarEl?.querySelector<HTMLButtonElement>('.ftpt-fab');
+    if (panel && !panel.hidden && fab && !state.active && !state.reading) {
+      panel.hidden = true;
+      fab.hidden = false;
+    }
+  }, delay);
+}
+
+function setPanelOpen(open: boolean): void {
+  const panel = toolbarEl?.querySelector<HTMLDivElement>('.ftpt-panel');
+  const fab = toolbarEl?.querySelector<HTMLButtonElement>('.ftpt-fab');
+  if (!panel || !fab) return;
+  if (open) {
+    panel.hidden = false;
+    positionPanel(panel, fab);
+  } else {
+    panel.hidden = true;
+    clearCollapseTimer();
+  }
+}
+
+/**
+ * Place the expanded panel next to the FAB, opening toward the page interior
+ * (above-left when the FAB sits in the bottom-right corner, mirrored when the
+ * FAB is dragged elsewhere) and clamped so it never leaves the viewport.
+ */
+function positionPanel(panel: HTMLDivElement, fab: HTMLButtonElement): void {
+  const cont = toolbarEl!.getBoundingClientRect();
+  const fabRect = fab.getBoundingClientRect();
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const pw = panel.offsetWidth;
+  const ph = panel.offsetHeight;
+  const M = 8;
+  let vpLeft = fabRect.left > vw / 2 ? fabRect.right - pw : fabRect.left;
+  let vpTop = fabRect.top > vh / 2 ? fabRect.top - ph - M : fabRect.bottom + M;
+  vpLeft = Math.max(M, Math.min(vpLeft, vw - pw - M));
+  vpTop = Math.max(M, Math.min(vpTop, vh - ph - M));
+  panel.style.left = `${vpLeft - cont.left}px`;
+  panel.style.top = `${vpTop - cont.top}px`;
+}
+
+// ---------------------------
+// Draggable FAB — position persisted in chrome.storage.local so it survives
+// page reloads and is shared across all sites.
+// ---------------------------
+
+const FAB_POS_KEY = 'ftpt_fab_pos';
+const FAB_SIZE = 44;
+const FAB_MARGIN = 8;
+
+/** Keep the FAB fully inside the viewport. Works on the 0×0 toolbar anchor
+ * (the FAB's bottom-right corner), so the FAB spans [x-44, x] × [y-44, y]. */
+function clampFab(x: number, y: number): { x: number; y: number } {
+  return {
+    x: Math.max(FAB_SIZE + FAB_MARGIN, Math.min(x, window.innerWidth - FAB_MARGIN)),
+    y: Math.max(FAB_SIZE + FAB_MARGIN, Math.min(y, window.innerHeight - FAB_MARGIN)),
+  };
+}
+
+function setFabAnchor(x: number, y: number): void {
+  const t = toolbarEl;
+  if (!t) return;
+  const p = clampFab(x, y);
+  t.style.left = `${p.x}px`;
+  t.style.top = `${p.y}px`;
+  t.style.right = 'auto';
+  t.style.bottom = 'auto';
+}
+
+/** Snap back to the default bottom-right corner. */
+function resetFabAnchor(): void {
+  const t = toolbarEl;
+  if (!t) return;
+  t.style.left = '';
+  t.style.top = '';
+  t.style.right = '';
+  t.style.bottom = '';
+  try {
+    if (isExtensionContext()) void chrome.storage.local.remove(FAB_POS_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+async function loadFabAnchor(): Promise<void> {
+  try {
+    if (!isExtensionContext()) return;
+    const r = await chrome.storage.local.get(FAB_POS_KEY);
+    const v = r[FAB_POS_KEY];
+    if (v && typeof v.x === 'number' && typeof v.y === 'number') setFabAnchor(v.x, v.y);
+  } catch {
+    // ignore
+  }
+}
+
+function saveFabAnchor(): void {
+  const t = toolbarEl;
+  if (!t) return;
+  const r = t.getBoundingClientRect();
+  try {
+    if (isExtensionContext()) {
+      void chrome.storage.local.set({ [FAB_POS_KEY]: { x: r.left, y: r.top } });
+    }
+  } catch {
+    // ignore
+  }
+}
+
+/** Make the FAB draggable; a drag is never treated as a click. */
+function makeDraggable(fab: HTMLButtonElement): void {
+  fab.addEventListener('pointerdown', (down) => {
+    if (down.button !== 0) return;
+    down.preventDefault();
+    // Capture so pointermove/up keep arriving even when the pointer leaves the
+    // window mid-drag (e.g. dragged off the top edge of the screen).
+    try {
+      fab.setPointerCapture(down.pointerId);
+    } catch {
+      // capture unsupported — the window listeners below still work
+    }
+    const cont = toolbarEl!;
+    const startRect = cont.getBoundingClientRect();
+    const startX = down.clientX;
+    const startY = down.clientY;
+    let moved = false;
+    const onMove = (ev: PointerEvent) => {
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+      if (!moved && Math.hypot(dx, dy) < 4) return;
+      moved = true;
+      setFabAnchor(startRect.left + dx, startRect.top + dy);
+    };
+    const finish = (save: boolean) => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onCancel);
+      try {
+        fab.releasePointerCapture(down.pointerId);
+      } catch {
+        // ignore
+      }
+      if (save && moved) {
+        suppressFabClick = true;
+        saveFabAnchor();
+      }
+    };
+    const onUp = () => finish(true);
+    // A cancelled gesture (touch interrupted) shouldn't persist the position.
+    const onCancel = () => finish(false);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onCancel);
+  });
+}
+
+function buildToolbar(): void {
   const host = document.createElement('div');
   host.className = 'ftpt-toolbar';
   host.innerHTML = `
-    <div class="ftpt-panel">
-      <div class="ftpt-title">📖 整页翻译</div>
-      <div class="ftpt-row">
-        <button class="ftpt-btn ftpt-btn-translate">翻译本页</button>
-        <button class="ftpt-btn ftpt-btn-read">🔊 朗读英文</button>
-        <button class="ftpt-btn ftpt-btn-restore" title="移除全部译文">恢复原文</button>
+    <button class="ftpt-fab" type="button" title="整页翻译（按住拖动可移动位置）" aria-label="整页翻译">${ICON_BOOK}</button>
+    <div class="ftpt-panel" hidden>
+      <div class="ftpt-head">
+        <div class="ftpt-title">${ICON_BOOK}<span>整页翻译</span></div>
+        <div class="ftpt-head-actions">
+          <button class="ftpt-icon-btn ftpt-reset-pos" type="button" title="恢复默认位置" aria-label="恢复默认位置">${ICON_HOME}</button>
+          <button class="ftpt-icon-btn ftpt-close" type="button" title="收起" aria-label="收起">${ICON_CLOSE}</button>
+        </div>
       </div>
-      <div class="ftpt-status"></div>
+      <div class="ftpt-row">
+        <button class="ftpt-btn ftpt-btn-translate" type="button">${ICON_GLOBE}<span>翻译本页</span></button>
+        <button class="ftpt-btn ftpt-btn-read" type="button">${ICON_SPEAKER}<span>朗读英文</span></button>
+        <button class="ftpt-btn ftpt-btn-restore" type="button" title="移除全部译文">${ICON_RESTORE}<span>恢复原文</span></button>
+      </div>
+      <div class="ftpt-status" hidden></div>
     </div>
   `;
+  const fab = host.querySelector<HTMLButtonElement>('.ftpt-fab')!;
+  const panel = host.querySelector<HTMLDivElement>('.ftpt-panel')!;
+
+  fab.addEventListener('click', () => {
+    if (suppressFabClick) {
+      suppressFabClick = false;
+      return;
+    }
+    setPanelOpen(panel.hidden);
+  });
+  // NOTE: no dblclick-to-reset here — a double click is indistinguishable from
+  // a quick open/close toggle and would reset the position unexpectedly.
+  makeDraggable(fab);
+
+  host.querySelector('.ftpt-reset-pos')!.addEventListener('click', () => {
+    resetFabAnchor();
+    positionPanel(panel, fab);
+  });
+  host.querySelector('.ftpt-close')!.addEventListener('click', () => setPanelOpen(false));
+  // Any interaction with the panel postpones auto-collapse so a status message
+  // isn't yanked away while the user is reading it.
+  panel.addEventListener('click', () => clearCollapseTimer(), true);
   host.querySelector('.ftpt-btn-translate')!.addEventListener('click', () => {
     if (state.active) {
       state.abort?.abort();
@@ -483,9 +716,13 @@ export async function initPageTranslate(): Promise<void> {
   if (document.querySelector('.ftpt-toolbar')) return;
   // Don't add chrome to the browser's own UI pages or tiny pages.
   if (document.body && document.body.children.length === 0) return;
+  // Skip pages with no real text (blank shells, error pages) — nothing to
+  // translate or read there.
+  if (document.body && document.body.innerText.trim().length < 40) return;
 
   state.settings = await loadSettings();
-  buildToolbar(state.settings);
+  buildToolbar();
+  await loadFabAnchor();
 
   // Keep the toolbar out of the way of page selection handlers.
   document.addEventListener('mouseup', (e) => {
