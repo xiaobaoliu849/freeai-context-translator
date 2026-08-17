@@ -25,11 +25,17 @@ function mirrorToExtensionStorage(items: Record<string, any>) {
 
 export default function App() {
   // The same App is mounted by index.html (full web app) and popup.html
-  // (440x570 extension popup); adapt a few things for the small popup.
   const isPopup =
     typeof window !== 'undefined' && /popup\.html($|\?)/.test(window.location.pathname);
 
   const [sourceText, setSourceText] = useState<string>(() => {
+    if (isPopup) {
+      // In extension popup, always start clean unless active webpage text is selected
+      try {
+        localStorage.removeItem('freetranslate_draft');
+      } catch (e) {}
+      return '';
+    }
     try {
       const draft = localStorage.getItem('freetranslate_draft');
       if (draft !== null) return draft;
@@ -59,6 +65,7 @@ export default function App() {
   }, [isPopup]);
 
   useEffect(() => {
+    if (isPopup) return;
     try {
       if (sourceText) {
         localStorage.setItem('freetranslate_draft', sourceText);
@@ -66,7 +73,7 @@ export default function App() {
         localStorage.removeItem('freetranslate_draft');
       }
     } catch (e) {}
-  }, [sourceText]);
+  }, [sourceText, isPopup]);
 
   // Modals state
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
