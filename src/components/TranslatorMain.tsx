@@ -599,25 +599,27 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
           </select>
         </div>
 
-        {/* Layout Width Ratio Switcher (Desktop) — presets snap the drag divider */}
-        <div className="hidden md:flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200 text-[10px] font-bold text-slate-600 shrink-0">
-          {[
-            { label: '5:5', v: 50, title: '左右等宽 (5:5)' },
-            { label: '6:4', v: 60, title: '原文加宽 (6:4)' },
-            { label: '4:6', v: 40, title: '译文加宽 (4:6)' },
-          ].map((p) => (
-            <button
-              key={p.label}
-              onClick={() => setSplitPercent(p.v)}
-              className={`px-2 py-1 rounded-lg transition-colors cursor-pointer ${
-                Math.abs(splitPercent - p.v) < 3 ? 'bg-white text-indigo-700 shadow-2xs font-extrabold' : 'hover:text-slate-900'
-              }`}
-              title={p.title}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
+        {/* Layout Width Ratio Switcher (Desktop only) — presets snap the drag divider */}
+        {!isPopup && (
+          <div className="hidden md:flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200 text-[10px] font-bold text-slate-600 shrink-0">
+            {[
+              { label: '5:5', v: 50, title: '左右等宽 (5:5)' },
+              { label: '6:4', v: 60, title: '原文加宽 (6:4)' },
+              { label: '4:6', v: 40, title: '译文加宽 (4:6)' },
+            ].map((p) => (
+              <button
+                key={p.label}
+                onClick={() => setSplitPercent(p.v)}
+                className={`px-2 py-1 rounded-lg transition-colors cursor-pointer ${
+                  Math.abs(splitPercent - p.v) < 3 ? 'bg-white text-indigo-700 shadow-2xs font-extrabold' : 'hover:text-slate-900'
+                }`}
+                title={p.title}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Translate / Stop Button */}
         <button
