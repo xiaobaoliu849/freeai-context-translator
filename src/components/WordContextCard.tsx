@@ -42,11 +42,19 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
       }
     };
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      audioPlayer.stopAll();
+    };
   }, [onClose]);
 
   const handlePlayWordAudio = () => {
     if (!explanation?.word) return;
+    if (wordPhase) {
+      audioPlayer.stopAll();
+      setWordPhase(null);
+      return;
+    }
     audioPlayer.speak({
       text: explanation.word,
       lang: settings.defaultSourceLang || 'en',

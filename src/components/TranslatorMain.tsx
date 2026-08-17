@@ -476,6 +476,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
     if (playingTarget === target) {
       audioPlayer.stopAll();
       setPlayingTarget(null);
+      setAudioPhase(null);
       return;
     }
 

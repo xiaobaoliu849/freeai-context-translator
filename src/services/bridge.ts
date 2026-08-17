@@ -167,14 +167,17 @@ export function bridgeExplain(payload: {
   return bridgeClient.call('explain', payload);
 }
 
-export function bridgeTts(payload: {
-  text: string;
-  lang: string;
-  engine: string;
-  voice?: string;
-  rate?: number;
-}): Promise<{ audioBase64: string; mimeType: string; sampleRate?: number }> {
-  return bridgeClient.call('tts', payload);
+export function bridgeTts(
+  payload: {
+    text: string;
+    lang: string;
+    engine: string;
+    voice?: string;
+    rate?: number;
+  },
+  signal?: AbortSignal,
+): Promise<{ audioBase64: string; mimeType: string; sampleRate?: number }> {
+  return bridgeClient.call('tts', payload, undefined, signal);
 }
 
 /**
@@ -190,8 +193,9 @@ export function bridgeTtsStream(
     rate?: number;
   },
   onDelta?: (base64Chunk: string) => void,
+  signal?: AbortSignal,
 ): Promise<{ sampleRate?: number }> {
-  return bridgeClient.call('tts-stream', payload, onDelta);
+  return bridgeClient.call('tts-stream', payload, onDelta, signal);
 }
 
 export function bridgeModels(payload: { provider: string; baseUrl?: string; apiKey?: string }): Promise<{ models: string[]; source: 'live' | 'default' }> {

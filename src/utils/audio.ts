@@ -112,9 +112,13 @@ class AudioPlayerService {
   private isPlaying: boolean = false;
   private streamPlayer: StreamingPcmPlayer | null = null;
   private streamFetchAbort: AbortController | null = null;
+  private currentSpeakId: number = 0;
 
   public stopAll() {
-    // Abort an in-flight streaming TTS fetch and stop incremental playback
+    // Invalidate current and in-flight speak requests
+    this.currentSpeakId++;
+
+    // Abort in-flight streaming / HTTP fetch requests
     if (this.streamFetchAbort) {
       try {
         this.streamFetchAbort.abort();
@@ -175,7 +179,7 @@ class AudioPlayerService {
       return false;
     }
 
-    this.stopAll();
+    const speakId = this.currentSpeakId;
 
     try {
       const utterance = new SpeechSynthesisUtterance(text);
@@ -191,13 +195,17 @@ class AudioPlayerService {
 
       utterance.onend = () => {
         this.isPlaying = false;
-        onEnd?.();
+        if (speakId === this.currentSpeakId) {
+          onEnd?.();
+        }
       };
 
       utterance.onerror = (err) => {
         console.warn('Speech synthesis error:', err);
         this.isPlaying = false;
-        onError?.();
+        if (speakId === this.currentSpeakId) {
+          onError?.();
+        }
       };
 
       this.isPlaying = true;
@@ -213,7 +221,7 @@ class AudioPlayerService {
    * Decode base64 16-bit PCM Audio data at 24kHz from Gemini TTS API
    */
   public async playPcmBase64(base64Data: string, sampleRate: number = 24000, onEnd?: () => void): Promise<void> {
-    this.stopAll();
+    const speakId = this.currentSpeakId;
 
     try {
       const binaryString = atob(base64Data);
@@ -230,6 +238,8 @@ class AudioPlayerService {
         float32[i] = pcm16[i] / 32768.0;
       }
 
+      if (speakId !== this.currentSpeakId) return;
+
       const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
       this.currentAudioCtx = new AudioCtxClass({ sampleRate });
 
@@ -242,7 +252,9 @@ class AudioPlayerService {
 
       source.onended = () => {
         this.isPlaying = false;
-        onEnd?.();
+        if (speakId === this.currentSpeakId) {
+          onEnd?.();
+        }
       };
 
       this.currentSourceNode = source;
@@ -274,7 +286,7 @@ class AudioPlayerService {
       return;
     }
 
-    this.stopAll();
+    const speakId = this.currentSpeakId;
 
     try {
       const dataUrl = audioBase64.startsWith('data:')
@@ -285,17 +297,23 @@ class AudioPlayerService {
       audio.onended = () => {
         this.isPlaying = false;
         this.currentAudioElement = null;
-        onEnd?.();
+        if (speakId === this.currentSpeakId) {
+          onEnd?.();
+        }
       };
       audio.onerror = (err) => {
         console.error('Audio element error:', err);
         this.isPlaying = false;
         this.currentAudioElement = null;
-        onEnd?.();
+        if (speakId === this.currentSpeakId) {
+          onEnd?.();
+        }
       };
+      if (speakId !== this.currentSpeakId) return;
       this.isPlaying = true;
       await audio.play();
     } catch (err) {
+      if (speakId !== this.currentSpeakId) return;
       console.error('Failed to play audio base64 data url:', err);
       this.isPlaying = false;
       this.currentAudioElement = null;
@@ -332,11 +350,15 @@ class AudioPlayerService {
     onAudioStart?: () => void;
     onEnd?: () => void;
   }): Promise<void> {
+    this.stopAll();
+    const speakId = this.currentSpeakId;
     onStart?.();
 
     if (engine === 'browser') {
       const success = this.playBrowserSpeech(text, lang, rate, onEnd, () => {
-        this.playGoogleTtsUrl(text, lang, onEnd);
+        if (speakId === this.currentSpeakId) {
+          this.playGoogleTtsUrl(text, lang, onEnd);
+        }
       });
       if (success) {
         onAudioStart?.();
@@ -356,19 +378,36 @@ class AudioPlayerService {
     // Streaming engines: start playback as soon as the first audio chunk
     // arrives. Falls back to the non-streaming path if nothing was produced.
     if (STREAMABLE_TTS_ENGINES.includes(engine)) {
-      const streamed = await this.tryStreamTts({ text, lang, engine, voice, apiKey, providerConfigs, onAudioStart, onEnd });
+      const streamed = await this.tryStreamTts({
+        text,
+        lang,
+        engine,
+        voice,
+        apiKey,
+        providerConfigs,
+        onAudioStart: () => {
+          if (speakId === this.currentSpeakId) onAudioStart?.();
+        },
+        onEnd: () => {
+          if (speakId === this.currentSpeakId) onEnd?.();
+        },
+      });
       if (streamed) return;
     }
+
+    if (speakId !== this.currentSpeakId) return;
 
     // Cloud TTS engines. In the extension this is relayed through the
     // background bridge (no API key in page context); in the web app it goes
     // through the server's /api/tts endpoint.
     try {
       let data: { audioBase64?: string; mimeType?: string; sampleRate?: number } | null = null;
+      const abort = new AbortController();
+      this.streamFetchAbort = abort;
 
       if (CLOUD_TTS_ENGINES.includes(engine)) {
         if (isExtensionContext()) {
-          data = await bridgeTts({ text, lang, engine, voice, rate });
+          data = await bridgeTts({ text, lang, engine, voice, rate }, abort.signal);
         } else {
           const res = await fetch('/api/tts', {
             method: 'POST',
@@ -383,6 +422,7 @@ class AudioPlayerService {
               baseUrl,
               providerConfigs,
             }),
+            signal: abort.signal,
           });
           if (res.ok) {
             data = await res.json();
@@ -407,28 +447,38 @@ class AudioPlayerService {
               baseUrl,
               providerConfigs,
             }),
+            signal: abort.signal,
           });
           if (res.ok) data = await res.json();
         }
       }
 
+      if (speakId !== this.currentSpeakId) return;
+
       if (data?.audioBase64) {
+        onAudioStart?.();
         await this.playAudioData({
           audioBase64: data.audioBase64,
           mimeType: data.mimeType || 'audio/mp3',
           sampleRate: data.sampleRate || 24000,
           onEnd,
         });
-        onAudioStart?.();
         return;
       }
     } catch (err) {
+      if (speakId !== this.currentSpeakId) return;
       console.warn(`TTS engine ${engine} request failed, falling back to Web Speech API:`, err);
+    } finally {
+      this.streamFetchAbort = null;
     }
+
+    if (speakId !== this.currentSpeakId) return;
 
     // Fallback: Browser Web Speech API -> Google Web TTS
     const success = this.playBrowserSpeech(text, lang, rate, onEnd, () => {
-      this.playGoogleTtsUrl(text, lang, onEnd);
+      if (speakId === this.currentSpeakId) {
+        this.playGoogleTtsUrl(text, lang, onEnd);
+      }
     });
 
     if (success) {
@@ -464,15 +514,19 @@ class AudioPlayerService {
   }): Promise<boolean> {
     let player: StreamingPcmPlayer | null = null;
     let startedPlaying = false;
+    const speakId = this.currentSpeakId;
 
     const ensurePlayer = (): StreamingPcmPlayer | null => {
+      if (speakId !== this.currentSpeakId) return null;
       if (!player) {
         const p = new StreamingPcmPlayer();
         if (p.start(24000, () => {
           this.streamPlayer = null;
-          onEnd?.();
+          if (speakId === this.currentSpeakId) onEnd?.();
         })) {
-          p.onFirstChunk = () => onAudioStart?.();
+          p.onFirstChunk = () => {
+            if (speakId === this.currentSpeakId) onAudioStart?.();
+          };
           player = p;
           this.streamPlayer = p;
         }
@@ -481,17 +535,18 @@ class AudioPlayerService {
     };
 
     const handleChunk = (delta: string) => {
-      if (!delta) return;
+      if (!delta || speakId !== this.currentSpeakId) return;
       ensurePlayer()?.appendBase64(delta);
       startedPlaying = true;
     };
 
     try {
+      const abort = new AbortController();
+      this.streamFetchAbort = abort;
+
       if (isExtensionContext()) {
-        await bridgeTtsStream({ text, lang, engine, voice }, handleChunk);
+        await bridgeTtsStream({ text, lang, engine, voice }, handleChunk, abort.signal);
       } else {
-        const abort = new AbortController();
-        this.streamFetchAbort = abort;
         const res = await fetch('/api/tts/stream', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -509,16 +564,23 @@ class AudioPlayerService {
         let buffer = '';
         for (;;) {
           const { done, value } = await reader.read();
-          if (done) break;
+          if (done || speakId !== this.currentSpeakId) break;
           buffer += decoder.decode(value, { stream: true });
           const { events, rest } = consumeSSE(buffer);
           buffer = rest;
           for (const ev of events) {
+            if (speakId !== this.currentSpeakId) break;
             if (ev.error) throw new Error(ev.error);
             if (ev.delta) handleChunk(ev.delta);
             if (ev.done) ensurePlayer()?.finish();
           }
         }
+      }
+
+      if (speakId !== this.currentSpeakId) {
+        player?.stop();
+        this.streamPlayer = null;
+        return false;
       }
 
       // Stream completed normally — finish playback if anything was played.
@@ -537,8 +599,8 @@ class AudioPlayerService {
   }
 
   private playGoogleTtsUrl(text: string, lang: string, onEnd?: () => void) {
+    const speakId = this.currentSpeakId;
     try {
-      this.stopAll();
       const cleanLang = lang.split('-')[0] || 'en';
       const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text.slice(0, 200))}&tl=${cleanLang}&client=tw-ob`;
       const audio = new Audio(url);
@@ -546,19 +608,26 @@ class AudioPlayerService {
       audio.onended = () => {
         this.isPlaying = false;
         this.currentAudioElement = null;
-        onEnd?.();
+        if (speakId === this.currentSpeakId) {
+          onEnd?.();
+        }
       };
       audio.onerror = () => {
         this.isPlaying = false;
         this.currentAudioElement = null;
-        onEnd?.();
+        if (speakId === this.currentSpeakId) {
+          onEnd?.();
+        }
       };
+      if (speakId !== this.currentSpeakId) return;
       this.isPlaying = true;
       audio.play();
     } catch (e) {
       this.isPlaying = false;
       this.currentAudioElement = null;
-      onEnd?.();
+      if (speakId === this.currentSpeakId) {
+        onEnd?.();
+      }
     }
   }
 

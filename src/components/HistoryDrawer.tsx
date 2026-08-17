@@ -45,6 +45,14 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
   const [playPhase, setPlayPhase] = useState<'generating' | 'playing' | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
+  React.useEffect(() => {
+    if (!isOpen) {
+      audioPlayer.stopAll();
+      setPlayingId(null);
+      setPlayPhase(null);
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const toggleExpand = (id: string, e?: React.MouseEvent) => {

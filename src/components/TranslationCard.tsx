@@ -62,7 +62,10 @@ export const TranslationCard: React.FC<TranslationCardProps> = ({
       if (e.key === 'Escape') onClose();
     };
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      audioPlayer.stopAll();
+    };
   }, [onClose]);
 
   const handleCopy = () => {
@@ -72,6 +75,11 @@ export const TranslationCard: React.FC<TranslationCardProps> = ({
   };
 
   const handleSpeak = () => {
+    if (phase) {
+      audioPlayer.stopAll();
+      setPhase(null);
+      return;
+    }
     audioPlayer.speak({
       text: translation,
       lang: targetLang,
