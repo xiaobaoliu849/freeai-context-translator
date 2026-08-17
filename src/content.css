@@ -53,8 +53,10 @@
 .freetranslate-modal-card {
   position: absolute;
   z-index: 999999;
-  width: 440px;
-  max-width: 94vw;
+  width: 480px;
+  max-width: 95vw;
+  height: 540px;
+  max-height: 85vh;
   background: transparent;
   padding: 0;
   border: none;

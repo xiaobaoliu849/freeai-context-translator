@@ -70,7 +70,7 @@ export const DEFAULT_PROVIDER_CONFIGS: Record<ProviderType, ProviderConfig> = Ob
 // Version of the stored settings schema. Increment + add a one-time migration
 // in migrateSettings whenever a default changes so existing installs are
 // brought in line instead of keeping stale values forever.
-export const SETTINGS_VERSION = 2;
+export const SETTINGS_VERSION = 3;
 
 export const DEFAULT_SETTINGS: AppSettings = {
   defaultProvider: 'gemini',
@@ -86,7 +86,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   ttsEngine: 'gemini',
   ttsVoice: 'Kore',
   ttsRate: 1.0,
-  wordHoverMode: 'click',
+  wordHoverMode: 'off',
   selectInputElementsText: false,
   autoTranslate: false,
   enableContextMenu: true,
@@ -96,15 +96,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
  * One-time migrations for settings saved by older builds. Runs whenever the
  * stored settings have no settingsVersion marker, then stamps the current
  * version so the migration never re-applies.
- *
- * v1 → v2: autoTranslate used to default to `true`, so any settings saved by
- * an older build silently keep auto-translating on input even though the new
- * default is off. Reset it once (users who re-enable it explicitly later are
- * unaffected — the marker prevents this from running again).
  */
 export function migrateSettings(parsed: Partial<AppSettings>): Partial<AppSettings> {
-  if (parsed.settingsVersion === undefined) {
-    parsed.autoTranslate = false;
+  if (parsed.settingsVersion === undefined || parsed.settingsVersion < 3) {
+    parsed.wordHoverMode = 'off';
     parsed.settingsVersion = SETTINGS_VERSION;
   }
   return parsed;

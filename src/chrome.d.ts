@@ -33,6 +33,7 @@ declare namespace chrome {
     const lastError: { message?: string } | undefined;
     const id: string | undefined;
     function getURL(path: string): string;
+    function openOptionsPage(callback?: () => void): void;
 
     interface Port {
       name: string;
