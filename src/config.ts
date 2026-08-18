@@ -38,7 +38,7 @@ export const DEFAULT_BASE_URLS: Record<ProviderType, string> = {
 // 通过各服务商的 /models 接口实时获取（见 SettingsModal「自动获取可用模型」）。
 export const DEFAULT_MODELS: Partial<Record<ProviderType, string>> = {
   glm: 'glm-4.7-flash',
-  cerebras: 'llama-3.3-70b',
+  cerebras: 'gpt-oss-120b',
 };
 
 // 智谱 /models 接口不返回免费的 flash 系列模型（上游已知行为，见
@@ -46,15 +46,23 @@ export const DEFAULT_MODELS: Partial<Record<ProviderType, string>> = {
 // 「自动获取可用模型」时把已知免费 flash 模型合并进列表，保证免费模型可被发现。
 export const GLM_FLASH_MODELS = ['glm-4.7-flash', 'glm-4-flash'];
 
-/** 合并已知免费模型到拉取结果（目前仅智谱需要）；其余 provider 原样返回。 */
+// Cerebras 最新可用模型列表（含 Production / Preview）
+export const CEREBRAS_MODELS = ['gpt-oss-120b', 'gemma-4-31b', 'llama-3.3-70b'];
+
+/** 合并已知模型到拉取结果；其余 provider 原样返回。 */
 export function mergeKnownFreeModels(provider: ProviderType, models: string[]): string[] {
-  if (provider !== 'glm') return models;
-  const extra = GLM_FLASH_MODELS.filter((m) => !models.includes(m));
-  return extra.length ? [...extra, ...models] : models;
+  if (provider === 'glm') {
+    const extra = GLM_FLASH_MODELS.filter((m) => !models.includes(m));
+    return extra.length ? [...extra, ...models] : models;
+  }
+  if (provider === 'cerebras') {
+    const extra = CEREBRAS_MODELS.filter((m) => !models.includes(m));
+    return extra.length ? [...extra, ...models] : models;
+  }
+  return models;
 }
 
-// 模型列表不再内置预设：一律通过各服务商的 /models 接口实时获取（见
-// SettingsModal「自动获取可用模型」与 server /api/models）。
+// 模型列表配置
 export const DEFAULT_PROVIDER_CONFIGS: Record<ProviderType, ProviderConfig> = Object.fromEntries(
   (Object.keys(DEFAULT_BASE_URLS) as ProviderType[]).map((p) => [
     p,
@@ -62,7 +70,7 @@ export const DEFAULT_PROVIDER_CONFIGS: Record<ProviderType, ProviderConfig> = Ob
       apiKey: '',
       baseUrl: DEFAULT_BASE_URLS[p],
       model: DEFAULT_MODELS[p] || '',
-      availableModels: [],
+      availableModels: p === 'cerebras' ? CEREBRAS_MODELS : p === 'glm' ? GLM_FLASH_MODELS : [],
     },
   ]),
 ) as Record<ProviderType, ProviderConfig>;
@@ -70,7 +78,7 @@ export const DEFAULT_PROVIDER_CONFIGS: Record<ProviderType, ProviderConfig> = Ob
 // Version of the stored settings schema. Increment + add a one-time migration
 // in migrateSettings whenever a default changes so existing installs are
 // brought in line instead of keeping stale values forever.
-export const SETTINGS_VERSION = 3;
+export const SETTINGS_VERSION = 4;
 
 export const DEFAULT_SETTINGS: AppSettings = {
   defaultProvider: 'gemini',
@@ -100,6 +108,15 @@ export const DEFAULT_SETTINGS: AppSettings = {
 export function migrateSettings(parsed: Partial<AppSettings>): Partial<AppSettings> {
   if (parsed.settingsVersion === undefined || parsed.settingsVersion < 3) {
     parsed.wordHoverMode = 'off';
+  }
+  if (parsed.settingsVersion === undefined || parsed.settingsVersion < 4) {
+    if (parsed.providerConfigs?.cerebras) {
+      const cur = parsed.providerConfigs.cerebras.model;
+      if (!cur || cur.includes('zai-glm') || cur === 'llama-3.3-70b') {
+        parsed.providerConfigs.cerebras.model = 'gpt-oss-120b';
+      }
+      parsed.providerConfigs.cerebras.availableModels = CEREBRAS_MODELS;
+    }
     parsed.settingsVersion = SETTINGS_VERSION;
   }
   return parsed;
