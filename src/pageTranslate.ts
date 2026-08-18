@@ -659,8 +659,21 @@ function makeDraggable(fab: HTMLButtonElement): void {
 
 function buildToolbar(): void {
   const host = document.createElement('div');
-  host.className = 'ftpt-toolbar';
-  host.innerHTML = `
+  host.id = 'ftpt-toolbar-container';
+  host.style.cssText = 'all: initial; position: fixed; z-index: 2147483646; right: 16px; bottom: 16px; width: 0; height: 0; pointer-events: none;';
+
+  const shadow = host.attachShadow({ mode: 'open' });
+  if (typeof chrome !== 'undefined' && chrome.runtime?.getURL) {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = chrome.runtime.getURL('content.css');
+    shadow.appendChild(link);
+  }
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'ftpt-toolbar';
+  wrapper.style.pointerEvents = 'auto';
+  wrapper.innerHTML = `
     <button class="ftpt-fab" type="button" title="整页翻译（按住拖动可移动位置）" aria-label="整页翻译">${ICON_BOOK}</button>
     <div class="ftpt-panel" hidden>
       <div class="ftpt-head">
@@ -678,8 +691,10 @@ function buildToolbar(): void {
       <div class="ftpt-status" hidden></div>
     </div>
   `;
-  const fab = host.querySelector<HTMLButtonElement>('.ftpt-fab')!;
-  const panel = host.querySelector<HTMLDivElement>('.ftpt-panel')!;
+  shadow.appendChild(wrapper);
+
+  const fab = wrapper.querySelector<HTMLButtonElement>('.ftpt-fab')!;
+  const panel = wrapper.querySelector<HTMLDivElement>('.ftpt-panel')!;
 
   fab.addEventListener('click', () => {
     if (suppressFabClick) {
@@ -688,30 +703,26 @@ function buildToolbar(): void {
     }
     setPanelOpen(panel.hidden);
   });
-  // NOTE: no dblclick-to-reset here — a double click is indistinguishable from
-  // a quick open/close toggle and would reset the position unexpectedly.
   makeDraggable(fab);
 
-  host.querySelector('.ftpt-reset-pos')!.addEventListener('click', () => {
+  wrapper.querySelector('.ftpt-reset-pos')!.addEventListener('click', () => {
     resetFabAnchor();
     positionPanel(panel, fab);
   });
-  host.querySelector('.ftpt-close')!.addEventListener('click', () => setPanelOpen(false));
-  // Any interaction with the panel postpones auto-collapse so a status message
-  // isn't yanked away while the user is reading it.
+  wrapper.querySelector('.ftpt-close')!.addEventListener('click', () => setPanelOpen(false));
   panel.addEventListener('click', () => clearCollapseTimer(), true);
-  host.querySelector('.ftpt-btn-translate')!.addEventListener('click', () => {
+  wrapper.querySelector('.ftpt-btn-translate')!.addEventListener('click', () => {
     if (state.active) {
       state.abort?.abort();
     } else {
       translatePage();
     }
   });
-  host.querySelector('.ftpt-btn-read')!.addEventListener('click', () => readPage());
-  host.querySelector('.ftpt-btn-restore')!.addEventListener('click', () => restorePage());
+  wrapper.querySelector('.ftpt-btn-read')!.addEventListener('click', () => readPage());
+  wrapper.querySelector('.ftpt-btn-restore')!.addEventListener('click', () => restorePage());
 
   document.body?.appendChild(host);
-  toolbarEl = host;
+  toolbarEl = wrapper;
 }
 
 /** Entry point called from the content script. */

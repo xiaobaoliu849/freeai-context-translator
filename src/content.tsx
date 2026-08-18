@@ -192,10 +192,33 @@ function showFloatBtn(text: string, x: number, y: number, mode: 'click' | 'hover
   removeFloatBtn();
 
   const btn = document.createElement('button');
-  btn.className = 'freetranslate-float-btn';
   btn.textContent = '译';
-  btn.style.left = `${Math.min(x + 8, window.innerWidth - 64)}px`;
-  btn.style.top = `${Math.max(8, y - 44)}px`;
+  btn.style.cssText = `
+    position: absolute;
+    z-index: 2147483646;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    margin: 0;
+    left: ${Math.min(x + 8, window.innerWidth - 64)}px;
+    top: ${Math.max(8, y - 44)}px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    user-select: none;
+    pointer-events: auto;
+    font-family: system-ui, -apple-system, sans-serif;
+  `;
 
   const open = () => {
     removeFloatBtn();
