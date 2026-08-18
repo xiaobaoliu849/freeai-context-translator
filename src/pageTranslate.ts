@@ -710,21 +710,21 @@ function buildToolbar(): void {
   host.querySelector('.ftpt-btn-read')!.addEventListener('click', () => readPage());
   host.querySelector('.ftpt-btn-restore')!.addEventListener('click', () => restorePage());
 
-  document.documentElement.appendChild(host);
+  document.body?.appendChild(host);
   toolbarEl = host;
 }
 
 /** Entry point called from the content script. */
 export async function initPageTranslate(): Promise<void> {
   if (!isExtensionContext()) return;
-  if (!document.documentElement) return;
+  if (!document.body) return;
   // Avoid double-init on re-injection.
   if (document.querySelector('.ftpt-toolbar')) return;
   // Don't add chrome to the browser's own UI pages or tiny pages.
-  if (document.body && document.body.children.length === 0) return;
+  if (document.body.children.length === 0) return;
   // Skip pages with no real text (blank shells, error pages) — nothing to
   // translate or read there.
-  if (document.body && document.body.innerText.trim().length < 40) return;
+  if (document.body.innerText.trim().length < 40) return;
 
   state.settings = await loadSettings();
   buildToolbar();
