@@ -29,6 +29,7 @@ export const Header: React.FC<HeaderProps> = ({
   const logoUrl = typeof chrome !== 'undefined' && chrome.runtime?.getURL
     ? chrome.runtime.getURL('assets/logo.png')
     : '/assets/logo.png';
+  const [logoError, setLogoError] = React.useState(false);
 
   const handleOpenFullTab = () => {
     if (typeof chrome !== 'undefined' && chrome.tabs?.create) {
@@ -49,11 +50,18 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="max-w-[1400px] mx-auto px-3 sm:px-6 py-2 flex items-center justify-between gap-2">
         {/* Left: Brand Logo */}
         <div className="flex items-center gap-2">
-          <img
-            src={logoUrl}
-            alt="FreeTranslate Logo"
-            className="w-6 h-6 rounded-lg shadow-2xs border border-indigo-200/50 object-cover shrink-0"
-          />
+          {!logoError ? (
+            <img
+              src={logoUrl}
+              alt="FreeTranslate Logo"
+              onError={() => setLogoError(true)}
+              className="w-6 h-6 rounded-lg shadow-2xs border border-indigo-200/50 object-cover shrink-0"
+            />
+          ) : (
+            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600 text-white flex items-center justify-center font-black text-[11px] shadow-2xs shrink-0">
+              FT
+            </div>
+          )}
           <div className="flex items-center gap-1.5">
             <h1 className="font-extrabold text-slate-900 text-xs sm:text-sm tracking-tight leading-none">
               FreeTranslate

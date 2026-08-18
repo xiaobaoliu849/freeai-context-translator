@@ -52,17 +52,20 @@
 
 .freetranslate-modal-card {
   position: absolute;
-  z-index: 999999;
-  width: 480px;
+  z-index: 2147483647;
+  width: 440px;
   max-width: 95vw;
-  height: 540px;
+  height: 570px;
   max-height: 85vh;
-  background: transparent;
+  background: #f8fafc;
   padding: 0;
-  border: none;
-  box-shadow: none;
-  overflow: visible;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 16px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
 }
 
 /* Equalizer bars shown on play buttons while audio is playing */
@@ -99,9 +102,6 @@
 /* ---------- Whole-page translation (pageTranslate.ts) ---------- */
 
 .ftpt-toolbar {
-  /* 0×0 anchor point; the FAB hangs off its bottom-right corner. Dragging the
-     FAB switches this to inline left/top (right/bottom → auto) so the FAB can
-     live anywhere, and the position is persisted in chrome.storage.local. */
   position: fixed;
   right: 16px;
   bottom: 16px;
@@ -111,7 +111,6 @@
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-/* Collapsed state: a small round book button. Draggable (pointer events). */
 .ftpt-fab {
   position: absolute;
   right: 0;
@@ -160,7 +159,6 @@
   padding: 12px;
 }
 
-/* `hidden` must win over the display rules above. */
 .ftpt-fab[hidden],
 .ftpt-panel[hidden],
 .ftpt-status[hidden] {
@@ -198,102 +196,80 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   padding: 0;
   border: none;
-  border-radius: 6px;
   background: transparent;
   color: #94a3b8;
+  border-radius: 6px;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .ftpt-icon-btn:hover {
-  background: #1e293b;
   color: #f8fafc;
+  background: #1e293b;
 }
 
-.ftpt-icon-btn svg {
-  width: 14px;
-  height: 14px;
+.ftpt-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .ftpt-row {
   display: flex;
-  gap: 6px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ftpt-select {
+  flex: 1;
+  background: #1e293b;
+  color: #f8fafc;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 12px;
+  outline: none;
 }
 
 .ftpt-btn {
-  flex: 1;
-  min-width: 0;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  padding: 7px 6px;
-  border: none;
+  gap: 6px;
+  padding: 7px 12px;
   border-radius: 8px;
-  background: #6366f1;
-  color: #fff;
   font-size: 12px;
   font-weight: 600;
-  white-space: nowrap;
+  border: none;
   cursor: pointer;
-  transition: background 0.15s ease, opacity 0.15s ease;
-}
-
-.ftpt-btn svg {
-  width: 13px;
-  height: 13px;
-  flex: none;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: white;
+  transition: opacity 0.15s;
 }
 
 .ftpt-btn:hover {
-  background: #4f46e5;
+  opacity: 0.92;
 }
 
 .ftpt-btn:disabled {
   opacity: 0.5;
-  cursor: default;
-}
-
-.ftpt-btn-restore {
-  background: #334155;
-}
-
-.ftpt-btn-restore:hover {
-  background: #475569;
+  cursor: not-allowed;
 }
 
 .ftpt-status {
-  margin-top: 8px;
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  background: #0f172a;
+  color: #f8fafc;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 6px 10px;
   font-size: 11px;
-  color: #94a3b8;
-  line-height: 1.4;
-}
-
-/* Bilingual translation block inserted after each paragraph */
-.ftpt-translation {
-  display: block !important;
-  margin: 6px 0 10px 0 !important;
-  padding: 6px 10px !important;
-  border-left: 3px solid #6366f1 !important;
-  background: rgba(99, 102, 241, 0.08) !important;
-  border-radius: 0 6px 6px 0 !important;
-  font-size: 0.95em !important;
-  line-height: 1.6 !important;
-  color: inherit !important;
-}
-
-/* Paragraph currently being read aloud */
-.ftpt-reading {
-  outline: 2px solid #6366f1 !important;
-  outline-offset: 3px !important;
-  border-radius: 4px !important;
-  transition: outline-color 0.2s ease;
-}
-
-li > .ftpt-translation {
-  margin: 4px 0 6px 0 !important;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
