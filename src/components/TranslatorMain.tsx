@@ -648,20 +648,29 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
 
       {/* ERROR MESSAGE ALERT */}
       {error && (
-        <div className="bg-rose-50 border border-rose-200/90 text-rose-800 text-xs rounded-xl p-2.5 flex items-center justify-between gap-2.5 animate-in fade-in slide-in-from-top-1 shadow-2xs">
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            <span className="font-extrabold bg-rose-200 text-rose-900 rounded-md px-1.5 py-0.5 text-[10px] uppercase tracking-wider shrink-0">
+        <div className="bg-rose-50 border border-rose-200/90 text-rose-800 text-xs rounded-xl p-2.5 flex items-start justify-between gap-2 animate-in fade-in slide-in-from-top-1 shadow-2xs max-w-full overflow-hidden shrink-0">
+          <div className="flex items-start gap-2 min-w-0 flex-1 overflow-hidden">
+            <span className="font-extrabold bg-rose-200 text-rose-900 rounded-md px-1.5 py-0.5 text-[10px] uppercase tracking-wider shrink-0 mt-0.5">
               错误
             </span>
-            <p className="leading-snug font-medium text-[11px] break-words flex-1">{error}</p>
+            <p className="leading-snug font-medium text-[11px] break-all flex-1 select-text">
+              {error}
+            </p>
           </div>
-          <div className="flex items-center gap-1.5 shrink-0">
-            {(error.includes('API Key') || error.includes('Settings')) && (
+          <div className="flex items-center gap-1.5 shrink-0 ml-1">
+            {(error.includes('API Key') ||
+              error.includes('Settings') ||
+              error.includes('401') ||
+              error.includes('402') ||
+              error.includes('404') ||
+              error.includes('Payment') ||
+              error.includes('quota') ||
+              error.includes('billing')) && (
               <button
                 onClick={openSettings}
-                className="bg-rose-600 hover:bg-rose-700 text-white font-bold px-2.5 py-1 rounded-lg text-xs cursor-pointer shadow-2xs transition-colors whitespace-nowrap"
+                className="bg-rose-600 hover:bg-rose-700 text-white font-bold px-2 py-1 rounded-lg text-[11px] cursor-pointer shadow-2xs transition-colors whitespace-nowrap"
               >
-                ⚙️ 设置 Key
+                ⚙️ 设置 Key / 模型
               </button>
             )}
             <button

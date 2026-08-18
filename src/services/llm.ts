@@ -107,7 +107,12 @@ async function geminiGenerate(p: ResolvedParams): Promise<string> {
   });
   if (!res.ok) {
     const errText = await res.text();
-    throw new Error(`Gemini API error (${res.status}): ${errText}`);
+    let detail = errText;
+    try {
+      const parsed = JSON.parse(errText);
+      detail = parsed.error?.message || parsed.message || errText;
+    } catch {}
+    throw new Error(`Gemini API error (${res.status}): ${detail}`);
   }
   const data = await res.json();
   if (data?.error) {
@@ -211,7 +216,12 @@ async function openaiGenerate(p: ResolvedParams): Promise<string> {
   });
   if (!res.ok) {
     const errText = await res.text();
-    throw new Error(`${p.provider.toUpperCase()} API error (${res.status}): ${errText}`);
+    let detail = errText;
+    try {
+      const parsed = JSON.parse(errText);
+      detail = parsed.error?.message || parsed.message || errText;
+    } catch {}
+    throw new Error(`${p.provider.toUpperCase()} API error (${res.status}): ${detail}`);
   }
   const data = await res.json();
   return data?.choices?.[0]?.message?.content || '';
@@ -227,7 +237,12 @@ async function* openaiGenerateStream(p: ResolvedParams): AsyncGenerator<string> 
   });
   if (!res.ok) {
     const errText = await res.text();
-    throw new Error(`${p.provider.toUpperCase()} API error (${res.status}): ${errText}`);
+    let detail = errText;
+    try {
+      const parsed = JSON.parse(errText);
+      detail = parsed.error?.message || parsed.message || errText;
+    } catch {}
+    throw new Error(`${p.provider.toUpperCase()} API error (${res.status}): ${detail}`);
   }
   if (!res.body) throw new Error(`${p.provider.toUpperCase()} API returned no stream body`);
 
