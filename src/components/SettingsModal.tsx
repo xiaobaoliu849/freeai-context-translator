@@ -64,7 +64,8 @@ const PROVIDERS_INFO: Array<{
   { id: 'fishaudio', name: 'Fish Audio (Fish Speech)' },
   { id: 'glm', name: '智谱 GLM（glm-4.7-flash / glm-4-flash 免费）' },
   { id: 'cerebras', name: 'Cerebras（免费额度，1M tokens/天）' },
-  { id: 'custom', name: '自定义 API' },
+  { id: 'ollama', name: 'Ollama 本地模型 (如 deepseek-r1, qwen2.5 等)' },
+  { id: 'custom', name: '自定义 API / 本地服务' },
 ];
 
 const TTS_VOICES_BY_ENGINE: Record<TTSEngine, Array<{ id: string; name: string }>> = {
@@ -274,9 +275,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         });
       } else {
         setFetchMessage({
-          text: currentConfig.apiKey
-            ? '未返回模型，请检查 API Key / Base URL 是否正确。'
-            : '未配置 API Key，无法获取模型列表。请先填写 Key 后重试。',
+          text: (currentProvider === 'ollama' || currentProvider === 'custom')
+            ? '未获取到模型。请确保本地 Ollama / 本地模型服务已启动（默认 http://localhost:11434）且已通过 `ollama pull ...` 下载模型。'
+            : currentConfig.apiKey
+              ? '未返回模型，请检查 API Key / Base URL 是否正确。'
+              : '未配置 API Key，无法获取模型列表。请先填写 Key 后重试。',
           type: 'error',
         });
       }
@@ -476,6 +479,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       云端免 Key
                     </span>
                   )}
+                  {(currentProvider === 'ollama' || currentProvider === 'custom') && (
+                    <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                      本地免 Key
+                    </span>
+                  )}
                 </div>
 
                 {/* API Base URL */}
@@ -505,7 +513,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       type={showKeyMap[currentProvider] ? 'text' : 'password'}
                       value={currentConfig.apiKey || ''}
                       onChange={(e) => updateCurrentConfig({ apiKey: e.target.value })}
-                      placeholder={currentProvider === 'gemini' ? 'Optional (选填)' : 'sk-...'}
+                      placeholder={
+                        currentProvider === 'gemini'
+                          ? 'Optional (选填)'
+                          : currentProvider === 'ollama' || currentProvider === 'custom'
+                          ? '本地模型无需 API Key（留空即可）'
+                          : 'sk-...'
+                      }
                       className="w-full bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-slate-800 focus:outline-none focus:border-indigo-500 pr-10 font-mono text-xs shadow-2xs"
                     />
                     <button
@@ -612,8 +626,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       )}
                       {validationResult.status === 'unverifiable' && (
                         <p>
-                          {currentProvider === 'custom'
-                            ? '模型接口不可用（未填 Key 或请求失败），无法实时校验。请检查接口配置后重试。'
+                          {currentProvider === 'ollama' || currentProvider === 'custom'
+                            ? '模型接口不可用（服务未启动或未获取到模型），无法实时校验。请检查本地 Ollama 服务或接口配置后重试。'
                             : '未配置 API Key 或未获取到模型列表，无法实时校验。请先配置 Key 并获取模型。'}
                         </p>
                       )}

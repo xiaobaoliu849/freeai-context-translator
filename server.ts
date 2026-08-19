@@ -136,7 +136,7 @@ function resolveServerApiKey(provider: string, apiKey: string | undefined): stri
     cerebras: process.env.CEREBRAS_API_KEY,
   }[provider];
   if (direct) return direct;
-  const geminiPath = provider === "gemini" || (provider !== "custom");
+  const geminiPath = provider === "gemini" || (provider !== "custom" && provider !== "ollama");
   return geminiPath ? process.env.GEMINI_API_KEY : undefined;
 }
 
@@ -336,7 +336,7 @@ app.post("/api/models", rateLimit, async (req, res) => {
     }
 
     // No usable key for this provider: cannot verify — return an empty list.
-    if (provider === "gemini" || (!apiKey && provider !== "custom")) {
+    if (provider === "gemini" || (!apiKey && provider !== "custom" && provider !== "ollama")) {
       return res.json({ models: [], source: "default" });
     }
 
@@ -349,7 +349,13 @@ app.post("/api/models", rateLimit, async (req, res) => {
         headers["Authorization"] = `Bearer ${apiKey}`;
       }
 
-      const response = await fetch(endpoint, { method: "GET", headers });
+      let response = await fetch(endpoint, { method: "GET", headers });
+      if (!response.ok && provider === "ollama") {
+        const nativeTagsEndpoint = `${baseUrl.replace(/\/v1\/?$/, "")}/api/tags`;
+        const tagsRes = await fetch(nativeTagsEndpoint, { method: "GET", headers: { "Content-Type": "application/json" } });
+        if (tagsRes.ok) response = tagsRes;
+      }
+
       if (response.ok) {
         const data = await response.json();
         let rawList: any[] = [];

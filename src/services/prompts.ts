@@ -39,14 +39,20 @@ Provide a deep, contextual explanation formatted in JSON:
 }
 
 /**
- * Safely parses a JSON response from an LLM, tolerating markdown fences and
- * stray prose around the JSON payload.
+ * Safely parses a JSON response from an LLM, tolerating reasoning (<think>...</think>)
+ * blocks, markdown fences, and stray prose around the JSON payload.
  */
 export function parseLLMJson(rawText: string): any {
   if (!rawText) return {};
   let cleaned = rawText.trim();
+
+  // Strip <think>...</think> blocks emitted by reasoning models (DeepSeek-R1, Qwen etc.)
+  cleaned = cleaned.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+  // If a <think> block was left unclosed (e.g. max token cutoff or partial response), strip from <think>
+  cleaned = cleaned.replace(/<think>[\s\S]*$/gi, '').trim();
+
   if (cleaned.startsWith('```')) {
-    cleaned = cleaned.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+    cleaned = cleaned.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
   }
   try {
     return JSON.parse(cleaned);
@@ -59,6 +65,16 @@ export function parseLLMJson(rawText: string): any {
         console.warn('Regex extracted JSON parse failed:', jsonMatch[0]);
       }
     }
+
+    // Fallback: If the model returned plain translated text instead of JSON format
+    // (e.g. smaller local models or prompt-simplified setups), fallback to text.
+    if (cleaned && !cleaned.startsWith('{') && !cleaned.startsWith('Error:')) {
+      return {
+        translation: cleaned,
+        detectedLang: 'Auto',
+      };
+    }
+
     console.warn('Failed to parse JSON directly from LLM, returning empty object');
     return {};
   }

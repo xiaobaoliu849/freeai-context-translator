@@ -28,10 +28,10 @@ function requireModel(model: string | undefined): string {
 
 /**
  * Gemini-native path: explicit `gemini`, or any provider without a key that
- * isn't `custom` (the legacy "fall back to Gemini" behavior).
+ * isn't `custom` or `ollama` (the legacy "fall back to Gemini" behavior).
  */
 function isGeminiPath(provider: string, apiKey: string): boolean {
-  return provider === 'gemini' || (!apiKey && provider !== 'custom');
+  return provider === 'gemini' || (!apiKey && provider !== 'custom' && provider !== 'ollama');
 }
 
 function isTransientError(err: unknown): boolean {

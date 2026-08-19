@@ -31,6 +31,7 @@ export const DEFAULT_BASE_URLS: Record<ProviderType, string> = {
   mimo: 'https://api.xiaomimimo.com/v1',
   glm: 'https://open.bigmodel.cn/api/paas/v4',
   cerebras: 'https://api.cerebras.ai/v1',
+  ollama: 'http://localhost:11434/v1',
   custom: 'http://localhost:11434/v1',
 };
 
@@ -39,6 +40,7 @@ export const DEFAULT_BASE_URLS: Record<ProviderType, string> = {
 export const DEFAULT_MODELS: Partial<Record<ProviderType, string>> = {
   glm: 'glm-4.7-flash',
   cerebras: 'gpt-oss-120b',
+  ollama: 'qwen2.5:latest',
 };
 
 // 智谱 /models 接口不返回免费的 flash 系列模型（上游已知行为，见

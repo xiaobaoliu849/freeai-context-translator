@@ -426,24 +426,34 @@ async function fetchModels({ provider, baseUrl, apiKey, settings }: { provider: 
     }
   }
 
-  if (provider === 'gemini' || (!effectiveKey && provider !== 'custom')) {
+  if (provider === 'gemini' || (!effectiveKey && provider !== 'custom' && provider !== 'ollama')) {
     return { models: [], source: 'default' };
   }
   try {
     const endpoint = `${effectiveBaseUrl}/models`;
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (effectiveKey) headers['Authorization'] = `Bearer ${effectiveKey}`;
-    const res = await fetch(endpoint, { method: 'GET', headers });
+    let res = await fetch(endpoint, { method: 'GET', headers });
+    
+    // Fallback for native Ollama endpoint if /v1/models returned 404
+    if (!res.ok && provider === 'ollama') {
+      const nativeTagsEndpoint = `${effectiveBaseUrl.replace(/\/v1\/?$/, '')}/api/tags`;
+      const tagsRes = await fetch(nativeTagsEndpoint, { method: 'GET', headers: { 'Content-Type': 'application/json' } });
+      if (tagsRes.ok) {
+        res = tagsRes;
+      }
+    }
+
     if (res.ok) {
       const data: any = await res.json();
       const rawList: any[] = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : Array.isArray(data?.models) ? data.models : [];
       const ids = rawList.map((m: any) => (typeof m === 'string' ? m : m.id || m.name || m.model)).filter(Boolean);
       if (ids.length > 0) return { models: mergeKnownFreeModels(provider as any, ids), source: 'live' };
-    } else if (explicitKey) {
+    } else if (explicitKey || provider === 'ollama') {
       throw new Error(`${provider} models API error (${res.status}): ${(await res.text()).slice(0, 200)}`);
     }
   } catch (e: any) {
-    if (explicitKey) throw e;
+    if (explicitKey || provider === 'ollama') throw e;
     // fall through to defaults
   }
   return { models: [], source: 'default' };

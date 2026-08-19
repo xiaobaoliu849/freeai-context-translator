@@ -10,6 +10,7 @@ export type ProviderType =
   | 'mimo'
   | 'glm'
   | 'cerebras'
+  | 'ollama'
   | 'custom';
 
 export type TTSEngine = 
