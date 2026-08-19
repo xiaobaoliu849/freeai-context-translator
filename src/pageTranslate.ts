@@ -730,7 +730,9 @@ export async function initPageTranslate(): Promise<void> {
   if (!isExtensionContext()) return;
   if (!document.body) return;
   // Avoid double-init on re-injection.
-  if (document.querySelector('.ftpt-toolbar')) return;
+  // NOTE: .ftpt-toolbar lives inside Shadow DOM and is invisible to
+  // document.querySelector — check the host container in the light DOM instead.
+  if (document.querySelector('#ftpt-toolbar-container')) return;
   // Don't add chrome to the browser's own UI pages or tiny pages.
   if (document.body.children.length === 0) return;
   // Skip pages with no real text (blank shells, error pages) — nothing to
