@@ -15,12 +15,74 @@ function setupContextMenu() {
   });
 }
 
+async function setupOllamaOriginRule() {
+  if (!chrome.declarativeNetRequest) return;
+  const RULE_LOCAL = 11434;
+  const RULE_IP = 11435;
+  try {
+    await chrome.declarativeNetRequest.updateDynamicRules({
+      removeRuleIds: [RULE_LOCAL, RULE_IP],
+      addRules: [
+        {
+          id: RULE_LOCAL,
+          priority: 1,
+          action: {
+            type: chrome.declarativeNetRequest.RuleActionType.MODIFY_HEADERS,
+            requestHeaders: [
+              {
+                header: 'Origin',
+                operation: chrome.declarativeNetRequest.HeaderOperation.SET,
+                value: 'http://localhost',
+              },
+            ],
+          },
+          condition: {
+            urlFilter: '||localhost:11434/',
+            resourceTypes: [
+              chrome.declarativeNetRequest.ResourceType.XMLHTTPREQUEST,
+              chrome.declarativeNetRequest.ResourceType.OTHER,
+            ],
+          },
+        },
+        {
+          id: RULE_IP,
+          priority: 1,
+          action: {
+            type: chrome.declarativeNetRequest.RuleActionType.MODIFY_HEADERS,
+            requestHeaders: [
+              {
+                header: 'Origin',
+                operation: chrome.declarativeNetRequest.HeaderOperation.SET,
+                value: 'http://127.0.0.1',
+              },
+            ],
+          },
+          condition: {
+            urlFilter: '||127.0.0.1:11434/',
+            resourceTypes: [
+              chrome.declarativeNetRequest.ResourceType.XMLHTTPREQUEST,
+              chrome.declarativeNetRequest.ResourceType.OTHER,
+            ],
+          },
+        },
+      ],
+    });
+  } catch (err) {
+    console.warn('Could not setup declarativeNetRequest rules for Ollama:', err);
+  }
+}
+
+// Ensure rules are set on load
+setupOllamaOriginRule();
+
 chrome.runtime.onInstalled.addListener(() => {
   setupContextMenu();
+  setupOllamaOriginRule();
 });
 
 chrome.runtime.onStartup.addListener(() => {
   setupContextMenu();
+  setupOllamaOriginRule();
 });
 
 function sendOrInject(tabId: number, message: any) {

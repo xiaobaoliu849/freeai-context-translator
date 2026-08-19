@@ -122,4 +122,42 @@ declare namespace chrome {
       function remove(keys: string | string[]): Promise<void>;
     }
   }
+
+  namespace declarativeNetRequest {
+    enum RuleActionType {
+      MODIFY_HEADERS = 'modifyHeaders',
+    }
+    enum HeaderOperation {
+      SET = 'set',
+      REMOVE = 'remove',
+    }
+    enum ResourceType {
+      XMLHTTPREQUEST = 'xmlhttprequest',
+      OTHER = 'other',
+    }
+    interface ModifyHeaderInfo {
+      header: string;
+      operation: HeaderOperation | string;
+      value?: string;
+    }
+    interface RuleAction {
+      type: RuleActionType | string;
+      requestHeaders?: ModifyHeaderInfo[];
+    }
+    interface RuleCondition {
+      urlFilter?: string;
+      resourceTypes?: Array<ResourceType | string>;
+    }
+    interface Rule {
+      id: number;
+      priority: number;
+      action: RuleAction;
+      condition: RuleCondition;
+    }
+    interface UpdateRuleOptions {
+      removeRuleIds?: number[];
+      addRules?: Rule[];
+    }
+    function updateDynamicRules(options: UpdateRuleOptions): Promise<void>;
+  }
 }
