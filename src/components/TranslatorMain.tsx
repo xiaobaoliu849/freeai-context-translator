@@ -365,7 +365,11 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
         return;
       }
       console.error('Translation error:', err);
-      setError(err.message || 'Translation failed');
+      let errMsg = err.message || 'Translation failed';
+      if (errMsg.includes('Failed to fetch') && (activeProvider === 'ollama' || activeProvider === 'custom')) {
+        errMsg = '无法连接本地模型服务 (Failed to fetch)。请确保 Ollama/本地服务已启动 (http://localhost:11434)，并在设置中点击「自动获取」选择本地已安装的模型。';
+      }
+      setError(errMsg);
     } finally {
       if (requestId === translateReqIdRef.current) {
         setLoading(false);

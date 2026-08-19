@@ -88,7 +88,7 @@ async function assertSafeBaseUrl(baseUrl: string | undefined, provider: string):
     throw new Error("Base URL must use http:// or https://");
   }
   if (process.env.NODE_ENV === "production" && process.env.ALLOW_PRIVATE_LLM !== "1") {
-    if (await isPrivateHost(url.hostname)) {
+    if (provider !== "ollama" && (await isPrivateHost(url.hostname))) {
       throw new Error(`Base URL "${baseUrl}" resolves to a private/internal address and was blocked`);
     }
   }
