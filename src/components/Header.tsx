@@ -85,8 +85,8 @@ export const Header: React.FC<HeaderProps> = ({
             <ChevronRight className="w-3 h-3 text-indigo-400 shrink-0" />
           </button>
 
-          {/* Open Full Tab Button (hidden inside small popup / floating) */}
-          {!isPopup && !isFloating && (
+          {/* Open Full Tab Button (available in popup and desktop) */}
+          {!isFloating && (
             <button
               onClick={handleOpenFullTab}
               className="p-1.5 rounded-xl text-slate-600 hover:text-indigo-600 hover:bg-slate-100 transition-colors cursor-pointer border border-slate-200/80 bg-white"

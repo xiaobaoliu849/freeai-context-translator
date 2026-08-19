@@ -95,17 +95,34 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
   const workspaceRef = useRef<HTMLDivElement>(null);
   const splitDragRef = useRef<{ x: number; split: number }>({ x: 0, split: 50 });
 
-  // Vertical split between upper and lower panels in popup mode
+  // Vertical split between upper and lower panels in  // Height split percent for stacked / popup mode
   const [vSplitPercent, setVSplitPercent] = useState<number>(() => {
     try {
       const saved = Number(localStorage.getItem('freetranslate_vsplit'));
-      return saved >= 20 && saved <= 75 ? saved : 42;
+      return saved >= 20 && saved <= 75 ? saved : 38;
     } catch {
-      return 42;
+      return 38;
+    }
+  });
+  const [userCustomVSplit, setUserCustomVSplit] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('freetranslate_vsplit_custom') === 'true';
+    } catch {
+      return false;
     }
   });
   const [vSplitDragging, setVSplitDragging] = useState(false);
-  const vSplitDragRef = useRef<{ y: number; split: number }>({ y: 0, split: 42 });
+  const vSplitDragRef = useRef<{ y: number; split: number }>({ y: 0, split: 38 });
+
+  // Intelligent adaptive height split when user hasn't explicitly locked a custom split
+  const effectiveVSplitPercent = React.useMemo(() => {
+    if (userCustomVSplit) return vSplitPercent;
+    const len = sourceText.trim().length;
+    if (len === 0) return 38;
+    if (len <= 80) return 30; // Short text: give 70% space to result & dictionary
+    if (len <= 250) return 38;
+    return 45; // Long text: balanced 45:55
+  }, [sourceText, userCustomVSplit, vSplitPercent]);
 
   useEffect(() => {
     try {
@@ -139,7 +156,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
 
   const handleVSplitPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
-    vSplitDragRef.current = { y: e.clientY, split: vSplitPercent };
+    vSplitDragRef.current = { y: e.clientY, split: effectiveVSplitPercent };
     setVSplitDragging(true);
     e.currentTarget.setPointerCapture(e.pointerId);
   };
@@ -151,9 +168,21 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
     if (rect.height === 0) return;
     const delta = ((e.clientY - vSplitDragRef.current.y) / rect.height) * 100;
     const next = Math.round(vSplitDragRef.current.split + delta);
-    setVSplitPercent(Math.min(75, Math.max(20, next)));
+    const clamped = Math.min(75, Math.max(20, next));
+    setVSplitPercent(clamped);
+    setUserCustomVSplit(true);
+    try {
+      localStorage.setItem('freetranslate_vsplit_custom', 'true');
+    } catch {}
   };
   const handleVSplitPointerUp = () => setVSplitDragging(false);
+
+  const handleResetAdaptiveSplit = () => {
+    setUserCustomVSplit(false);
+    try {
+      localStorage.removeItem('freetranslate_vsplit_custom');
+    } catch {}
+  };
 
   // In-memory word explanation cache
   const wordCacheRef = useRef<Record<string, WordExplanation>>({});
@@ -699,7 +728,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
       >
         {/* LEFT / TOP COLUMN: SOURCE INPUT BOX */}
         <div
-          style={isPopup ? { flex: `0 0 calc(${vSplitPercent}% - 6px)` } : undefined}
+          style={isPopup ? { flex: `0 0 calc(${effectiveVSplitPercent}% - 6px)` } : undefined}
           className={`bg-white border border-slate-200/90 rounded-2xl shadow-2xs overflow-hidden flex flex-col justify-between focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/10 transition-all ${
             isPopup ? 'min-h-[85px]' : 'min-h-[240px] sm:min-h-[300px]'
           }`}
@@ -721,7 +750,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             placeholder="输入或粘贴文本... (支持划词翻译)"
             className={`${
               isPopup
-                ? 'flex-1 min-h-0 p-3 resize-none overflow-y-auto text-sm'
+                ? 'flex-1 min-h-0 p-3 sm:p-3.5 resize-none overflow-y-auto text-sm'
                 : 'w-full p-3.5 sm:p-4 flex-1 min-h-[180px] sm:min-h-[220px] resize-y text-sm sm:text-base'
             } text-slate-800 font-normal focus:outline-none placeholder:text-slate-400 bg-transparent leading-relaxed`}
           />
@@ -796,8 +825,9 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             onPointerMove={handleVSplitPointerMove}
             onPointerUp={handleVSplitPointerUp}
             onPointerCancel={handleVSplitPointerUp}
+            onDoubleClick={handleResetAdaptiveSplit}
             className="h-2.5 flex items-center justify-center cursor-row-resize touch-none group select-none py-0.5 shrink-0"
-            title="拖动调整上下高度"
+            title={userCustomVSplit ? '拖动调整高度 (双击恢复智能自适应)' : '智能自适应高度 (拖动可手动调整)'}
           >
             <div className={`h-[3px] rounded-full transition-all ${
               vSplitDragging ? 'bg-indigo-500 w-16' : 'bg-slate-200 group-hover:bg-indigo-400 w-10'
@@ -826,7 +856,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
           style={isPopup ? { flex: '1 1 0%' } : undefined}
           className={`bg-white border border-slate-200/90 rounded-2xl shadow-2xs relative flex flex-col justify-between transition-all ${
             isPopup
-              ? (selectedWord ? 'min-h-[110px] overflow-hidden p-0' : 'min-h-[110px] overflow-y-auto p-3')
+              ? (selectedWord ? 'min-h-[110px] overflow-hidden p-0' : 'min-h-[110px] overflow-y-auto p-3.5 sm:p-4')
               : (selectedWord ? 'min-h-[240px] sm:min-h-[300px] overflow-hidden p-0' : 'p-3.5 sm:p-4 min-h-[240px] sm:min-h-[300px]')
           }`}
         >
@@ -850,7 +880,11 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                   <span className="uppercase tracking-wider font-bold text-slate-500">翻译结果</span>
                   <span className="text-[10px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-mono animate-pulse">生成中…</span>
                 </div>
-                <div className="text-slate-900 text-base sm:text-lg font-medium leading-relaxed tracking-tight select-text min-h-[60px] whitespace-pre-wrap">
+                <div className={`${
+                  isPopup
+                    ? 'text-slate-900 text-sm sm:text-[15px] font-normal leading-relaxed tracking-normal select-text min-h-[60px] whitespace-pre-wrap pt-0.5'
+                    : 'text-slate-900 text-base sm:text-lg font-medium leading-relaxed tracking-tight select-text min-h-[60px] whitespace-pre-wrap'
+                }`}>
                   {streamingText}
                   <span className="inline-block w-[2px] h-[1.1em] bg-indigo-500 ml-0.5 align-text-bottom animate-pulse rounded-sm" />
                 </div>
@@ -876,10 +910,14 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
 
                 {/* Full Sentence Translation - selectable and copyable without hijacking */}
                 <div
-                  className="text-slate-900 text-base sm:text-lg font-medium leading-relaxed tracking-tight select-text min-h-[60px]"
+                  className={`${
+                    isPopup
+                      ? 'text-slate-900 text-sm sm:text-[15px] font-normal leading-relaxed tracking-normal select-text min-h-[60px] whitespace-pre-wrap pt-0.5'
+                      : 'text-slate-900 text-base sm:text-lg font-medium leading-relaxed tracking-tight select-text min-h-[60px] whitespace-pre-wrap'
+                  }`}
                 >
                   {result?.translation || (
-                    <span className="text-slate-300 italic font-normal text-sm">
+                    <span className="text-slate-300 italic font-normal text-xs sm:text-sm">
                       翻译结果将在此即时显示...
                     </span>
                   )}
