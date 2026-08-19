@@ -8,6 +8,9 @@ import './content.css';
 
 const SETTINGS_STORAGE_KEY = 'freetranslate_settings';
 
+// Suppress page text selection triggers during and shortly after dragging / UI interaction
+let suppressSelectionUntil = 0;
+
 /**
  * Reads saved settings from chrome.storage.local (extension) or localStorage.
  */
@@ -68,6 +71,7 @@ const SelectionPopover: React.FC<SelectionPopoverProps> = ({
 
     e.preventDefault();
     isDraggingRef.current = true;
+    suppressSelectionUntil = Date.now() + 2000;
     dragStartRef.current = {
       startX: e.clientX,
       startY: e.clientY,
@@ -77,6 +81,7 @@ const SelectionPopover: React.FC<SelectionPopoverProps> = ({
 
     const handlePointerMove = (moveEv: PointerEvent) => {
       if (!isDraggingRef.current) return;
+      suppressSelectionUntil = Date.now() + 2000;
       const dx = moveEv.clientX - dragStartRef.current.startX;
       const dy = moveEv.clientY - dragStartRef.current.startY;
       const nextX = Math.max(window.scrollX + 8, Math.min(window.scrollX + window.innerWidth - 320, dragStartRef.current.initX + dx));
@@ -86,6 +91,8 @@ const SelectionPopover: React.FC<SelectionPopoverProps> = ({
 
     const handlePointerUp = () => {
       isDraggingRef.current = false;
+      // Suppress any trailing mouseup / selection trigger on the host page
+      suppressSelectionUntil = Date.now() + 400;
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', handlePointerUp);
       window.removeEventListener('pointercancel', handlePointerUp);
@@ -101,11 +108,16 @@ const SelectionPopover: React.FC<SelectionPopoverProps> = ({
     if (isPinned) return;
 
     const handleOutsideClick = (e: MouseEvent) => {
-      if (isDraggingRef.current) return;
+      if (isDraggingRef.current || Date.now() < suppressSelectionUntil) return;
       const card = cardRef.current;
-      if (card && !card.contains(e.target as Node)) {
-        onClose();
+      if (!card) return;
+
+      // Use composedPath to properly traverse through Shadow DOM boundaries
+      const path = e.composedPath ? e.composedPath() : [];
+      if (path.includes(card) || card.contains(e.target as Node)) {
+        return;
       }
+      onClose();
     };
 
     const timer = setTimeout(() => {
@@ -171,10 +183,22 @@ function removePopover() {
     reactRootInstance = null;
   }
   if (activeRootContainer) {
-    activeRootContainer.remove();
+    try {
+      activeRootContainer.remove();
+    } catch (e) {}
     activeRootContainer = null;
     shadowRootInstance = null;
   }
+
+  // Thorough cleanup: remove ALL existing host containers in the document to prevent any orphan duplicates
+  try {
+    const existing = document.querySelectorAll('#freetranslate-host-container');
+    existing.forEach((el) => {
+      try {
+        el.remove();
+      } catch (e) {}
+    });
+  } catch (e) {}
 }
 
 function removeFloatBtn() {
@@ -183,15 +207,26 @@ function removeFloatBtn() {
     floatBtnHoverTimer = null;
   }
   if (activeFloatBtn) {
-    activeFloatBtn.remove();
+    try {
+      activeFloatBtn.remove();
+    } catch (e) {}
     activeFloatBtn = null;
   }
+  try {
+    const existingBtns = document.querySelectorAll('.freetranslate-float-btn');
+    existingBtns.forEach((btn) => {
+      try {
+        btn.remove();
+      } catch (e) {}
+    });
+  } catch (e) {}
 }
 
 function showFloatBtn(text: string, x: number, y: number, mode: 'click' | 'hover') {
   removeFloatBtn();
 
   const btn = document.createElement('button');
+  btn.className = 'freetranslate-float-btn';
   btn.textContent = '译';
   btn.style.cssText = `
     position: absolute;
@@ -250,38 +285,41 @@ function showFloatBtn(text: string, x: number, y: number, mode: 'click' | 'hover
   activeFloatBtn = btn;
 }
 
-async function showPopover(text: string, x: number, y: number) {
+function showPopover(text: string, x: number, y: number) {
+  // Synchronously tear down any existing instance to avoid race conditions
   removePopover();
 
-  const settings = await getSavedSettings();
-  currentSettings = settings;
+  // Create single host container
+  const container = document.createElement('div');
+  container.id = 'freetranslate-host-container';
+  container.style.cssText = 'all: initial; position: absolute; z-index: 2147483647; top: 0; left: 0; pointer-events: none;';
+  document.body.appendChild(container);
+  activeRootContainer = container;
 
-  activeRootContainer = document.createElement('div');
-  activeRootContainer.id = 'freetranslate-host-container';
-  activeRootContainer.style.cssText = 'all: initial; position: absolute; z-index: 2147483647; top: 0; left: 0; pointer-events: none;';
-  document.body.appendChild(activeRootContainer);
-
-  shadowRootInstance = activeRootContainer.attachShadow({ mode: 'open' });
+  const shadow = container.attachShadow({ mode: 'open' });
+  shadowRootInstance = shadow;
 
   // Inject content.css inside Shadow DOM for 100% complete DOM and style isolation
   if (typeof chrome !== 'undefined' && chrome.runtime?.getURL) {
     const link = document.createElement('link');
     link.rel = 'stylesheet';
     link.href = chrome.runtime.getURL('content.css');
-    shadowRootInstance.appendChild(link);
+    shadow.appendChild(link);
   }
 
   const mountPoint = document.createElement('div');
   mountPoint.style.cssText = 'pointer-events: auto;';
-  shadowRootInstance.appendChild(mountPoint);
+  shadow.appendChild(mountPoint);
 
-  reactRootInstance = createRoot(mountPoint);
-  reactRootInstance.render(
+  const root = createRoot(mountPoint);
+  reactRootInstance = root;
+
+  root.render(
     <SelectionPopover
       selectedText={text}
       position={{ x, y }}
       onClose={removePopover}
-      settings={settings}
+      settings={currentSettings}
     />
   );
 }
@@ -298,15 +336,42 @@ function getSelectionFromEvent(e: MouseEvent | TouchEvent): { text: string; insi
   return { text: window.getSelection()?.toString().trim() ?? '', insideFormField: false };
 }
 
+/** Check if an event originated inside the FreeTranslate UI across Shadow DOM boundaries */
+function isEventInsideApp(e: Event): boolean {
+  const path = e.composedPath ? e.composedPath() : [];
+  for (const node of path) {
+    if (node instanceof HTMLElement) {
+      if (
+        node.id === 'freetranslate-host-container' ||
+        node.classList.contains('freetranslate-modal-card') ||
+        node.classList.contains('freetranslate-float-btn') ||
+        node.id === 'ftpt-toolbar-container' ||
+        node.classList.contains('ftpt-toolbar')
+      ) {
+        return true;
+      }
+    }
+  }
+  const target = e.target as HTMLElement | null;
+  if (
+    target?.id === 'freetranslate-host-container' ||
+    target?.closest?.('#freetranslate-host-container, .freetranslate-modal-card, .freetranslate-float-btn, #ftpt-toolbar-container, .ftpt-toolbar')
+  ) {
+    return true;
+  }
+  return false;
+}
+
 // Selection listener (mouse & touch)
 function handleSelectionEvent(e: MouseEvent | TouchEvent) {
+  // If recent dragging or interaction occurred, suppress selection triggers
+  if (Date.now() < suppressSelectionUntil) return;
+
   // Right-click opens the browser context menu — do not show floating button
   if (e instanceof MouseEvent && e.button !== 0) return;
 
-  const target = e.target as HTMLElement | null;
-  if (target?.closest?.('.freetranslate-modal-card') || target?.closest?.('.freetranslate-float-btn')) {
-    return;
-  }
+  // Ignore events originating inside FreeTranslate UI components
+  if (isEventInsideApp(e)) return;
 
   const { text: selection, insideFormField } = getSelectionFromEvent(e);
   if (!selection || selection.length === 0 || selection.length >= 5000) {
@@ -339,64 +404,83 @@ function handleSelectionEvent(e: MouseEvent | TouchEvent) {
   }
 }
 
-document.addEventListener('mouseup', handleSelectionEvent);
-document.addEventListener('touchend', handleSelectionEvent);
+// Only register UI listeners and toolbar in top-level window frame to avoid duplicate instances in iframes
+const isTopFrame = typeof window === 'undefined' || window.top === window.self;
 
-// Hide the floating button when clicking elsewhere or scrolling
-document.addEventListener('mousedown', (e) => {
-  if ((e.target as HTMLElement | null)?.closest?.('.freetranslate-float-btn')) return;
-  removeFloatBtn();
-});
-document.addEventListener('touchstart', (e) => {
-  if ((e.target as HTMLElement | null)?.closest?.('.freetranslate-float-btn')) return;
-  removeFloatBtn();
-});
-window.addEventListener('scroll', () => {
-  removeFloatBtn();
-}, { passive: true });
+if (isTopFrame) {
+  document.addEventListener('mouseup', handleSelectionEvent);
+  document.addEventListener('touchend', handleSelectionEvent);
 
-let lastContextMenuPos = { x: Math.max(12, window.innerWidth / 2 - 220), y: Math.max(12, window.innerHeight / 3) };
-document.addEventListener('contextmenu', (e) => {
-  lastContextMenuPos = { x: e.clientX, y: e.clientY };
-}, true);
+  // Hide the floating button when clicking elsewhere or scrolling
+  document.addEventListener('mousedown', (e) => {
+    if (isEventInsideApp(e)) return;
+    removeFloatBtn();
+  });
+  document.addEventListener('touchstart', (e) => {
+    if (isEventInsideApp(e)) return;
+    removeFloatBtn();
+  });
+  window.addEventListener('scroll', () => {
+    removeFloatBtn();
+  }, { passive: true });
 
-function getSelectionPosition(): { x: number; y: number } {
-  const sel = window.getSelection();
-  if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
-    const rect = sel.getRangeAt(0).getBoundingClientRect();
-    if (rect.width > 0 || rect.height > 0) {
-      return {
-        x: Math.max(12, Math.min(rect.left, window.innerWidth - 460)),
-        y: Math.max(12, Math.min(rect.bottom + 8, window.innerHeight - 200)),
-      };
+  let lastContextMenuPos = { x: Math.max(12, window.innerWidth / 2 - 220), y: Math.max(12, window.innerHeight / 3) };
+  document.addEventListener('contextmenu', (e) => {
+    lastContextMenuPos = { x: e.clientX, y: e.clientY };
+  }, true);
+
+  function getSelectionPosition(): { x: number; y: number } {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
+      try {
+        const range = sel.getRangeAt(0);
+        const rect = range.getBoundingClientRect();
+        if (rect.width > 0 || rect.height > 0) {
+          return {
+            x: Math.max(12, Math.min(rect.left, window.innerWidth - 460)),
+            y: Math.max(12, Math.min(rect.bottom + 8, window.innerHeight - 200)),
+          };
+        }
+      } catch (e) {}
     }
+    return {
+      x: Math.max(12, Math.min(lastContextMenuPos.x, window.innerWidth - 460)),
+      y: Math.max(12, Math.min(lastContextMenuPos.y + 8, window.innerHeight - 200)),
+    };
   }
-  return {
-    x: Math.max(12, Math.min(lastContextMenuPos.x, window.innerWidth - 460)),
-    y: Math.max(12, Math.min(lastContextMenuPos.y + 8, window.innerHeight - 200)),
-  };
-}
 
-// Chrome extension context menu / keyboard shortcut listener
-if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
-  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    if (message.action === 'TRANSLATE_SELECTION' || message.action === 'AUTO_SELECTION' || message.action === 'EXPLAIN_SELECTION') {
-      removeFloatBtn();
-      const pos = getSelectionPosition();
-      showPopover(message.text || '', pos.x, pos.y);
-    } else if (message.action === 'REQUEST_SELECTION') {
-      sendResponse({ text: window.getSelection()?.toString().trim() || '' });
-      return true;
+  // Chrome extension context menu / keyboard shortcut listener
+  if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
+    chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+      if (message.action === 'TRANSLATE_SELECTION' || message.action === 'AUTO_SELECTION' || message.action === 'EXPLAIN_SELECTION') {
+        removeFloatBtn();
+        const pos = getSelectionPosition();
+        showPopover(message.text || '', pos.x, pos.y);
+      } else if (message.action === 'REQUEST_SELECTION') {
+        sendResponse({ text: window.getSelection()?.toString().trim() || '' });
+        return true;
+      }
+    });
+  }
+
+  // Close the popover with Escape
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      removePopover();
     }
   });
+
+  // Whole-page bilingual translation + TTS reading toolbar (extension only).
+  initPageTranslate();
+} else {
+  // In subframes, only respond to selection text queries if requested
+  if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
+    chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+      if (message.action === 'REQUEST_SELECTION') {
+        sendResponse({ text: window.getSelection()?.toString().trim() || '' });
+        return true;
+      }
+    });
+  }
 }
 
-// Close the popover with Escape
-window.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') {
-    removePopover();
-  }
-});
-
-// Whole-page bilingual translation + TTS reading toolbar (extension only).
-initPageTranslate();

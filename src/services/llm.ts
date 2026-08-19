@@ -123,15 +123,39 @@ async function geminiGenerate(p: ResolvedParams): Promise<string> {
 
 async function* geminiGenerateStream(p: ResolvedParams): AsyncGenerator<string> {
   const url = `${p.baseUrl}/v1beta/models/${encodeURIComponent(p.model)}:streamGenerateContent?alt=sse`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': p.apiKey },
-    body: JSON.stringify(geminiBody(p.prompt, p.systemInstruction, p.jsonOutput)),
-    signal: p.signal,
-  });
-  if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`Gemini API error (${res.status}): ${errText}`);
+  const bodyStr = JSON.stringify(geminiBody(p.prompt, p.systemInstruction, p.jsonOutput));
+  const headers = { 'Content-Type': 'application/json', 'x-goog-api-key': p.apiKey };
+
+  let res: Response | null = null;
+  const maxAttempts = 3;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    if (p.signal?.aborted) return;
+    try {
+      res = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: bodyStr,
+        signal: p.signal,
+      });
+      if (res.ok) break;
+      if ((res.status === 429 || res.status === 503) && attempt < maxAttempts - 1) {
+        await sleep((attempt + 1) * 800);
+        continue;
+      }
+      break;
+    } catch (err) {
+      if (p.signal?.aborted) return;
+      if (isTransientError(err) && attempt < maxAttempts - 1) {
+        await sleep((attempt + 1) * 800);
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  if (!res || !res.ok) {
+    const errText = res ? await res.text() : 'No response';
+    throw new Error(`Gemini API error (${res?.status || 'network'}): ${errText}`);
   }
   if (!res.body) throw new Error('Gemini API returned no stream body');
 
@@ -229,20 +253,44 @@ async function openaiGenerate(p: ResolvedParams): Promise<string> {
 
 async function* openaiGenerateStream(p: ResolvedParams): AsyncGenerator<string> {
   const endpoint = `${p.baseUrl}/chat/completions`;
-  const res = await fetch(endpoint, {
-    method: 'POST',
-    headers: openaiHeaders(p.apiKey),
-    body: JSON.stringify(openaiPayload(p.model, openaiMessages(p.prompt, p.systemInstruction), p.jsonOutput, true)),
-    signal: p.signal,
-  });
-  if (!res.ok) {
-    const errText = await res.text();
+  const payloadStr = JSON.stringify(openaiPayload(p.model, openaiMessages(p.prompt, p.systemInstruction), p.jsonOutput, true));
+  const headers = openaiHeaders(p.apiKey);
+
+  let res: Response | null = null;
+  const maxAttempts = 3;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    if (p.signal?.aborted) return;
+    try {
+      res = await fetch(endpoint, {
+        method: 'POST',
+        headers,
+        body: payloadStr,
+        signal: p.signal,
+      });
+      if (res.ok) break;
+      if ((res.status === 429 || res.status === 503) && attempt < maxAttempts - 1) {
+        await sleep((attempt + 1) * 800);
+        continue;
+      }
+      break;
+    } catch (err) {
+      if (p.signal?.aborted) return;
+      if (isTransientError(err) && attempt < maxAttempts - 1) {
+        await sleep((attempt + 1) * 800);
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  if (!res || !res.ok) {
+    const errText = res ? await res.text() : 'No response';
     let detail = errText;
     try {
       const parsed = JSON.parse(errText);
       detail = parsed.error?.message || parsed.message || errText;
     } catch {}
-    throw new Error(`${p.provider.toUpperCase()} API error (${res.status}): ${detail}`);
+    throw new Error(`${p.provider.toUpperCase()} API error (${res?.status || 'network'}): ${detail}`);
   }
   if (!res.body) throw new Error(`${p.provider.toUpperCase()} API returned no stream body`);
 
