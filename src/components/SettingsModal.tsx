@@ -488,29 +488,64 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                 {/* API Base URL */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    API Base URL
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-slate-700">
+                      API Base URL
+                    </label>
+                    {currentProvider === 'ollama' && currentConfig.baseUrl !== 'http://localhost:11434/v1' && (
+                      <button
+                        type="button"
+                        onClick={() => updateCurrentConfig({ baseUrl: 'http://localhost:11434/v1' })}
+                        className="text-[10px] text-indigo-600 hover:text-indigo-800 font-semibold underline cursor-pointer"
+                      >
+                        重置为默认 (http://localhost:11434/v1)
+                      </button>
+                    )}
+                  </div>
                   <input
                     type="text"
+                    name="ft_api_base_url"
+                    autoComplete="off"
+                    data-lpignore="true"
+                    data-form-type="other"
                     value={currentConfig.baseUrl || ''}
                     onChange={(e) => updateCurrentConfig({ baseUrl: e.target.value })}
-                    placeholder="https://..."
+                    placeholder={currentProvider === 'ollama' ? 'http://localhost:11434/v1' : 'https://...'}
                     disabled={currentProvider === 'gemini'}
                     className={`w-full border border-slate-200 rounded-xl px-3 py-1.5 text-slate-800 focus:outline-none focus:border-indigo-500 font-mono text-xs shadow-2xs ${
                       currentProvider === 'gemini' ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white'
                     }`}
                   />
+                  {currentConfig.baseUrl?.includes('@') && (
+                    <p className="mt-1 text-[11px] text-rose-500 font-medium flex items-center gap-1">
+                      <span>⚠️ 检测到 Base URL 为邮箱地址（可能是浏览器自动填充），请点击上方重置为 http://localhost:11434/v1</span>
+                    </p>
+                  )}
                 </div>
 
                 {/* API Key Input */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    API Key
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold text-slate-700">
+                      API Key
+                    </label>
+                    {currentProvider === 'ollama' && currentConfig.apiKey && (
+                      <button
+                        type="button"
+                        onClick={() => updateCurrentConfig({ apiKey: '' })}
+                        className="text-[10px] text-slate-500 hover:text-slate-700 font-semibold underline cursor-pointer"
+                      >
+                        清空 Key (本地无需 Key)
+                      </button>
+                    )}
+                  </div>
                   <div className="relative">
                     <input
                       type={showKeyMap[currentProvider] ? 'text' : 'password'}
+                      name="ft_api_key_secret"
+                      autoComplete="new-password"
+                      data-lpignore="true"
+                      data-form-type="other"
                       value={currentConfig.apiKey || ''}
                       onChange={(e) => updateCurrentConfig({ apiKey: e.target.value })}
                       placeholder={

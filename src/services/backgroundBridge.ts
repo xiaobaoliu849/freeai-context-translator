@@ -26,11 +26,19 @@ async function getBridgeSettings(): Promise<AppSettings> {
   return DEFAULT_SETTINGS;
 }
 
+function cleanBaseUrl(baseUrl: string | undefined, provider: string): string {
+  const candidate = (baseUrl || '').trim();
+  if (!candidate || candidate.includes('@') || (!candidate.startsWith('http://') && !candidate.startsWith('https://'))) {
+    return (DEFAULT_BASE_URLS[provider as keyof typeof DEFAULT_BASE_URLS] || '').replace(/\/+$/, '');
+  }
+  return candidate.replace(/\/+$/, '');
+}
+
 function resolveProviderConfig(settings: AppSettings, provider: string) {
   const cfg = (settings.providerConfigs as any)?.[provider] || {};
   return {
     apiKey: cfg.apiKey || (provider === 'gemini' ? settings.geminiApiKey : ''),
-    baseUrl: (cfg.baseUrl || DEFAULT_BASE_URLS[provider] || '').replace(/\/+$/, ''),
+    baseUrl: cleanBaseUrl(cfg.baseUrl, provider),
     model: cfg.model || '',
   };
 }
@@ -400,7 +408,7 @@ ${parts}`;
 async function fetchModels({ provider, baseUrl, apiKey, settings }: { provider: string; baseUrl?: string; apiKey?: string; settings: AppSettings }): Promise<{ models: string[]; source: 'live' | 'default' }> {
   const cfg = resolveProviderConfig(settings, provider);
   const effectiveKey = apiKey || cfg.apiKey;
-  const effectiveBaseUrl = (baseUrl || cfg.baseUrl || DEFAULT_BASE_URLS[provider] || '').replace(/\/+$/, '');
+  const effectiveBaseUrl = cleanBaseUrl(baseUrl || cfg.baseUrl, provider);
   // When the caller explicitly passes a key (typed in the settings form but not
   // yet saved), surface request failures instead of silently falling back to
   // the preset list — otherwise a wrong key looks like "no key configured".

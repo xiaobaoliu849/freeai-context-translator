@@ -18,7 +18,11 @@ export interface LLMCallParams {
 const DEFAULT_BASE_URL_MAP = DEFAULT_BASE_URLS as Record<string, string>;
 
 function resolveBaseUrl(baseUrl: string | undefined, provider: string): string {
-  return (baseUrl || DEFAULT_BASE_URL_MAP[provider] || '').replace(/\/+$/, '');
+  const candidate = (baseUrl || '').trim();
+  if (!candidate || candidate.includes('@') || (!candidate.startsWith('http://') && !candidate.startsWith('https://'))) {
+    return (DEFAULT_BASE_URL_MAP[provider] || '').replace(/\/+$/, '');
+  }
+  return candidate.replace(/\/+$/, '');
 }
 
 function requireModel(model: string | undefined): string {
