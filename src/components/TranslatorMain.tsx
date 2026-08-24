@@ -116,13 +116,16 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
 
   // Intelligent adaptive height split when user hasn't explicitly locked a custom split
   const effectiveVSplitPercent = React.useMemo(() => {
+    // Dictionary mode: the source sentence is already quoted inside the word
+    // card, so collapse the source box and give the dictionary panel the space.
+    if (selectedWord) return 24;
     if (userCustomVSplit) return vSplitPercent;
     const len = sourceText.trim().length;
     if (len === 0) return 38;
     if (len <= 80) return 30; // Short text: give 70% space to result & dictionary
     if (len <= 250) return 38;
     return 45; // Long text: balanced 45:55
-  }, [sourceText, userCustomVSplit, vSplitPercent]);
+  }, [sourceText, userCustomVSplit, vSplitPercent, selectedWord]);
 
   useEffect(() => {
     try {
@@ -866,6 +869,10 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
               explanation={wordExplanation}
               loading={explainingWord}
               onClose={() => {
+                setSelectedWord(null);
+                setWordExplanation(null);
+              }}
+              onSwitchToTranslate={() => {
                 setSelectedWord(null);
                 setWordExplanation(null);
               }}

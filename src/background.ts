@@ -87,8 +87,13 @@ chrome.runtime.onStartup.addListener(() => {
 
 function sendOrInject(tabId: number, message: any) {
   chrome.tabs.sendMessage(tabId, message, () => {
-    if (chrome.runtime.lastError) {
-      // Content script may not be injected on tabs opened before extension reload
+    const err = chrome.runtime.lastError?.message || '';
+    // Only fall back to injection when there is no receiver at all (tab opened
+    // before the extension was loaded/reloaded). Other errors — e.g. "The
+    // message port closed" — mean a content script IS present but did not
+    // respond; injecting again would create a duplicate instance whose stale
+    // listeners close the popover on the next click inside it.
+    if (/Receiving end does not exist/i.test(err)) {
       chrome.scripting.executeScript(
         {
           target: { tabId },
@@ -100,6 +105,8 @@ function sendOrInject(tabId: number, message: any) {
           }
         }
       );
+    } else if (err) {
+      console.warn('[bg] sendMessage failed:', err);
     }
   });
 }

@@ -158,6 +158,13 @@ let reactRootInstance: any = null;
 let activeFloatBtn: HTMLButtonElement | null = null;
 let floatBtnHoverTimer: number | null = null;
 
+// Shared across (re-)injections of this file via globalThis: every React root we
+// create is tracked here so any cleanup pass unmounts stale ones too. Without
+// this, a duplicated instance's teardown would only unmount its own root and
+// leave an earlier instance's outside-click listener bound to a detached card.
+const rootRegistry: Set<{ unmount: () => void }> =
+  ((globalThis as any).__ftReactRootRegistry ??= new Set());
+
 let currentSettings: AppSettings = DEFAULT_SETTINGS;
 getSavedSettings().then((s) => {
   currentSettings = s;
@@ -176,12 +183,15 @@ if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
 
 function removePopover() {
   removeFloatBtn();
-  if (reactRootInstance) {
+  // Unmount every tracked root (ours and any stale ones from a previous
+  // injection) so their document-level listeners are cleaned up.
+  for (const root of rootRegistry) {
     try {
-      reactRootInstance.unmount();
+      root.unmount();
     } catch (e) {}
-    reactRootInstance = null;
   }
+  rootRegistry.clear();
+  reactRootInstance = null;
   if (activeRootContainer) {
     try {
       activeRootContainer.remove();
@@ -313,6 +323,7 @@ function showPopover(text: string, x: number, y: number) {
 
   const root = createRoot(mountPoint);
   reactRootInstance = root;
+  rootRegistry.add(root);
 
   root.render(
     <SelectionPopover
@@ -406,8 +417,15 @@ function handleSelectionEvent(e: MouseEvent | TouchEvent) {
 
 // Only register UI listeners and toolbar in top-level window frame to avoid duplicate instances in iframes
 const isTopFrame = typeof window === 'undefined' || window.top === window.self;
+const contentGlobal = globalThis as typeof globalThis & { __ftTopFrameReady?: boolean };
 
-if (isTopFrame) {
+// Register exactly once per isolated world: background.ts falls back to re-running
+// this file when a sendMessage goes unanswered, and a second registration would
+// leave an orphaned instance whose stale outside-click handler closes the live
+// popover whenever the user clicks inside it (e.g. 播放原文).
+if (isTopFrame && !contentGlobal.__ftTopFrameReady) {
+  contentGlobal.__ftTopFrameReady = true;
+
   document.addEventListener('mouseup', handleSelectionEvent);
   document.addEventListener('touchend', handleSelectionEvent);
 
@@ -456,6 +474,10 @@ if (isTopFrame) {
         removeFloatBtn();
         const pos = getSelectionPosition();
         showPopover(message.text || '', pos.x, pos.y);
+        // Respond so the sender's callback sees no chrome.runtime.lastError;
+        // otherwise background.ts assumes the content script is missing and
+        // re-injects it, creating a duplicate instance.
+        sendResponse({ ok: true });
       } else if (message.action === 'REQUEST_SELECTION') {
         sendResponse({ text: window.getSelection()?.toString().trim() || '' });
         return true;
