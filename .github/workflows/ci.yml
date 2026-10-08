@@ -26,6 +26,9 @@ jobs:
       - name: Typecheck (tsc --noEmit)
         run: npm run lint
 
+      - name: Test adaptive UI selection heuristics
+        run: npm run test:ui
+
       - name: Build web app + server
         run: npm run build
 
