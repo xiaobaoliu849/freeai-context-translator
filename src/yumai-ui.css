@@ -186,3 +186,40 @@
   .yumai-popup .yumai-result-panel { min-height: 82px; }
   .yumai-popup .yumai-source-editor { line-height: 1.52 !important; }
 }
+
+/* Phase 3 — dedicated editorial full-tab reading workspace. */
+.yumai-workspace { color: var(--ym-text); }
+.yumai-workspace-nav, .yumai-workspace-outline { background: var(--ym-surface); }
+.yumai-workspace-new { background: var(--ym-primary); transition: background 120ms; }
+.yumai-workspace-new:hover { background: var(--ym-primary-hover); }
+.yumai-workspace-center { min-width: 0; }
+.yumai-workspace .yumai-studio {
+  max-width: 1400px;
+  width: 100%;
+  padding-top: 16px;
+  margin-inline: auto;
+}
+.yumai-workspace .yumai-source-panel,
+.yumai-workspace .yumai-result-panel {
+  min-height: min(64vh, 640px);
+  border-radius: var(--ym-radius-panel);
+}
+.yumai-workspace .yumai-source-editor {
+  min-height: 350px;
+  font-size: 16px !important;
+  line-height: 1.9 !important;
+  padding-top: 8px;
+}
+.yumai-workspace .yumai-result-text {
+  font-size: 17px !important;
+  line-height: 1.95 !important;
+}
+.yumai-workspace-outline .yumai-outline-item { transition: background 120ms ease; }
+.yumai-workspace-outline .yumai-outline-scroll { scrollbar-width: thin; }
+@media (max-width: 1100px) {
+ .yumai-workspace .yumai-source-panel,
+ .yumai-workspace .yumai-result-panel { min-height: 340px; }
+}
+@media (prefers-reduced-motion: reduce) {
+ .yumai-workspace-outline .yumai-outline-item { transition: none; }
+}
