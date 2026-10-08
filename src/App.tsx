@@ -25,6 +25,7 @@ function mirrorToExtensionStorage(items: Record<string, any>) {
 
 export interface AppProps {
   initialText?: string;
+  initialContext?: string;
   initialSettings?: AppSettings;
   isFloating?: boolean;
   isPinned?: boolean;
@@ -35,6 +36,7 @@ export interface AppProps {
 
 export default function App({
   initialText,
+  initialContext,
   initialSettings,
   isFloating = false,
   isPinned = false,
@@ -63,6 +65,9 @@ export default function App({
     } catch (e) {}
     return '';
   });
+  const [selectionContext, setSelectionContext] = useState(initialContext || '');
+  // Selection is distinct from history retranslation: a selected term opens its definition.
+  const [selectionSignal, setSelectionSignal] = useState(initialText ? 1 : 0);
   const [sourceLang, setSourceLang] = useState<string>('auto');
   const [targetLang, setTargetLang] = useState<string>('zh-CN');
 
@@ -77,7 +82,8 @@ export default function App({
             const sel = response?.text?.trim();
             if (sel) {
               setSourceText(sel);
-              setRetranslateSignal((s) => s + 1);
+              setSelectionContext(typeof response?.context === 'string' ? response.context.slice(0, 380) : '');
+              setSelectionSignal((s) => s + 1);
             }
           });
         }
@@ -101,7 +107,7 @@ export default function App({
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   // Bumped when the user retranslates a history item (TranslatorMain reacts).
-  const [retranslateSignal, setRetranslateSignal] = useState(initialText ? 1 : 0);
+  const [retranslateSignal, setRetranslateSignal] = useState(0);
 
   // Settings & History State with LocalStorage and chrome.storage
   const [settings, setSettings] = useState<AppSettings>(() => {
@@ -258,6 +264,8 @@ export default function App({
           openSettings={() => setIsSettingsOpen(true)}
           openHistory={() => setIsHistoryOpen(true)}
           retranslateSignal={retranslateSignal}
+          selectionSignal={selectionSignal}
+          selectionContext={selectionContext}
           isPopup={isPopup}
         />
       </main>
