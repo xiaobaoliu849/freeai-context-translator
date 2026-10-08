@@ -214,6 +214,19 @@ try {
   }
   if(!selectedResult) throw new Error('Outline segment did not translate without replacing original text');
   await capture('yumai-workspace-selected-paragraph.png');
+
+  // A new document must clear both source and the previous translation.
+  await command('Runtime.evaluate',{expression:"Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('新建翻译'))?.click(); true",returnByValue:true});
+  await sleep(220);
+  const reset=await command('Runtime.evaluate',{
+    expression:"({text:document.querySelector('textarea')?.value, output:document.querySelector('.yumai-result-text')?.textContent || ''})",
+    returnByValue:true
+  });
+  if (reset.result?.value?.text !== '' || reset.result?.value?.output.includes('我们很期待')) {
+    throw new Error('New document did not clear previous translation: '+JSON.stringify(reset.result?.value));
+  }
+  await capture('yumai-workspace-new-document.png');
+  console.log('Workspace new-document reset checked');
   await writeFile(new URL('../preview/yumai-workspace-layout.json',import.meta.url),JSON.stringify(outlineInfo,null,2)+'\\n');
   console.log('Full-tab workspace screenshot saved');
 
