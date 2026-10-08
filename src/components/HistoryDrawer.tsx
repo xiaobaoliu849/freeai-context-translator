@@ -40,6 +40,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
 }) => {
   const [copiedTransId, setCopiedTransId] = useState<string | null>(null);
   const [copiedSourceId, setCopiedSourceId] = useState<string | null>(null);
+  const [copyError, setCopyError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [playPhase, setPlayPhase] = useState<'generating' | 'playing' | null>(null);
@@ -76,15 +77,20 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
     }
   };
 
-  const handleCopy = (text: string, id: string, type: 'source' | 'trans', e: React.MouseEvent) => {
+  const handleCopy = async (text: string, id: string, type: 'source' | 'trans', e: React.MouseEvent) => {
     e.stopPropagation();
-    navigator.clipboard.writeText(text).catch(() => {});
-    if (type === 'trans') {
-      setCopiedTransId(id);
-      setTimeout(() => setCopiedTransId(null), 1500);
-    } else {
-      setCopiedSourceId(id);
-      setTimeout(() => setCopiedSourceId(null), 1500);
+    setCopyError(null);
+    try {
+      await navigator.clipboard.writeText(text);
+      if (type === 'trans') {
+        setCopiedTransId(id);
+        setTimeout(() => setCopiedTransId(null), 1500);
+      } else {
+        setCopiedSourceId(id);
+        setTimeout(() => setCopiedSourceId(null), 1500);
+      }
+    } catch {
+      setCopyError('复制失败，请检查浏览器剪贴板权限后重试');
     }
   };
 
@@ -140,6 +146,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex justify-end">
       <div className="bg-white border-l border-slate-200 w-full max-w-lg h-full flex flex-col p-5 shadow-2xl text-slate-800 animate-in slide-in-from-right duration-200">
+        {copyError && <p role="alert" className="text-xs text-rose-700 pb-2">{copyError}</p>}
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-100 relative">
           <div className="flex items-center gap-2">

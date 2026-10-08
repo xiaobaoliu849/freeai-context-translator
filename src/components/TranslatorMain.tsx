@@ -615,9 +615,8 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
   };
 
   const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key !== 'Enter') return;
-    // Plain Enter (or Ctrl/Cmd+Enter) translates; Shift+Enter inserts a newline.
-    if (e.shiftKey) return;
+    // Enter inserts a newline; Ctrl/Cmd+Enter translates.
+    if (e.key !== 'Enter' || (!e.ctrlKey && !e.metaKey) || e.shiftKey || e.nativeEvent.isComposing) return;
     e.preventDefault();
     handleTranslate();
   };
@@ -703,7 +702,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
               ? 'bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 shadow-md shadow-rose-500/30'
               : 'bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 hover:from-indigo-700 hover:via-violet-700 hover:to-fuchsia-700 shadow-md shadow-indigo-500/40 hover:shadow-lg hover:shadow-violet-500/40'
           }`}
-          title={loading ? '停止生成' : '快捷键: Enter（Shift+Enter 换行）'}
+          title={loading ? '停止生成' : 'Ctrl/Cmd+Enter 翻译，Enter 换行'}
         >
           {loading ? (
             <>
@@ -807,7 +806,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             onKeyDown={handleTextareaKeyDown}
             onDoubleClick={detectSelection}
             onMouseUp={detectSelection}
-            placeholder="输入或粘贴文本... (支持划词翻译)"
+            placeholder="输入或粘贴文本，选中单词可查看语境释义...（Ctrl+Enter 翻译）"
             className={`${
               isPopup
                 ? 'flex-1 min-h-0 p-3 sm:p-3.5 resize-none overflow-y-auto text-sm'
@@ -842,7 +841,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                 className={`p-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
                   playingTarget === 'source' ? 'bg-indigo-100 text-indigo-700 shadow-inner' : 'hover:bg-indigo-50 text-slate-500 hover:text-indigo-600'
                 } disabled:opacity-30`}
-                title={selectedWord ? `播放 "${selectedWord}"` : "播放原文"}
+                title={selectedWord ? `播放 "${selectedWord}"` : "播放原文"} aria-label="朗读原文"
               >
                 {playingTarget === 'source' ? (
                   <PlayIndicator phase={audioPhase} size={14} />
@@ -855,7 +854,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                 onClick={() => handleCopy(selectedWord || sourceText, 'source')}
                 disabled={!sourceText.trim()}
                 className="p-1.5 rounded-lg hover:bg-emerald-50 text-slate-500 hover:text-emerald-600 transition-all disabled:opacity-30 cursor-pointer"
-                title={selectedWord ? `复制 "${selectedWord}"` : "复制原文"}
+                title={selectedWord ? `复制 "${selectedWord}"` : "复制原文"} aria-label="复制原文"
               >
                 {copied && copiedArea === 'source' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
               </button>
@@ -870,7 +869,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                 }}
                 disabled={!sourceText.trim()}
                 className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-500 hover:text-rose-600 transition-all disabled:opacity-30 cursor-pointer"
-                title="清空文本"
+                title="清空文本" aria-label="清空文本"
               >
                 <Eraser className="w-3.5 h-3.5" />
               </button>
@@ -916,10 +915,10 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
         {/* RIGHT / BOTTOM COLUMN: TRANSLATION RESULT BOX / DICTIONARY MODE */}
         <div
           style={isPopup ? { flex: '1 1 0%' } : undefined}
-          className={`border border-indigo-100 rounded-2xl shadow-sm shadow-indigo-100/60 relative flex flex-col justify-between transition-all ${
+          className={`border border-slate-200 rounded-2xl shadow-sm relative flex flex-col justify-between transition-all ${
             selectedWord
               ? 'bg-white'
-              : 'bg-gradient-to-b from-indigo-50/80 via-white to-violet-50/50'
+              : 'bg-white'
           } ${
             isPopup
               ? (selectedWord ? 'min-h-[110px] overflow-hidden p-0' : 'min-h-[110px] overflow-y-auto p-3.5 sm:p-4')
@@ -947,13 +946,13 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                       <Sparkles className="w-3 h-3 text-violet-500" />
                       翻译结果
                     </span>
-                    <span className="text-[10px] bg-gradient-to-r from-indigo-500 to-violet-500 text-white px-1.5 py-0.5 rounded-md font-mono font-bold animate-pulse shadow-sm shadow-indigo-500/30">生成中…</span>
+                    <span className="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md font-medium">生成中…</span>
                   </div>
-                  <div className="h-px bg-gradient-to-r from-indigo-300 via-violet-300 to-transparent" />
+                  <div className="h-px bg-slate-200" />
                 </div>
                 <div className={`${
                   isPopup
-                    ? 'text-slate-900 text-sm sm:text-[15px] font-normal leading-relaxed tracking-normal select-text min-h-[60px] whitespace-pre-wrap pt-0.5'
+                    ? 'text-slate-900 text-[15px] font-normal leading-relaxed tracking-normal select-text min-h-[60px] whitespace-pre-wrap pt-0.5'
                     : 'text-slate-900 text-base sm:text-lg font-medium leading-relaxed tracking-tight select-text min-h-[60px] whitespace-pre-wrap'
                 }`}>
                   {streamingText}
@@ -977,26 +976,26 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                       翻译结果
                     </span>
                     {result?.detectedLang && (
-                      <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200/80 px-1.5 py-0.5 rounded-md font-mono font-bold shadow-2xs">
+                      <span className="text-xs text-slate-500">
                         识别语种: {result.detectedLang}
                       </span>
                     )}
                   </div>
-                  <div className="h-px bg-gradient-to-r from-indigo-300 via-violet-300 to-transparent" />
+                  <div className="h-px bg-slate-200" />
                 </div>
 
                 {/* Full Sentence Translation - selectable and copyable without hijacking */}
                 <div
                   className={`${
                     isPopup
-                      ? 'text-slate-900 text-sm sm:text-[15px] font-medium leading-relaxed tracking-normal select-text min-h-[60px] whitespace-pre-wrap pt-0.5'
+                      ? 'text-slate-900 text-[15px] font-medium leading-relaxed tracking-normal select-text min-h-[60px] whitespace-pre-wrap pt-0.5'
                       : 'text-slate-900 text-base sm:text-lg font-semibold leading-relaxed tracking-tight select-text min-h-[60px] whitespace-pre-wrap'
                   }`}
                 >
                   {result?.translation || (
                     <span className="text-slate-400 italic font-normal text-xs sm:text-sm flex items-center gap-1.5 pt-2 select-none">
                       <Sparkles className="w-3.5 h-3.5 text-indigo-300 animate-pulse" />
-                      翻译结果将在此即时显示...
+                      翻译结果将在这里显示；选中单词可查看语境释义
                     </span>
                   )}
                 </div>
@@ -1006,7 +1005,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
               <div className="flex items-center justify-between pt-2.5 mt-2 border-t border-indigo-100/80 text-xs text-slate-400">
                 <div className="flex items-center gap-1.5 text-[10px]">
                   <span>引擎</span>
-                  <span className="px-1.5 py-0.5 rounded-md bg-gradient-to-r from-indigo-500 to-violet-500 text-white font-extrabold uppercase text-[9px] tracking-wide shadow-sm shadow-indigo-500/30">
+                  <span className="font-medium text-slate-600 text-xs">
                     {settings.defaultProvider}
                   </span>
                 </div>
@@ -1020,7 +1019,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                         ? 'bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-md shadow-indigo-500/30'
                         : 'text-slate-500 hover:text-indigo-600 hover:bg-indigo-50'
                     } disabled:opacity-30`}
-                    title="朗读译文"
+                    title="朗读译文" aria-label="朗读译文"
                   >
                     {playingTarget === 'target' ? (
                       <PlayIndicator phase={audioPhase} size={16} />
@@ -1033,7 +1032,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                     onClick={() => result?.translation && handleCopy(result.translation, 'target')}
                     disabled={!result?.translation}
                     className="p-2 rounded-xl text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 disabled:opacity-30 cursor-pointer transition-all"
-                    title="复制译文"
+                    title="复制译文" aria-label="复制译文"
                   >
                     {copied && copiedArea === 'target' ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
                   </button>
