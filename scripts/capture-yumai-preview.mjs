@@ -8,6 +8,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 
 const ROOT = new URL('../', import.meta.url);
 const SAMPLE = 'Excited to collaborate with the team at Amazon to bring the power of Android and Google Play to more people. Our goal is to make technology useful and accessible for everyone.';
+const DEMO_TRANSLATION = '我们很期待与亚马逊团队合作，让更多人感受到 Android 和 Google Play 的便利。我们的目标是让技术真正为每个人创造价值。';
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 async function waitFor(url, test, retries = 80) {
@@ -53,6 +54,19 @@ try {
   let seq = 0;
   connection.addEventListener('message', ({data}) => {
     const msg = JSON.parse(data);
+    if (msg.method === 'Fetch.requestPaused') {
+      const reqId = msg.params.requestId;
+      const url = msg.params.request.url;
+      const isStream = url.includes('/api/translate/stream');
+      const data = isStream ? 'Preview stream intentionally disabled' : JSON.stringify({translation: DEMO_TRANSLATION, detectedLang: 'en'});
+      command('Fetch.fulfillRequest',{
+        requestId:reqId,
+        responseCode:isStream?503:200,
+        responseHeaders:[{name:'Content-Type',value:isStream?'text/plain':'application/json'}],
+        body:Buffer.from(data).toString('base64')
+      }).catch(e=>console.error('Preview mock response failed:',e));
+      return;
+    }
     if (!msg.id) return;
     const item = pending.get(msg.id);
     if (!item) return;
@@ -72,6 +86,7 @@ try {
   console.log('Starting navigation');
   await command('Page.enable');
   await command('Runtime.enable');
+  await command('Fetch.enable', {patterns:[{urlPattern:'*://127.0.0.1:4173/api/translate*',requestStage:'Request'}]});
   await command('Emulation.setDeviceMetricsOverride',{width:560,height:595,deviceScaleFactor:1,mobile:false});
   await command('Page.navigate',{url:'http://127.0.0.1:4173/popup.html'});
   let ready=false;
@@ -114,7 +129,26 @@ try {
   const info=metrics.result?.value;
   if (!info || info.typed !== SAMPLE.length) throw new Error('Sample text did not appear in React input: '+JSON.stringify(info));
   await capture('yumai-popup-with-text.png');
-  await writeFile(new URL('../preview/yumai-popup-layout.json',import.meta.url),JSON.stringify(info,null,2)+'\n');
+  console.log('Typing succeeded; requesting a demonstration translation');
+  await command('Runtime.evaluate', {
+    expression: "Array.from(document.querySelectorAll('button')).find(b => b.textContent.trim() === '翻译')?.click(); true",
+    returnByValue:true
+  });
+  let translated = false;
+  for (let i=0;i<60;i++) {
+    const check=await command('Runtime.evaluate',{
+      expression: "document.querySelector('.yumai-result-text')?.textContent?.includes('我们很期待') || false",
+      returnByValue:true
+    });
+    if (check.result?.value) {translated=true;break;}
+    await sleep(150);
+  }
+  if (!translated) throw new Error('Mocked translation did not render in React UI');
+  await command('Runtime.evaluate',{expression:'document.activeElement?.blur(); true',returnByValue:true});
+  await sleep(200);
+  await capture('yumai-popup-demo-translation.png');
+  console.log('Demo translation screenshot saved');
+  await writeFile(new URL('../preview/yumai-popup-layout.json',import.meta.url),JSON.stringify({...info,demoTranslation:true},null,2)+'\n');
   process.stdout.write('Preview screenshots captured: '+JSON.stringify(info)+'\n');
 } finally {
   if (connection) connection.close();
