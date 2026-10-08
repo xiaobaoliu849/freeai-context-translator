@@ -200,9 +200,9 @@ export const TranslationCard: React.FC<TranslationCardProps> = ({
   const activeProvider = (settings.defaultProvider || 'gemini').toUpperCase();
 
   return (
-    <div className="bg-white/95 backdrop-blur-2xl text-slate-800 rounded-2xl shadow-2xl border border-slate-200/90 overflow-hidden w-[450px] max-w-[94vw] max-h-[85vh] flex flex-col transition-all select-none animate-in fade-in zoom-in-95 duration-200">
+    <div className="bg-white text-slate-800 rounded-2xl shadow-xl border border-slate-200 overflow-hidden w-[460px] max-w-[95vw] max-h-[85vh] flex flex-col select-none">
       {/* Top Accent Gradient Bar */}
-      <div className="h-1 w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 shrink-0" />
+      <div className="h-0 w-full shrink-0" />
 
       {/* Card Header (Draggable Handle) */}
       <div
@@ -211,7 +211,7 @@ export const TranslationCard: React.FC<TranslationCardProps> = ({
       >
         <div className="flex items-center gap-2 cursor-move" onPointerDown={onDragStart} title="按住品牌区域拖动翻译卡片">
           <div className="w-5 h-5 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-black text-[10px] shadow-xs">
-            FT
+            语
           </div>
           <span className="text-xs font-black text-slate-800 tracking-tight">语脉</span>
           <span className="px-1.5 py-0.5 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-700 text-[9px] font-extrabold tracking-wide uppercase">
