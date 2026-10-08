@@ -20,7 +20,7 @@ export function classifySelection(value: string): SelectionKind {
 
 /** Retain letters/digits from every writing system, not only Latin and Han. */
 export function normalizeSelectedTerm(value: string): string {
-  return value.trim().replace(/^[^\\p{L}\\p{N}]+|[^\\p{L}\\p{N}]+$/gu, '').trim();
+  return value.trim().replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '').trim();
 }
 
 export interface ReadingSegment {
