@@ -157,6 +157,22 @@ try {
   await sleep(200);
   await capture('yumai-popup-demo-translation.png');
   console.log('Demo translation screenshot saved');
+
+  // Exercise actual settings/history modals with the production components.
+  await command('Runtime.evaluate',{expression:"document.querySelector('button[aria-label=\\\"打开设置\\\"]')?.click(); true",returnByValue:true});
+  await sleep(250);
+  const settingsShown=await command('Runtime.evaluate',{expression:"Boolean(document.querySelector('.yumai-settings-panel[role=dialog]'))",returnByValue:true});
+  if (!settingsShown.result?.value) throw new Error('Settings dialog did not open');
+  await capture('yumai-settings-panel.png');
+  await command('Runtime.evaluate',{expression:"document.querySelector('.yumai-settings-panel button[aria-label=\\\"关闭设置\\\"]')?.click(); true",returnByValue:true});
+  await sleep(150);
+  await command('Runtime.evaluate',{expression:"document.querySelector('button[aria-label=\\\"查看翻译历史\\\"]')?.click(); true",returnByValue:true});
+  await sleep(250);
+  const historyShown=await command('Runtime.evaluate',{expression:"Boolean(document.querySelector('.yumai-history-drawer[role=dialog]'))",returnByValue:true});
+  if (!historyShown.result?.value) throw new Error('History drawer did not open');
+  await capture('yumai-history-drawer.png');
+  await command('Runtime.evaluate',{expression:"document.querySelector('.yumai-history-drawer button[aria-label=\\\"关闭翻译历史\\\"]')?.click(); true",returnByValue:true});
+  console.log('Settings and history screenshots saved');
   await writeFile(new URL('../preview/yumai-popup-layout.json',import.meta.url),JSON.stringify({...info,demoTranslation:true},null,2)+'\n');
   // Full-tab workspace — same production React App, different actual route and layout.
   await command('Emulation.setDeviceMetricsOverride',{width:1440,height:900,deviceScaleFactor:1,mobile:false});
@@ -186,6 +202,18 @@ try {
   }
   if(!workspaceTranslated)throw new Error('Workspace did not display a mock translation');
   await capture('yumai-workspace-1440.png');
+  await command('Runtime.evaluate',{expression:"document.querySelector('.yumai-outline-item')?.click(); true",returnByValue:true});
+  let selectedResult=false;
+  for(let i=0;i<55;i++){
+    const state=await command('Runtime.evaluate',{
+      expression:"({selected:document.body.textContent.includes('所选内容译文'),unchanged:document.querySelector('textarea')?.value.length})",
+      returnByValue:true
+    });
+    if(state.result?.value?.selected && state.result?.value?.unchanged===ARTICLE.length){selectedResult=true;break;}
+    await sleep(150);
+  }
+  if(!selectedResult) throw new Error('Outline segment did not translate without replacing original text');
+  await capture('yumai-workspace-selected-paragraph.png');
   await writeFile(new URL('../preview/yumai-workspace-layout.json',import.meta.url),JSON.stringify(outlineInfo,null,2)+'\\n');
   console.log('Full-tab workspace screenshot saved');
 
