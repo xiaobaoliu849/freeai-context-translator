@@ -155,6 +155,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [validating, setValidating] = useState(false);
   const [backupMessage, setBackupMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const importFileRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
   const [validationResult, setValidationResult] = useState<{
     status: 'ok' | 'issues' | 'unverifiable' | 'error';
     source: 'live' | 'default';
@@ -187,6 +189,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setFetchMessage(null);
     }
   }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    closeButtonRef.current?.focus();
+    return () => {
+      if (previousFocus?.isConnected) previousFocus.focus();
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -399,7 +410,34 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] text-slate-800 animate-in fade-in zoom-in-95 duration-150">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="yumai-settings-title"
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            e.stopPropagation();
+            onClose();
+          } else if (e.key === 'Tab') {
+            const focusables = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(
+              'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'
+            ) || []).filter(el => el.getClientRects().length > 0);
+            if (!focusables.length) return;
+            const first = focusables[0];
+            const last = focusables[focusables.length - 1];
+            if (e.shiftKey && document.activeElement === first) {
+              e.preventDefault();
+              last.focus();
+            } else if (!e.shiftKey && document.activeElement === last) {
+              e.preventDefault();
+              first.focus();
+            }
+          }
+        }}
+        className="bg-white border border-slate-200 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] text-slate-800 animate-in fade-in zoom-in-95 duration-150"
+      >
         {/* Gradient hairline pop */}
         <div className="h-[2px] bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-400 opacity-90" />
 
@@ -410,12 +448,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <Cpu className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-sm sm:text-base font-extrabold text-slate-900 leading-tight tracking-tight">AI 服务商与模型设置</h2>
+              <h2 id="yumai-settings-title" className="text-sm sm:text-base font-extrabold text-slate-900 leading-tight tracking-tight">AI 服务商与模型设置</h2>
               <p className="text-[11px] text-slate-500 font-medium">配置 AI 翻译引擎、API Key 与模型参数</p>
             </div>
           </div>
           <button
+            ref={closeButtonRef}
             onClick={onClose}
+            aria-label="关闭设置"
             className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors cursor-pointer border border-slate-200/60 shadow-2xs"
           >
             <X className="w-4 h-4" />
@@ -1023,7 +1063,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {/* Footer Actions */}
         <div className="px-5 py-3 border-t border-slate-100 bg-slate-50/70 flex items-center justify-between">
-          <span className="text-[11px] text-slate-400 font-medium">配置将自动加密存至本地</span>
+          <span className="text-[11px] text-slate-400 font-medium">API Key 保存在本地浏览器（未额外加密）</span>
           <div className="flex items-center gap-2">
             <button
               onClick={onClose}
