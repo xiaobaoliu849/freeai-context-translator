@@ -26,6 +26,8 @@ interface TranslatorMainProps {
   selectionSignal?: number;
   /** Limited surrounding text from the same page text node; never form-field data. */
   selectionContext?: string;
+  /** Chosen segment from the reading outline. */
+  workspaceSelection?: { id: number; text: string } | null;
   /** Compact app-shell layout used inside the 440x570 extension popup. */
   isPopup?: boolean;
 }
@@ -64,6 +66,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
   retranslateSignal = 0,
   selectionSignal = 0,
   selectionContext = '',
+  workspaceSelection = null,
   isPopup = false,
 }) => {
   const [loading, setLoading] = useState(false);
@@ -569,6 +572,16 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
     );
   };
 
+  // Translate only the chosen reading segment, keeping the original document intact.
+  const handledWorkspaceSelectionRef = useRef(0);
+  useEffect(() => {
+    if (!workspaceSelection || workspaceSelection.id === handledWorkspaceSelectionRef.current) return;
+    handledWorkspaceSelectionRef.current = workspaceSelection.id;
+    clearWordSelection();
+    setActiveSelection(workspaceSelection.text);
+    handleTranslate(workspaceSelection.text);
+  }, [workspaceSelection?.id]);
+
   // Explicit selections choose a relevant view; history retranslation remains separate.
   const handledSelectionRef = useRef(0);
   useEffect(() => {
@@ -673,7 +686,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
   return (
     <div className={isPopup
       ? 'flex-1 min-h-0 flex flex-col gap-2 px-3 py-3'
-      : 'max-w-[1400px] mx-auto px-3 sm:px-6 py-5 flex flex-col gap-4'
+      : 'yumai-studio max-w-[1400px] mx-auto px-3 sm:px-6 py-5 flex flex-col gap-4'
     }>
       {copyError && <p role="alert" className="text-xs text-rose-700 px-2">{copyError}</p>}
       {/* 1. ELEGANT LANGUAGE SELECTOR TOOLBAR */}
