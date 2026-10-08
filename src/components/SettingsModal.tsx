@@ -167,6 +167,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [testingTts, setTestingTts] = useState(false);
   const [isCustomModelMode, setIsCustomModelMode] = useState(false);
+  const [showAdvancedProvider, setShowAdvancedProvider] = useState(false);
 
   // In the extension the background bridge resolves API keys from
   // chrome.storage.local, so persist the form as the user types (debounced) —
@@ -187,6 +188,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     if (isOpen) {
       setFormData(settings);
       setFetchMessage(null);
+      setShowAdvancedProvider(false);
     }
   }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -219,6 +221,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       defaultProvider: newProvider,
     }));
     setFetchMessage(null);
+    setValidationResult(null);
+    setShowAdvancedProvider(false);
   };
 
   const updateCurrentConfig = (updates: Partial<ProviderConfig>) => {
@@ -333,7 +337,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       const current = currentConfig.model || '';
       const currentModelOk = current ? live.has(current) : false;
       setValidationResult({
-        status: currentModelOk ? 'ok' : 'issues',
+        status: source === 'default' ? 'unverifiable' : currentModelOk ? 'ok' : 'issues',
         source,
         checkedModel: current,
         currentModelOk,
@@ -448,8 +452,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <Cpu className="w-4 h-4" />
             </div>
             <div>
-              <h2 id="yumai-settings-title" className="text-sm sm:text-base font-extrabold text-slate-900 leading-tight tracking-tight">AI 服务商与模型设置</h2>
-              <p className="text-[11px] text-slate-500 font-medium">配置 AI 翻译引擎、API Key 与模型参数</p>
+              <h2 id="yumai-settings-title" className="text-sm sm:text-base font-extrabold text-slate-900 leading-tight tracking-tight">语脉 · 设置</h2>
+              <p className="text-xs text-slate-500 font-medium">先连接 AI 服务，再按需调整翻译体验</p>
             </div>
           </div>
           <button
@@ -465,8 +469,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         {/* Navigation Tabs (Strictly Single Line) */}
         <div className="flex border-b border-slate-100 bg-white px-5 gap-4 sm:gap-6 text-xs font-semibold overflow-x-auto no-scrollbar">
           {[
-            { id: 'providers', label: 'AI 服务商', icon: Sparkles },
-            { id: 'general', label: '通用设置', icon: Sliders },
+            { id: 'providers', label: '快速开始', icon: Sparkles },
+            { id: 'general', label: '翻译偏好', icon: Sliders },
             { id: 'tts', label: '语音朗读', icon: Volume2 },
             { id: 'shortcuts', label: '快捷键', icon: Keyboard },
           ].map((tab) => {
@@ -495,6 +499,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         <div className="p-5 overflow-y-auto space-y-4 text-xs text-slate-600 flex-1">
           {activeTab === 'providers' && (
             <div className="space-y-3.5 max-w-xl mx-auto py-1">
+              <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 px-3 py-2.5">
+                <p className="font-semibold text-slate-800 text-sm mb-1">三步开始使用</p>
+                <p className="text-xs leading-relaxed text-slate-600">1. 选择服务商　→　2. 填写 API Key（如需要）　→　3. 选择模型并保存</p>
+                <p className="text-xs text-slate-500 mt-1">“校验可用性”只检查模型列表，实际调用是否成功请以翻译结果为准。</p>
+              </div>
               {/* 1. Provider Select Dropdown */}
               <div>
                 <label className="block text-xs font-bold text-slate-800 mb-1">
@@ -524,17 +533,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                   {currentProvider === 'gemini' && (
                     <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
-                      云端免 Key
+                      可选 Key
                     </span>
                   )}
-                  {(currentProvider === 'ollama' || currentProvider === 'custom') && (
+                  {currentProvider === 'ollama' && (
                     <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
                       本地免 Key
                     </span>
                   )}
                 </div>
 
-                {/* API Base URL */}
+                {/* Advanced provider URL: hidden for routine cloud configuration */}
+                {currentProvider !== 'ollama' && currentProvider !== 'custom' && !currentConfig.baseUrl && (
+                  <button type="button" onClick={() => setShowAdvancedProvider(v => !v)}
+                    aria-expanded={showAdvancedProvider}
+                    className="text-xs font-semibold text-indigo-700 hover:text-indigo-900 focus-visible:outline-2 focus-visible:outline-indigo-500">
+                    {showAdvancedProvider ? '收起高级设置 ↑' : '高级设置 · 自定义 API 地址 ↓'}
+                  </button>
+                )}
+                {(showAdvancedProvider || currentProvider === 'ollama' || currentProvider === 'custom' || Boolean(currentConfig.baseUrl)) && (
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="block text-xs font-bold text-slate-700">
@@ -570,12 +587,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </p>
                   )}
                 </div>
+                )}
 
                 {/* API Key Input */}
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="block text-xs font-bold text-slate-700">
-                      API Key
+                      API Key {currentProvider === 'gemini' || currentProvider === 'ollama' ? '（选填）' : ''}
                     </label>
                     {currentProvider === 'ollama' && currentConfig.apiKey && (
                       <button
@@ -608,6 +626,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <button
                       type="button"
                       onClick={() => toggleShowKey(currentProvider)}
+                      aria-label={showKeyMap[currentProvider] ? "隐藏 API Key" : "显示 API Key"}
                       className="absolute right-3 top-2 text-slate-400 hover:text-slate-700"
                     >
                       {showKeyMap[currentProvider] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
@@ -640,7 +659,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         className="px-2 py-0.5 text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg flex items-center gap-1 transition-all disabled:opacity-50 cursor-pointer whitespace-nowrap"
                       >
                         <Check className={`w-3 h-3 ${validating ? 'animate-pulse' : ''}`} />
-                        <span>{validating ? '校验中...' : '校验可用性'}</span>
+                        <span>{validating ? '校验中...' : '检查模型列表'}</span>
                       </button>
                     </div>
                   </div>
@@ -705,13 +724,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       }`}
                     >
                       {validationResult.status === 'ok' && (
-                        <p className="font-bold">✓ 当前模型可用（实时获取）</p>
+                        <p className="font-bold">✓ 实时列表中找到此模型（未实际调用翻译）</p>
                       )}
                       {validationResult.status === 'unverifiable' && (
                         <p>
                           {currentProvider === 'ollama' || currentProvider === 'custom'
                             ? '模型接口不可用（服务未启动或未获取到模型），无法实时校验。请检查本地 Ollama 服务或接口配置后重试。'
-                            : '未配置 API Key 或未获取到模型列表，无法实时校验。请先配置 Key 并获取模型。'}
+                            : validationResult.source === 'default'
+                              ? '只获得了预置模型列表，还不能确认当前 Key 和模型能否调用。可保存后尝试翻译。'
+                              : '未配置 API Key 或未获取到模型列表，无法实时校验。请先配置 Key 并获取模型。'}
                         </p>
                       )}
                       {validationResult.status === 'issues' && (
