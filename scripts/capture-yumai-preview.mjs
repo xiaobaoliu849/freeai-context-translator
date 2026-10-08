@@ -227,6 +227,21 @@ try {
   }
   await capture('yumai-workspace-new-document.png');
   console.log('Workspace new-document reset checked');
+  // Long-document smoke check: source scrolling must stay inside its card.
+  const LONG_ARTICLE = Array(8).fill(ARTICLE).join('\\n\\n');
+  await command('Runtime.evaluate',{expression:"document.querySelector('textarea').focus(); true",returnByValue:true});
+  await command('Input.insertText',{text:LONG_ARTICLE});
+  await sleep(550);
+  const longState=await command('Runtime.evaluate',{
+    expression:"({length:document.querySelector('textarea')?.value.length, sourceScroll:document.querySelector('textarea')?.scrollHeight,sourceClient:document.querySelector('textarea')?.clientHeight,outline:document.querySelectorAll('.yumai-outline-item').length})",
+    returnByValue:true
+  });
+  const ls=longState.result?.value;
+  if(ls?.length!==LONG_ARTICLE.length || ls.sourceScroll<=ls.sourceClient || ls.outline<8){
+    throw new Error('Long-document scrolling or outline failed: '+JSON.stringify(ls));
+  }
+  await capture('yumai-workspace-long-document.png');
+  console.log('Long-document scroll screenshot saved');
   await writeFile(new URL('../preview/yumai-workspace-layout.json',import.meta.url),JSON.stringify(outlineInfo,null,2)+'\\n');
   console.log('Full-tab workspace screenshot saved');
 
