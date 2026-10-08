@@ -1,6 +1,10 @@
-# FreeTranslate AI
+# 语脉 YUMAI
 
-Contextual AI Translator — 划词 AI 翻译与深度语境解析。
+**读懂文字，更懂语境。**
+
+Context-aware AI Translator — 划词 AI 翻译与深度语境解析。
+
+> 为兼容现有安装，原仓库名、扩展通信标识和存储键暂时保留。
 
 Web 应用 + Chrome 扩展（Manifest V3）双形态：翻译整段文本、划词弹出深度语境词典（CEFR 等级 / 词性 / 搭配 / 同义词 / 例句）、多引擎 TTS 朗读、流式打字机输出。
 
