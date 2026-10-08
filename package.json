@@ -9,7 +9,8 @@
     "build:ext": "vite build --config vite.extension.config.ts && vite build --config vite.content.config.ts",
     "start": "NODE_ENV=production node dist-web/server.cjs",
     "clean": "rm -rf dist dist-web",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test:ui": "tsx --test src/utils/selectionMode.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
