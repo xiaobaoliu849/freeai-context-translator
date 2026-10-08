@@ -28,6 +28,7 @@ interface TranslatorMainProps {
   selectionContext?: string;
   /** Chosen segment from the reading outline. */
   workspaceSelection?: { id: number; text: string } | null;
+  resetSignal?: number;
   /** Compact app-shell layout used inside the 440x570 extension popup. */
   isPopup?: boolean;
   isFloating?: boolean;
@@ -68,6 +69,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
   selectionSignal = 0,
   selectionContext = '',
   workspaceSelection = null,
+  resetSignal = 0,
   isPopup = false,
   isFloating = false,
 }) => {
@@ -575,6 +577,23 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
       </span>
     );
   };
+
+  // New document always clears the previous translation and interrupts stale work.
+  useEffect(() => {
+    if (!resetSignal) return;
+    streamAbortRef.current?.abort();
+    translateReqIdRef.current += 1;
+    wordReqIdRef.current += 1;
+    setLoading(false);
+    setResult(null);
+    setError(null);
+    setStreamingText('');
+    streamingTextRef.current = '';
+    setSelectedWord(null);
+    setWordExplanation(null);
+    setActiveSelection('');
+    setFloatingEditorExpanded(false);
+  }, [resetSignal]);
 
   // Translate only the chosen reading segment, keeping the original document intact.
   const handledWorkspaceSelectionRef = useRef(0);
