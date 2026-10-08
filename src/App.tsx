@@ -110,6 +110,7 @@ export default function App({
   // Bumped when the user retranslates a history item (TranslatorMain reacts).
   const [retranslateSignal, setRetranslateSignal] = useState(0);
   const [workspaceSelection, setWorkspaceSelection] = useState<{id:number; text:string} | null>(null);
+  const [resetSignal, setResetSignal] = useState(0);
 
   // Settings & History State with LocalStorage and chrome.storage
   const [settings, setSettings] = useState<AppSettings>(() => {
@@ -272,12 +273,13 @@ export default function App({
           isPopup={isPopup}
           isFloating={isFloating}
           workspaceSelection={workspaceSelection}
+          resetSignal={resetSignal}
         />
         ) : (
           <ReadingWorkspaceShell
             sourceText={sourceText}
             historyCount={history.length}
-            onNewDocument={() => { setSourceText(''); setSelectionContext(''); setWorkspaceSelection(null); }}
+            onNewDocument={() => { setSourceText(''); setSelectionContext(''); setWorkspaceSelection(null); setResetSignal(v => v + 1); }}
             onOpenHistory={() => setIsHistoryOpen(true)}
             onOpenSettings={() => setIsSettingsOpen(true)}
             onTranslateSegment={(text) => setWorkspaceSelection({id:Date.now(),text})}
