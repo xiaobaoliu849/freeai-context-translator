@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./yumai-ui.css";
 
 /* Equalizer bars shown on play buttons while audio is playing */
 .ft-eq {
