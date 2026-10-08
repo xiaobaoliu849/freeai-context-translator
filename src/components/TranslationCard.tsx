@@ -206,7 +206,7 @@ export const TranslationCard: React.FC<TranslationCardProps> = ({
           <div className="w-5 h-5 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-black text-[10px] shadow-xs">
             FT
           </div>
-          <span className="text-xs font-black text-slate-800 tracking-tight">FreeTranslate AI</span>
+          <span className="text-xs font-black text-slate-800 tracking-tight">语脉</span>
           <span className="px-1.5 py-0.5 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-700 text-[9px] font-extrabold tracking-wide uppercase">
             {activeProvider}
           </span>
