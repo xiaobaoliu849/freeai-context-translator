@@ -1,3 +1,4 @@
+@import "./styles/yumai-tokens.css";
 /* YUMAI 4.0 visual system. Scoped to the app so host webpages are not affected. */
 .yumai-app {
   --ym-accent: #4e53d7;
