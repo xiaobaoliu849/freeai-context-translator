@@ -4,7 +4,7 @@ import { AppSettings, TranslationResult, WordExplanation } from '../types';
 import { audioPlayer } from '../utils/audio';
 import { consumeSSE, extractPartialTranslation } from '../services/streaming';
 import { bridgeTranslate, bridgeExplain, isExtensionContext } from '../services/bridge';
-import { classifySelection, getReadingSegments } from '../utils/selectionMode';
+import { classifySelection, getReadingSegments, normalizeSelectedTerm } from '../utils/selectionMode';
 import { WordContextCard } from './WordContextCard';
 
 interface TranslatorMainProps {
@@ -462,12 +462,13 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
 
   // Handle selecting a word in context with instant cache retrieval
   const handleSelectWord = async (word: string, contextOverride?: string) => {
-    const cleanWord = word.trim().replace(/^[^a-zA-Z0-9\u4e00-\u9fa5]+|[^a-zA-Z0-9\u4e00-\u9fa5]+$/g, '');
+    const cleanWord = normalizeSelectedTerm(word);
     if (!cleanWord) return;
     const lookupSentence = (contextOverride || sourceText || result?.sourceText || cleanWord).slice(0, 380);
     const requestId = ++wordReqIdRef.current;
     setWordContext(lookupSentence);
     setActiveSelection('');
+    setReadingOutlineOpen(false);
     const cacheKey = `${cleanWord.toLowerCase()}_${targetLang}_${activeProvider}_${activeConfig.model}_${lookupSentence.toLowerCase()}`;
 
     // Return cached explanation instantly if available
@@ -831,7 +832,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
           </div>
         </div>
       )}
-      {selectionKind === 'passage' && readingOutlineOpen && (
+      {selectionKind === 'passage' && readingOutlineOpen && !selectedWord && (
         <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm space-y-2">
           <p className="text-xs font-semibold text-slate-600">原文段落导航（不与机器译文强行对应）</p>
           <div className="flex flex-wrap gap-2">
