@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
+import { ReadingWorkspaceShell } from './components/ReadingWorkspaceShell';
 import { TranslatorMain } from './components/TranslatorMain';
 import { SettingsModal } from './components/SettingsModal';
 import { HistoryDrawer } from './components/HistoryDrawer';
@@ -108,6 +109,7 @@ export default function App({
 
   // Bumped when the user retranslates a history item (TranslatorMain reacts).
   const [retranslateSignal, setRetranslateSignal] = useState(0);
+  const [workspaceSelection, setWorkspaceSelection] = useState<{id:number; text:string} | null>(null);
 
   // Settings & History State with LocalStorage and chrome.storage
   const [settings, setSettings] = useState<AppSettings>(() => {
@@ -248,8 +250,9 @@ export default function App({
         onDragStart={onDragStart}
       />
 
-      {/* Main App Content View */}
-      <main className={isPopup ? 'flex-1 min-h-0 flex flex-col overflow-hidden' : 'flex-1 pb-8'}>
+      {/* Separate reading workspace for full tabs; the popup remains a focused tool. */}
+      <main className={isPopup ? 'flex-1 min-h-0 flex flex-col overflow-hidden' : 'flex-1 min-w-0'}>
+        {isPopup ? (
         <TranslatorMain
           sourceText={sourceText}
           setSourceText={setSourceText}
@@ -267,7 +270,38 @@ export default function App({
           selectionSignal={selectionSignal}
           selectionContext={selectionContext}
           isPopup={isPopup}
+          workspaceSelection={workspaceSelection}
         />
+        ) : (
+          <ReadingWorkspaceShell
+            sourceText={sourceText}
+            historyCount={history.length}
+            onNewDocument={() => { setSourceText(''); setSelectionContext(''); setWorkspaceSelection(null); }}
+            onOpenHistory={() => setIsHistoryOpen(true)}
+            onOpenSettings={() => setIsSettingsOpen(true)}
+            onTranslateSegment={(text) => setWorkspaceSelection({id:Date.now(),text})}
+          >
+        <TranslatorMain
+          sourceText={sourceText}
+          setSourceText={setSourceText}
+          sourceLang={sourceLang}
+          setSourceLang={setSourceLang}
+          targetLang={targetLang}
+          setTargetLang={setTargetLang}
+          onSwapLanguages={handleSwapLanguages}
+          languages={SUPPORTED_LANGUAGES}
+          settings={settings}
+          onSaveHistory={handleSaveHistoryItem}
+          openSettings={() => setIsSettingsOpen(true)}
+          openHistory={() => setIsHistoryOpen(true)}
+          retranslateSignal={retranslateSignal}
+          selectionSignal={selectionSignal}
+          selectionContext={selectionContext}
+          isPopup={isPopup}
+          workspaceSelection={workspaceSelection}
+        />
+          </ReadingWorkspaceShell>
+        )}
       </main>
 
       {/* Modals & Drawers */}
