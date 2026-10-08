@@ -425,9 +425,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             e.stopPropagation();
             onClose();
           } else if (e.key === 'Tab') {
-            const focusables = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(
-              'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'
-            ) || []).filter(el => el.getClientRects().length > 0);
+            const focusables: HTMLElement[] = dialogRef.current
+              ? Array.from(dialogRef.current.querySelectorAll<HTMLElement>(
+                  'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'
+                )).filter((el: HTMLElement) => el.getClientRects().length > 0)
+              : [];
             if (!focusables.length) return;
             const first = focusables[0];
             const last = focusables[focusables.length - 1];
