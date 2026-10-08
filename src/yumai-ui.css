@@ -170,3 +170,19 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Phase 2: compact popup composition; preserve resizable panels. */
+.yumai-popup .yumai-source-panel,
+.yumai-popup .yumai-result-panel { background: #fff; }
+.yumai-popup .yumai-source-editor { font-size: 15px !important; line-height: 1.68 !important; }
+.yumai-popup .yumai-result-text { font-size: 16px !important; line-height: 1.78 !important; font-weight: 450 !important; }
+.yumai-popup .yumai-panel-footer button,
+.yumai-popup .yumai-result-footer button { width: 36px; height: 36px; }
+.yumai-popup .yumai-language-bar { box-shadow: none; }
+.yumai-popup .yumai-result-panel .yumai-result-scroll { scrollbar-gutter: stable; }
+@media (max-height: 530px) {
+  .yumai-popup .yumai-header > div { min-height: 48px; height: 48px; }
+  .yumai-popup .yumai-source-panel { min-height: 78px; }
+  .yumai-popup .yumai-result-panel { min-height: 82px; }
+  .yumai-popup .yumai-source-editor { line-height: 1.52 !important; }
+}
