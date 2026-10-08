@@ -282,7 +282,7 @@ export default function App({
             onNewDocument={() => { setSourceText(''); setSelectionContext(''); setWorkspaceSelection(null); setResetSignal(v => v + 1); }}
             onOpenHistory={() => setIsHistoryOpen(true)}
             onOpenSettings={() => setIsSettingsOpen(true)}
-            onTranslateSegment={(text) => setWorkspaceSelection({id:Date.now(),text})}
+            onTranslateSegment={(text) => setWorkspaceSelection(prev => ({id:(prev?.id || 0) + 1,text}))}
           >
         <TranslatorMain
           sourceText={sourceText}
