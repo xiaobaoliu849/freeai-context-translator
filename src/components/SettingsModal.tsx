@@ -539,7 +539,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                   {currentProvider === 'gemini' && (
                     <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
-                      可选 Key
+                      需按服务商要求配置
                     </span>
                   )}
                   {currentProvider === 'ollama' && (
@@ -550,14 +550,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
 
                 {/* Advanced provider URL: hidden for routine cloud configuration */}
-                {currentProvider !== 'ollama' && currentProvider !== 'custom' && !currentConfig.baseUrl && (
+                {currentProvider !== 'ollama' && currentProvider !== 'custom' && (
                   <button type="button" onClick={() => setShowAdvancedProvider(v => !v)}
                     aria-expanded={showAdvancedProvider}
                     className="text-xs font-semibold text-indigo-700 hover:text-indigo-900 focus-visible:outline-2 focus-visible:outline-indigo-500">
                     {showAdvancedProvider ? '收起高级设置 ↑' : '高级设置 · 自定义 API 地址 ↓'}
                   </button>
                 )}
-                {(showAdvancedProvider || currentProvider === 'ollama' || currentProvider === 'custom' || Boolean(currentConfig.baseUrl)) && (
+                {(showAdvancedProvider || currentProvider === 'ollama' || currentProvider === 'custom') && (
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="block text-xs font-bold text-slate-700">
@@ -599,7 +599,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="block text-xs font-bold text-slate-700">
-                      API Key {currentProvider === 'gemini' || currentProvider === 'ollama' ? '（选填）' : ''}
+                      API Key {currentProvider === 'ollama' ? '（本地可留空）' : ''}
                     </label>
                     {currentProvider === 'ollama' && currentConfig.apiKey && (
                       <button
@@ -622,7 +622,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       onChange={(e) => updateCurrentConfig({ apiKey: e.target.value })}
                       placeholder={
                         currentProvider === 'gemini'
-                          ? 'Optional (选填)'
+                          ? '填写 Gemini API Key'
                           : currentProvider === 'ollama' || currentProvider === 'custom'
                           ? '本地模型无需 API Key（留空即可）'
                           : 'sk-...'
