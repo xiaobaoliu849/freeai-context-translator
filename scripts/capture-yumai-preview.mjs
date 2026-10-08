@@ -12,7 +12,7 @@ const ARTICLE = [
   'Amazon announced a new generation of Alexa tablets designed around the needs of everyday users. Engineers worked closely with Android developers to deliver familiar apps.',
   'The partnership brings new opportunities for people who value reading, learning and accessible technology. Designers focused on a calmer and more useful experience.',
   'We are excited to collaborate with researchers and customers. Together, we can turn difficult ideas into tools that help people in practical ways.'
-].join('\\n\\n');
+].join('\n\n');
 const DEMO_TRANSLATION = '我们很期待与亚马逊团队合作，让更多人感受到 Android 和 Google Play 的便利。我们的目标是让技术真正为每个人创造价值。';
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
