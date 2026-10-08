@@ -45,6 +45,7 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState<string | null>(null);
   const [examplesOpen, setExamplesOpen] = useState(false);
+  useEffect(() => setExamplesOpen(false), [word]);
 
   // Keyboard shortcut listener: Escape key closes card
   useEffect(() => {
@@ -102,9 +103,9 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
   const renderHeader = () => {
     const posTag = explanation?.pos || explanation?.partOfSpeech;
     return (
-      <div className="px-3.5 py-2.5 flex items-center gap-1.5 shrink-0 border-b border-indigo-100/80 bg-gradient-to-r from-indigo-50/60 to-violet-50/40 select-none">
+      <div className="px-3.5 py-2.5 flex items-center gap-2 flex-wrap shrink-0 border-b border-slate-100 bg-white select-none">
         {displayWord && (
-          <h3 className="text-lg font-black tracking-tight leading-none truncate bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-600 bg-clip-text text-transparent">
+          <h3 className="text-lg font-semibold tracking-tight leading-tight text-slate-900 truncate">
             {displayWord}
           </h3>
         )}
@@ -135,21 +136,21 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
 
         {/* Phonetic */}
         {explanation?.phonetic && (
-          <span className="text-[11px] font-mono text-slate-500">
+          <span className="text-xs font-mono text-slate-500">
             {explanation.phonetic.startsWith('/') ? explanation.phonetic : `/${explanation.phonetic}/`}
           </span>
         )}
 
         {/* POS Tag */}
         {posTag && (
-          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200/80">
+          <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600">
             {posTag}
           </span>
         )}
 
         {/* CEFR Tag */}
         {explanation?.cefrLevel && (
-          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200/90">
+          <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600">
             {explanation.cefrLevel}
           </span>
         )}
@@ -243,31 +244,31 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
       {/* Body: the in-context meaning IS the interface (same typography as the
           translation it temporarily replaces). Secondary info stays flat —
           labels + inline chips, no nested boxes. */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-3.5 py-3 space-y-3 select-text">
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-4 select-text">
         {/* Original sentence with the word highlighted (desktop only — the popup
             shows a dedicated context strip above instead) */}
         {sentence && sentence.trim() !== displayWord.trim() && (
-          <p className="text-[11px] text-slate-400 italic truncate select-none">
+          <p className="text-xs text-slate-500 italic leading-relaxed line-clamp-2">
             “{sentence}”
           </p>
         )}
 
         {/* In-context meaning — the hero answer */}
-        <section className="bg-gradient-to-br from-indigo-50/70 via-white to-violet-50/50 p-3 sm:p-3.5 rounded-2xl border border-indigo-100 shadow-sm shadow-indigo-100/50">
-          <div className="flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider mb-1.5 select-none bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">
-            <span className="w-2 h-2 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 shadow-[0_0_6px_rgba(139,92,246,0.8)]" />
+        <section className="bg-indigo-50/50 p-3.5 rounded-xl border border-indigo-100">
+          <div className="flex items-center gap-1.5 text-xs font-semibold mb-1.5 select-none text-indigo-700">
+            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
             <span>句中含义</span>
           </div>
-          <p className="text-lg sm:text-xl font-black text-slate-900 leading-snug tracking-tight">
+          <p className="text-lg sm:text-xl font-semibold text-slate-900 leading-snug">
             {explanation.contextualMeaning}
           </p>
         </section>
 
         {/* Context nuance */}
         {explanation.contextExplanation && (
-          <div className="bg-amber-50/60 border border-amber-200/70 rounded-xl p-2.5 text-xs text-slate-700 leading-relaxed shadow-2xs">
-            <span className="font-bold text-amber-700 select-none inline-flex items-center gap-1 mr-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+          <div className="text-sm text-slate-600 leading-relaxed">
+            <span className="font-semibold text-slate-700 select-none inline-flex items-center gap-1 mr-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
               语境辨析 ·
             </span>
             {explanation.contextExplanation}
@@ -276,7 +277,7 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
 
         {/* General dictionary definition */}
         {explanation.literalMeaning && (
-          <div className="bg-slate-50/80 border border-slate-200/70 rounded-xl p-2.5 text-xs text-slate-700 leading-relaxed shadow-2xs">
+          <div className="text-xs text-slate-500 leading-relaxed">
             <span className="font-bold text-slate-600 select-none inline-flex items-center gap-1 mr-1">
               <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
               通用释义 ·
@@ -288,7 +289,7 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
         {/* Collocations — inline chips */}
         {collocations.length > 0 && (
           <div>
-            <div className="text-[10px] font-extrabold text-emerald-700 uppercase tracking-wider mb-1.5 select-none flex items-center gap-1">
+            <div className="text-xs font-semibold text-slate-600 mb-2 select-none flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
               常用搭配
             </div>
@@ -296,7 +297,7 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
               {collocations.map((col, idx) => (
                 <span
                   key={idx}
-                  className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200/80 shadow-2xs hover:scale-[1.03] transition-transform select-text"
+                  className="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-50 text-slate-700 border border-slate-200 select-text"
                 >
                   {col}
                 </span>
@@ -308,7 +309,7 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
         {/* Synonyms & antonyms — inline chips */}
         {(synonyms.length > 0 || antonyms.length > 0) && (
           <div>
-            <div className="text-[10px] font-extrabold text-purple-700 uppercase tracking-wider mb-1.5 select-none flex items-center gap-1">
+            <div className="text-xs font-semibold text-slate-600 mb-2 select-none flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
               近义 / 反义
             </div>
@@ -316,7 +317,7 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
               {synonyms.map((syn, idx) => (
                 <span
                   key={`s-${idx}`}
-                  className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-purple-50 text-purple-800 border border-purple-200/80 shadow-2xs hover:scale-[1.03] transition-transform select-text"
+                  className="px-2.5 py-1.5 rounded-lg text-xs bg-slate-50 text-slate-700 border border-slate-200 select-text"
                 >
                   {syn}
                 </span>
@@ -324,7 +325,7 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
               {antonyms.map((ant, idx) => (
                 <span
                   key={`a-${idx}`}
-                  className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-rose-50 text-rose-800 border border-rose-200/80 line-through decoration-rose-300 shadow-2xs hover:scale-[1.03] transition-transform select-text"
+                  className="px-2.5 py-1.5 rounded-lg text-xs bg-slate-50 text-slate-500 border border-slate-200 line-through select-text"
                 >
                   {ant}
                 </span>
@@ -338,6 +339,7 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
           <div>
             <button
               onClick={() => setExamplesOpen((o) => !o)}
+              aria-expanded={examplesOpen}
               className="flex items-center gap-1 text-xs font-bold text-slate-600 hover:text-indigo-600 transition-colors cursor-pointer select-none"
             >
               <ChevronRight className={`w-3.5 h-3.5 text-indigo-500 transition-transform ${examplesOpen ? 'rotate-90' : ''}`} />
@@ -351,7 +353,7 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
                   return (
                     <div
                       key={idx}
-                      className="text-xs space-y-1 bg-indigo-50/30 border-l-3 border-indigo-500 rounded-r-xl p-2.5 border border-l-0 border-indigo-100/50 shadow-2xs"
+                      className="text-sm space-y-1 bg-slate-50 border-l-2 border-indigo-400 rounded-r-lg p-3"
                     >
                       <p className="text-slate-900 font-semibold leading-relaxed">{src}</p>
                       <p className="text-indigo-700 leading-relaxed font-medium">{tgt}</p>
