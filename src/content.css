@@ -54,15 +54,15 @@
 .freetranslate-modal-card {
   position: absolute;
   z-index: 2147483647;
-  width: 440px;
+  width: 460px;
   max-width: 95vw;
-  height: 570px;
+  height: 590px;
   max-height: 85vh;
-  background: #f8fafc;
+  background: #f6f7fb;
   padding: 0;
-  border: 1px solid rgba(99, 102, 241, 0.22);
-  border-radius: 20px;
-  box-shadow: 0 24px 60px -12px rgba(15, 23, 42, 0.35), 0 0 0 1px rgba(99, 102, 241, 0.15);
+  border: 1px solid #e2e7f0;
+  border-radius: 18px;
+  box-shadow: 0 22px 58px -14px rgba(20, 34, 60, 0.23);
   overflow: hidden;
   display: flex;
   flex-direction: column;
