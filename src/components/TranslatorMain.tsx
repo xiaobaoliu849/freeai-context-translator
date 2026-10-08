@@ -135,9 +135,10 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
     if (userCustomVSplit) return vSplitPercent;
     const len = sourceText.trim().length;
     if (len === 0) return 38;
-    if (len <= 80) return 30; // Short text: give 70% space to result & dictionary
-    if (len <= 250) return 38;
-    return 45; // Long text: balanced 45:55
+    if (len <= 80) return 34; // Keep short content accessible while prioritizing output
+    if (len <= 250) return 40;
+    if (len <= 800) return 46;
+    return 50; // Long form: equal scrollable source / target
   }, [sourceText, userCustomVSplit, vSplitPercent]);
 
   useEffect(() => {
@@ -1045,7 +1046,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                       <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
                       {result?.sourceText && result.sourceText !== sourceText ? '所选内容译文' : '翻译结果'}
                     </span>
-                    <span className="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md font-medium">生成中…</span>
+                    <span className="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md font-medium" role="status">生成中…</span>
                   </div>
                   <div className="h-px bg-slate-200" />
                 </div>
@@ -1101,7 +1102,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
               </div>
 
               {/* Translation Card Actions Footer */}
-              <div className="yumai-result-footer flex shrink-0 items-center justify-between text-xs text-slate-500">
+              <div className="yumai-result-footer flex shrink-0 items-center justify-between text-xs text-slate-500" aria-label="译文操作">
                 <div className="flex items-center gap-1.5 text-xs">
                   <span>引擎</span>
                   <span className="font-medium text-slate-600 text-xs">
