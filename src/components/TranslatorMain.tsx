@@ -63,6 +63,8 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
   const [result, setResult] = useState<TranslationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copiedArea, setCopiedArea] = useState<'source' | 'target' | null>(null);
+  const [copyError, setCopyError] = useState<string | null>(null);
   // Tracks which side (source/target) is currently speaking, so only the
   // matching button highlights instead of both flashing together.
   const [playingTarget, setPlayingTarget] = useState<'source' | 'target' | null>(null);
@@ -595,10 +597,21 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
     });
   };
 
-  const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text).catch(() => {});
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+  const handleCopy = async (text: string, area: 'source' | 'target') => {
+    setCopied(false);
+    setCopiedArea(null);
+    setCopyError(null);
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setCopiedArea(area);
+      setTimeout(() => {
+        setCopied(false);
+        setCopiedArea(null);
+      }, 1500);
+    } catch {
+      setCopyError('复制失败，请检查浏览器剪贴板权限后重试');
+    }
   };
 
   const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -614,6 +627,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
       ? 'flex-1 min-h-0 flex flex-col gap-2.5 px-3 py-2.5'
       : 'max-w-[1400px] mx-auto px-3 sm:px-6 py-3 sm:py-5 flex flex-col gap-3 sm:gap-4'
     }>
+      {copyError && <p role="alert" className="text-xs text-rose-700 px-2">{copyError}</p>}
       {/* 1. ELEGANT LANGUAGE SELECTOR TOOLBAR */}
       <div className="bg-white/90 backdrop-blur-sm border border-slate-200/90 rounded-2xl p-2 sm:p-2.5 shadow-sm shadow-slate-200/60 flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
         {/* Source Language Select */}
@@ -838,12 +852,12 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
               </button>
 
               <button
-                onClick={() => handleCopy(selectedWord || sourceText)}
+                onClick={() => handleCopy(selectedWord || sourceText, 'source')}
                 disabled={!sourceText.trim()}
                 className="p-1.5 rounded-lg hover:bg-emerald-50 text-slate-500 hover:text-emerald-600 transition-all disabled:opacity-30 cursor-pointer"
                 title={selectedWord ? `复制 "${selectedWord}"` : "复制原文"}
               >
-                <Copy className="w-3.5 h-3.5" />
+                {copied && copiedArea === 'source' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
               </button>
 
               <button
@@ -1016,12 +1030,12 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                   </button>
 
                   <button
-                    onClick={() => result?.translation && handleCopy(result.translation)}
+                    onClick={() => result?.translation && handleCopy(result.translation, 'target')}
                     disabled={!result?.translation}
                     className="p-2 rounded-xl text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 disabled:opacity-30 cursor-pointer transition-all"
                     title="复制译文"
                   >
-                    {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                    {copied && copiedArea === 'target' ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
                   </button>
                 </div>
               </div>
