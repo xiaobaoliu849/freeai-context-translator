@@ -1,11 +1,11 @@
 @import "./styles/yumai-tokens.css";
 /* YUMAI 4.0 visual system. Scoped to the app so host webpages are not affected. */
 .yumai-app {
-  --ym-accent: #4e53d7;
-  --ym-ink: #17223c;
-  --ym-muted: #66738a;
+  --ym-accent: #4958ba;
+  --ym-ink: #19253a;
+  --ym-muted: #65738a;
   --ym-line: #e5e9f1;
-  --ym-background: #f6f7fb;
+  --ym-background: #f6f7f9;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
   color: var(--ym-ink);
   background-color: var(--ym-background);
@@ -247,3 +247,19 @@
 .yumai-floating .yumai-provider { background: #f3f4f8; }
 .yumai-floating .yumai-context-chip { font-size: 11px; }
 .yumai-floating .yumai-source-editor { font-size: 14px !important; }
+
+/* Phase 7 visual acceptance refinements — crisp, neutral surfaces and less chrome. */
+.yumai-app .yumai-language-bar .yumai-translate-button,
+.yumai-app .yumai-workspace-new { background: #4958ba; }
+.yumai-app .yumai-language-bar .yumai-translate-button:hover,
+.yumai-app .yumai-workspace-new:hover { background: #34469f; }
+.yumai-app .yumai-source-panel,
+.yumai-app .yumai-result-panel { box-shadow: 0 2px 12px rgba(26,42,70,.045); }
+.yumai-app .yumai-result-panel .yumai-result-footer { border-top-color: #edf0f5; }
+.yumai-app .yumai-provider { color: #5c6880; }
+.yumai-app .yumai-header { box-shadow: 0 1px 0 rgba(25,37,58,.015); }
+.yumai-app .yumai-settings-panel, .yumai-app .yumai-history-drawer { font-family: var(--ym-font); }
+.yumai-app .yumai-settings-body label { font-size: 12px; }
+.yumai-app .yumai-settings-body input, .yumai-app .yumai-settings-body select { min-height: 36px; }
+.yumai-app .yumai-settings-tabs button { min-height: 42px; }
+.yumai-app .yumai-history-item:hover { background: #fbfcff; }
