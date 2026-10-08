@@ -1,6 +1,8 @@
 {
-  "name": "FreeTranslate",
-  "description": "Contextual AI Translator & Chrome Extension with in-context word breakdown, TTS speech audio, and on-page selection context menu.",
+  "name": "语脉 · YUMAI",
+  "description": "Context-aware translation and vocabulary understanding, with AI-powered reading, TTS and Chrome extension.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
