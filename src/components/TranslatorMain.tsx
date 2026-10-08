@@ -30,6 +30,7 @@ interface TranslatorMainProps {
   workspaceSelection?: { id: number; text: string } | null;
   /** Compact app-shell layout used inside the 440x570 extension popup. */
   isPopup?: boolean;
+  isFloating?: boolean;
 }
 
 /** Small icon that reflects the current TTS state of a play button. */
@@ -68,6 +69,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
   selectionContext = '',
   workspaceSelection = null,
   isPopup = false,
+  isFloating = false,
 }) => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<TranslationResult | null>(null);
@@ -93,6 +95,8 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
   const [wordContext, setWordContext] = useState<string>('');
   const [activeSelection, setActiveSelection] = useState<string>('');
   const [readingOutlineOpen, setReadingOutlineOpen] = useState(false);
+  const [floatingEditorExpanded, setFloatingEditorExpanded] = useState(false);
+  const compactFloatingSource = isFloating && !selectedWord && !floatingEditorExpanded && Boolean(sourceText.trim());
   const wordReqIdRef = useRef(0);
   const skipSelectionRef = useRef(false);
   const selectionKind = classifySelection(sourceText);
@@ -889,6 +893,15 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
               <span>编辑原文</span>
             </button>
           </div>
+        ) : compactFloatingSource ? (
+          <section className="yumai-floating-snippet shrink-0 rounded-xl border border-slate-200 bg-white px-4 py-3" aria-label="已选中的网页文本">
+            <div className="mb-1.5 flex items-center justify-between gap-2">
+              <span className="yumai-panel-caption">已选中 · {selectionKind === 'passage' ? '长文本' : '句子'}</span>
+              <button type="button" className="yumai-secondary-action" onClick={() => setFloatingEditorExpanded(true)}
+                aria-label="展开原文编辑器"><PencilLine className="h-3.5 w-3.5"/> 编辑</button>
+            </div>
+            <p className="line-clamp-3 whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-700">{sourceText}</p>
+          </section>
         ) : (
         <div
           style={isPopup ? { flex: `0 0 calc(${effectiveVSplitPercent}% - 6px)` } : undefined}
@@ -996,7 +1009,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
 
         {/* Vertical drag handle in popup mode (hidden while a word is selected —
             the context strip has a fixed height so there is nothing to drag) */}
-        {isPopup && !selectedWord && (
+        {isPopup && !selectedWord && !compactFloatingSource && (
           <div
             onPointerDown={handleVSplitPointerDown}
             onPointerMove={handleVSplitPointerMove}
