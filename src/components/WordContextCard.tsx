@@ -2,17 +2,13 @@ import React, { useState, useEffect } from 'react';
 import {
   Volume2,
   Loader2,
-  BookOpen,
-  Layers,
   Check,
   X,
   Sparkles,
-  ArrowRight,
-  ArrowLeft,
-  Lightbulb,
   Copy,
-  Languages,
-  RotateCcw
+  ChevronRight,
+  RotateCcw,
+  Languages
 } from 'lucide-react';
 import { WordExplanation, AppSettings } from '../types';
 import { audioPlayer } from '../utils/audio';
@@ -21,6 +17,8 @@ export interface WordContextCardProps {
   explanation: WordExplanation | null;
   loading: boolean;
   onClose: () => void;
+  /** The looked-up word itself (available even while the explanation loads). */
+  word?: string | null;
   sentence?: string;
   settings: AppSettings;
   onSwitchToTranslate?: () => void;
@@ -28,24 +26,24 @@ export interface WordContextCardProps {
 }
 
 /**
- * Embedded in-place dictionary view: rendered inside the translation result
- * panel, so it intentionally has NO brand header, accent bar or fixed size —
- * the host panel (which owns the app chrome) provides those. It simply fills
- * the available space and scrolls internally.
+ * Lean in-context word view (openai-translator style): the word's in-context
+ * meaning REPLACES the translation output in place — no card chrome, no tabs,
+ * no footer. Deselecting the word (or Esc / ✕) returns to the sentence
+ * translation, so there is deliberately no "back" affordance.
  */
 export const WordContextCard: React.FC<WordContextCardProps> = ({
   explanation,
   loading,
   onClose,
+  word,
   sentence,
   settings,
   onSwitchToTranslate,
   onRetry,
 }) => {
   const [wordPhase, setWordPhase] = useState<'generating' | 'playing' | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'collocations' | 'examples'>('overview');
   const [copied, setCopied] = useState(false);
-  const [copiedFull, setCopiedFull] = useState(false);
+  const [examplesOpen, setExamplesOpen] = useState(false);
 
   // Keyboard shortcut listener: Escape key closes card
   useEffect(() => {
@@ -61,8 +59,10 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
     };
   }, [onClose]);
 
+  const displayWord = explanation?.word || word || '';
+
   const handlePlayWordAudio = () => {
-    const wordToSpeak = explanation?.word || sentence;
+    const wordToSpeak = displayWord || sentence;
     if (!wordToSpeak) return;
     if (wordPhase) {
       audioPlayer.stopAll();
@@ -84,80 +84,109 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
   };
 
   const handleCopyWord = () => {
-    const w = explanation?.word || sentence;
-    if (!w) return;
-    navigator.clipboard.writeText(w).catch(() => {});
+    if (!displayWord) return;
+    navigator.clipboard.writeText(displayWord).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
 
-  const handleCopyFull = () => {
-    if (!explanation) return;
-    const parts = [
-      `${explanation.word} ${explanation.phonetic ? `[${explanation.phonetic}]` : ''}`,
-      `句中释义: ${explanation.contextualMeaning}`,
-      explanation.literalMeaning ? `通用释义: ${explanation.literalMeaning}` : '',
-      explanation.contextExplanation ? `语境辨析: ${explanation.contextExplanation}` : '',
-    ].filter(Boolean);
-    navigator.clipboard.writeText(parts.join('\n')).catch(() => {});
-    setCopiedFull(true);
-    setTimeout(() => setCopiedFull(false), 1500);
-  };
-
-  const activeProvider = (settings.defaultProvider || 'gemini').toUpperCase();
-
-  // Slim utility bar: mode label + exit affordances. No branding — the host
-  // app chrome above already shows logo/provider.
-  const renderUtilityBar = () => (
-    <div className="pl-3.5 pr-2 py-1 flex items-center justify-between shrink-0 select-none">
-      <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-        <BookOpen className="w-3 h-3 text-indigo-400" />
-        <span>词典模式{activeProvider ? '' : ''}</span>
-      </span>
-
-      <div className="flex items-center gap-0.5">
-        {onSwitchToTranslate && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onSwitchToTranslate();
-            }}
-            className="flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg border border-transparent hover:border-indigo-100 transition-colors cursor-pointer mr-0.5"
-            title="切换至整句翻译模式"
-          >
-            <Languages className="w-3 h-3 text-indigo-500" />
-            <span>整句翻译</span>
-          </button>
+  // Compact single-row header: word + pronunciation + badges + close. This is
+  // the ONLY fixed chrome the view has.
+  const renderHeader = () => {
+    const posTag = explanation?.pos || explanation?.partOfSpeech;
+    return (
+      <div className="px-3.5 py-2.5 flex items-center gap-1.5 shrink-0 border-b border-slate-100 select-none">
+        {displayWord && (
+          <h3 className="text-lg font-black text-slate-900 tracking-tight leading-none truncate">
+            {displayWord}
+          </h3>
         )}
 
+        {/* Audio Pronunciation Button */}
+        <button
+          onClick={handlePlayWordAudio}
+          disabled={!displayWord && !sentence}
+          className={`p-1 rounded-lg transition-all cursor-pointer disabled:opacity-30 ${
+            wordPhase
+              ? 'bg-indigo-100 text-indigo-700'
+              : 'text-indigo-600 hover:bg-indigo-50'
+          }`}
+          title="播放单词发音"
+        >
+          {wordPhase === 'generating' ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : wordPhase === 'playing' ? (
+            <span className="ft-eq flex items-end gap-0.5 h-3.5 px-0.5">
+              <span className="w-0.5 bg-indigo-600 rounded-full animate-bounce h-2.5" />
+              <span className="w-0.5 bg-indigo-600 rounded-full animate-bounce h-3.5 delay-75" />
+              <span className="w-0.5 bg-indigo-600 rounded-full animate-bounce h-2 delay-150" />
+            </span>
+          ) : (
+            <Volume2 className="w-3.5 h-3.5" />
+          )}
+        </button>
+
+        {/* Phonetic */}
+        {explanation?.phonetic && (
+          <span className="text-[11px] font-mono text-slate-500">
+            {explanation.phonetic.startsWith('/') ? explanation.phonetic : `/${explanation.phonetic}/`}
+          </span>
+        )}
+
+        {/* POS Tag */}
+        {posTag && (
+          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200/80">
+            {posTag}
+          </span>
+        )}
+
+        {/* CEFR Tag */}
+        {explanation?.cefrLevel && (
+          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200/90">
+            {explanation.cefrLevel}
+          </span>
+        )}
+
+        <div className="flex-1" />
+
+        {/* Copy Word */}
+        <button
+          onClick={handleCopyWord}
+          disabled={!displayWord}
+          className="p-1 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer disabled:opacity-30"
+          title="复制单词"
+        >
+          {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+        </button>
+
+        {/* Close (deselecting the word has the same effect) */}
         <button
           onClick={(e) => {
             e.stopPropagation();
             onClose();
           }}
-          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors cursor-pointer"
-          title="退出词典模式"
+          className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors cursor-pointer"
+          title="返回整句翻译 (Esc)"
         >
-          <X className="w-3.5 h-3.5" />
+          <X className="w-4 h-4" />
         </button>
       </div>
-    </div>
-  );
+    );
+  };
 
   if (loading) {
     return (
-      <div className="bg-white text-slate-800 w-full flex-1 min-h-0 flex flex-col overflow-hidden select-none animate-in fade-in duration-200">
-        {renderUtilityBar()}
-        <div className="p-4 space-y-3 animate-pulse">
+      <div className="bg-white text-slate-800 w-full flex-1 min-h-0 flex flex-col overflow-hidden animate-in fade-in duration-200">
+        {renderHeader()}
+        <div className="p-4 space-y-3 animate-pulse select-none">
           <div className="flex items-center gap-2 text-indigo-600 py-1">
             <Sparkles className="w-4 h-4 animate-spin text-indigo-600" />
             <span className="text-xs font-bold text-indigo-700">
-              AI 正在深度解析单词在当前语境中的精准释义...
+              AI 正在解析单词在当前语境中的含义...
             </span>
           </div>
-          <div className="h-6 bg-slate-100 rounded-lg w-2/5" />
-          <div className="h-16 bg-slate-50 border border-slate-200/60 rounded-xl w-full" />
-          <div className="h-10 bg-slate-50 border border-slate-200/60 rounded-xl w-full" />
+          <div className="h-6 bg-slate-100 rounded-lg w-3/5" />
+          <div className="h-4 bg-slate-50 rounded-lg w-4/5" />
         </div>
       </div>
     );
@@ -165,10 +194,10 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
 
   if (!explanation) {
     return (
-      <div className="bg-white text-slate-800 w-full flex-1 min-h-0 flex flex-col overflow-hidden select-none animate-in fade-in duration-200">
-        {renderUtilityBar()}
-        <div className="flex-1 p-4 text-center space-y-3 flex flex-col items-center justify-center">
-          <p className="text-xs text-slate-500 font-medium">未能解析单词语境，请重试或切换至整句翻译</p>
+      <div className="bg-white text-slate-800 w-full flex-1 min-h-0 flex flex-col overflow-hidden animate-in fade-in duration-200">
+        {renderHeader()}
+        <div className="flex-1 p-4 text-center space-y-3 flex flex-col items-center justify-center select-none">
+          <p className="text-xs text-slate-500 font-medium">未能解析单词语境，请重试或返回整句翻译</p>
           <div className="flex items-center justify-center gap-2">
             {onRetry && (
               <button
@@ -185,7 +214,7 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
                 className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 transition-colors cursor-pointer"
               >
                 <Languages className="w-3 h-3" />
-                <span>切换整句翻译</span>
+                <span>返回整句翻译</span>
               </button>
             )}
           </div>
@@ -194,300 +223,122 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
     );
   }
 
-  const posTag = explanation.pos || explanation.partOfSpeech;
-  const collocationsCount = explanation.collocations?.length || 0;
-  const synonymsCount = (explanation.synonymsInContext?.length || 0) + (explanation.antonyms?.length || 0);
+  const collocations = explanation.collocations || [];
+  const synonyms = explanation.synonymsInContext || [];
+  const antonyms = explanation.antonyms || [];
   const examplesList = explanation.examples || explanation.exampleSentences || [];
-  const examplesCount = examplesList.length;
 
   return (
-    <div className="bg-white text-slate-800 w-full flex-1 min-h-0 flex flex-col overflow-hidden select-none animate-in fade-in duration-200">
-      {/* Slim utility bar (mode label + exit actions) */}
-      {renderUtilityBar()}
+    <div className="bg-white text-slate-800 w-full flex-1 min-h-0 flex flex-col overflow-hidden animate-in fade-in duration-200">
+      {renderHeader()}
 
-      {/* Word Hero & Badges */}
-      <div className="p-3.5 pb-2.5 shrink-0 bg-white border-b border-slate-100">
-        <div className="flex items-start justify-between gap-3">
-          {/* Left: Word, Pronounce, Phonetic, Badges */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <h3 className="text-xl font-black text-slate-900 tracking-tight leading-none">
-                {explanation.word}
-              </h3>
+      {/* Body: the in-context meaning IS the interface (same typography as the
+          translation it temporarily replaces). Secondary info stays flat —
+          labels + inline chips, no nested boxes. */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-3.5 py-3 space-y-3 select-text">
+        {/* Original sentence with the word highlighted (desktop only — the popup
+            shows a dedicated context strip above instead) */}
+        {sentence && sentence.trim() !== displayWord.trim() && (
+          <p className="text-[11px] text-slate-400 italic truncate select-none">
+            “{sentence}”
+          </p>
+        )}
 
-              {/* Audio Pronunciation Button */}
-              <button
-                onClick={handlePlayWordAudio}
-                className={`p-1.5 rounded-xl border transition-all flex items-center gap-1 cursor-pointer ${
-                  wordPhase
-                    ? 'bg-indigo-600 text-white border-indigo-500 shadow-xs'
-                    : 'bg-indigo-50/80 hover:bg-indigo-100 text-indigo-700 border-indigo-200/80'
-                }`}
-                title="播放单词发音"
-              >
-                {wordPhase === 'generating' ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" />
-                ) : wordPhase === 'playing' ? (
-                  <span className="ft-eq flex items-end gap-0.5 h-3.5 px-0.5">
-                    <span className="w-0.5 bg-indigo-600 rounded-full animate-bounce h-2.5" />
-                    <span className="w-0.5 bg-indigo-600 rounded-full animate-bounce h-3.5 delay-75" />
-                    <span className="w-0.5 bg-indigo-600 rounded-full animate-bounce h-2 delay-150" />
-                  </span>
-                ) : (
-                  <Volume2 className="w-3.5 h-3.5" />
-                )}
-              </button>
+        {/* In-context meaning — the hero answer */}
+        <section>
+          <div className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-600 uppercase tracking-wider mb-1 select-none">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            <span>句中含义</span>
+          </div>
+          <p className="text-lg font-extrabold text-slate-900 leading-snug tracking-tight">
+            {explanation.contextualMeaning}
+          </p>
+        </section>
 
-              {/* Phonetic Tag */}
-              {explanation.phonetic && (
-                <span className="text-[11px] font-mono px-1.5 py-0.5 rounded-lg bg-slate-100 text-slate-600 border border-slate-200">
-                  {explanation.phonetic.startsWith('/') ? explanation.phonetic : `[${explanation.phonetic}]`}
+        {/* Context nuance */}
+        {explanation.contextExplanation && (
+          <p className="text-xs text-slate-600 leading-relaxed">
+            <span className="font-bold text-amber-600 select-none">语境辨析 · </span>
+            {explanation.contextExplanation}
+          </p>
+        )}
+
+        {/* General dictionary definition */}
+        {explanation.literalMeaning && (
+          <p className="text-xs text-slate-600 leading-relaxed">
+            <span className="font-bold text-slate-500 select-none">通用释义 · </span>
+            {explanation.literalMeaning}
+          </p>
+        )}
+
+        {/* Collocations — inline chips */}
+        {collocations.length > 0 && (
+          <div>
+            <div className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider mb-1 select-none">常用搭配</div>
+            <div className="flex flex-wrap gap-1">
+              {collocations.map((col, idx) => (
+                <span
+                  key={idx}
+                  className="px-2 py-0.5 rounded-md text-xs font-medium bg-emerald-50 text-emerald-800 border border-emerald-200/70"
+                >
+                  {col}
                 </span>
-              )}
-
-              {/* POS Tag */}
-              {posTag && (
-                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-lg bg-purple-50 text-purple-700 border border-purple-200/80">
-                  {posTag}
-                </span>
-              )}
-
-              {/* CEFR Tag */}
-              {explanation.cefrLevel && (
-                <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200/90">
-                  CEFR: {explanation.cefrLevel}
-                </span>
-              )}
+              ))}
             </div>
-
-            {/* Context Sentence */}
-            {sentence && sentence.trim() !== explanation.word.trim() && (
-              <p className="text-[11px] text-slate-500 mt-1.5 flex items-center gap-1 truncate">
-                <span className="text-indigo-600 font-bold shrink-0">原句语境:</span>
-                <span className="italic text-slate-600 truncate">"{sentence}"</span>
-              </p>
-            )}
           </div>
-
-          {/* Right: Copy Word */}
-          <button
-            onClick={handleCopyWord}
-            className="p-1.5 text-slate-500 hover:text-slate-800 rounded-lg hover:bg-slate-100 border border-transparent hover:border-slate-200 transition-colors cursor-pointer shrink-0"
-            title="复制单词"
-          >
-            {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-          </button>
-        </div>
-      </div>
-
-      {/* Tabs Header */}
-      <div className="flex items-center gap-1 px-3 bg-slate-50/90 border-b border-slate-200/90 shrink-0">
-        <button
-          onClick={() => setActiveTab('overview')}
-          className={`px-2.5 py-1.5 text-xs font-semibold border-b-2 transition-all flex items-center gap-1 cursor-pointer ${
-            activeTab === 'overview'
-              ? 'border-indigo-600 text-indigo-700 bg-white shadow-2xs font-bold'
-              : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'
-          }`}
-        >
-          <Sparkles className="w-3 h-3 text-indigo-600" />
-          <span>语境释义</span>
-        </button>
-
-        {(collocationsCount > 0 || synonymsCount > 0) && (
-          <button
-            onClick={() => setActiveTab('collocations')}
-            className={`px-2.5 py-1.5 text-xs font-semibold border-b-2 transition-all flex items-center gap-1 cursor-pointer ${
-              activeTab === 'collocations'
-                ? 'border-indigo-600 text-indigo-700 bg-white shadow-2xs font-bold'
-                : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'
-            }`}
-          >
-            <Layers className="w-3 h-3 text-purple-600" />
-            <span>搭配 & 同反义词</span>
-            <span className="px-1.5 py-0.2 rounded-full bg-slate-200 text-[10px] text-slate-700 font-bold">
-              {collocationsCount + synonymsCount}
-            </span>
-          </button>
         )}
 
-        {examplesCount > 0 && (
-          <button
-            onClick={() => setActiveTab('examples')}
-            className={`px-2.5 py-1.5 text-xs font-semibold border-b-2 transition-all flex items-center gap-1 cursor-pointer ${
-              activeTab === 'examples'
-                ? 'border-indigo-600 text-indigo-700 bg-white shadow-2xs font-bold'
-                : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'
-            }`}
-          >
-            <BookOpen className="w-3 h-3 text-emerald-600" />
-            <span>经典例句</span>
-            <span className="px-1.5 py-0.2 rounded-full bg-slate-200 text-[10px] text-slate-700 font-bold">
-              {examplesCount}
-            </span>
-          </button>
-        )}
-      </div>
-
-      {/* Tab Body with Smooth Scroll */}
-      <div className="flex-1 min-h-0 overflow-y-auto p-3.5 space-y-3">
-        {activeTab === 'overview' && (
-          <div className="space-y-2.5">
-            {/* Primary In-Context Meaning */}
-            <div className="bg-gradient-to-r from-indigo-50/90 via-purple-50/40 to-emerald-50/70 border border-indigo-200/80 rounded-xl p-3.5 shadow-2xs">
-              <div className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-700 uppercase tracking-wider mb-1">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span>IN-CONTEXT MEANING (句中精准含义)</span>
-              </div>
-              <p className="text-lg font-black text-slate-900 tracking-tight leading-snug">
-                {explanation.contextualMeaning}
-              </p>
+        {/* Synonyms & antonyms — inline chips */}
+        {(synonyms.length > 0 || antonyms.length > 0) && (
+          <div>
+            <div className="text-[10px] font-bold text-purple-700 uppercase tracking-wider mb-1 select-none">近义 / 反义</div>
+            <div className="flex flex-wrap gap-1">
+              {synonyms.map((syn, idx) => (
+                <span
+                  key={`s-${idx}`}
+                  className="px-2 py-0.5 rounded-md text-xs font-medium bg-purple-50 text-purple-800 border border-purple-200/70"
+                >
+                  {syn}
+                </span>
+              ))}
+              {antonyms.map((ant, idx) => (
+                <span
+                  key={`a-${idx}`}
+                  className="px-2 py-0.5 rounded-md text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200/70 line-through decoration-rose-300"
+                >
+                  {ant}
+                </span>
+              ))}
             </div>
+          </div>
+        )}
 
-            {/* General Dictionary Definition (if provided) */}
-            {explanation.literalMeaning && (
-              <div className="bg-slate-50/90 border border-slate-200/80 rounded-xl p-3">
-                <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                  <BookOpen className="w-3 h-3 text-slate-400" />
-                  <span>字面 / 通用词典释义</span>
-                </div>
-                <p className="text-xs text-slate-700 font-medium leading-relaxed">
-                  {explanation.literalMeaning}
-                </p>
-              </div>
-            )}
-
-            {/* Context Nuance & Explanation */}
-            {explanation.contextExplanation && (
-              <div className="bg-amber-50/70 border border-amber-200/80 rounded-xl p-3 text-xs leading-relaxed">
-                <div className="flex items-center gap-1.5 font-bold text-amber-800 mb-1 text-[11px]">
-                  <Lightbulb className="w-3 h-3 text-amber-600" />
-                  <span>语境细微差别与用法辨析</span>
-                </div>
-                <p className="text-amber-900 font-medium">{explanation.contextExplanation}</p>
+        {/* Examples — collapsed behind a single line by default */}
+        {examplesList.length > 0 && (
+          <div>
+            <button
+              onClick={() => setExamplesOpen((o) => !o)}
+              className="flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-indigo-600 transition-colors cursor-pointer select-none"
+            >
+              <ChevronRight className={`w-3.5 h-3.5 transition-transform ${examplesOpen ? 'rotate-90' : ''}`} />
+              <span>{examplesList.length} 条例句</span>
+            </button>
+            {examplesOpen && (
+              <div className="mt-1.5 space-y-1.5">
+                {examplesList.map((ex: any, idx: number) => {
+                  const src = ex.source || ex.original;
+                  const tgt = ex.target || ex.translation;
+                  return (
+                    <div key={idx} className="text-xs space-y-0.5 border-l-2 border-indigo-200 pl-2.5">
+                      <p className="text-slate-900 font-semibold leading-relaxed">{src}</p>
+                      <p className="text-indigo-700 leading-relaxed font-medium">{tgt}</p>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
         )}
-
-        {activeTab === 'collocations' && (
-          <div className="space-y-2.5">
-            {/* Collocations */}
-            {explanation.collocations && explanation.collocations.length > 0 && (
-              <div className="bg-slate-50/90 border border-slate-200/80 rounded-xl p-3">
-                <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider block mb-2 flex items-center gap-1">
-                  <ArrowRight className="w-3 h-3 text-emerald-600" />
-                  常用搭配 (Common Collocations)
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {explanation.collocations.map((col, idx) => (
-                    <span
-                      key={idx}
-                      className="px-2.5 py-0.5 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200/80 shadow-2xs"
-                    >
-                      {col}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Synonyms */}
-            {explanation.synonymsInContext && explanation.synonymsInContext.length > 0 && (
-              <div className="bg-slate-50/90 border border-slate-200/80 rounded-xl p-3">
-                <span className="text-[11px] font-bold text-purple-800 uppercase tracking-wider block mb-2 flex items-center gap-1">
-                  <Layers className="w-3 h-3 text-purple-600" />
-                  语境近义词 (Contextual Synonyms)
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {explanation.synonymsInContext.map((syn, idx) => (
-                    <span
-                      key={idx}
-                      className="px-2 py-0.5 rounded-lg text-xs font-semibold bg-purple-50 text-purple-800 border border-purple-200/80"
-                    >
-                      {syn}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Antonyms */}
-            {explanation.antonyms && explanation.antonyms.length > 0 && (
-              <div className="bg-slate-50/90 border border-slate-200/80 rounded-xl p-3">
-                <span className="text-[11px] font-bold text-rose-800 uppercase tracking-wider block mb-2 flex items-center gap-1">
-                  <X className="w-3 h-3 text-rose-600" />
-                  反义词 (Antonyms)
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {explanation.antonyms.map((ant, idx) => (
-                    <span
-                      key={idx}
-                      className="px-2 py-0.5 rounded-lg text-xs font-semibold bg-rose-50 text-rose-800 border border-rose-200/80"
-                    >
-                      {ant}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === 'examples' && (
-          <div className="space-y-2.5">
-            {examplesList.length > 0 ? (
-              examplesList.map((ex: any, idx: number) => {
-                const src = ex.source || ex.original;
-                const tgt = ex.target || ex.translation;
-                return (
-                  <div
-                    key={idx}
-                    className="p-2.5 bg-slate-50/90 border border-slate-200/80 rounded-xl text-xs space-y-1 hover:border-indigo-300 transition-colors"
-                  >
-                    <p className="text-slate-900 font-semibold leading-relaxed flex items-start gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 shrink-0" />
-                      <span>{src}</span>
-                    </p>
-                    <p className="text-indigo-700 pl-3 leading-relaxed font-medium">{tgt}</p>
-                  </div>
-                );
-              })
-            ) : (
-              <p className="text-xs text-slate-400 italic py-2 text-center">暂无例句数据</p>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Footer Actions */}
-      <div className="px-3.5 py-2 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between text-xs shrink-0">
-        <div className="text-[10px] text-slate-400 font-medium">
-          按 <kbd className="px-1 py-0.5 bg-slate-200 text-slate-700 rounded text-[9px] font-mono">Esc</kbd> 退出
-        </div>
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={handlePlayWordAudio}
-            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
-              wordPhase
-                ? 'bg-indigo-600 text-white border-indigo-500 shadow-xs'
-                : 'text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border-indigo-200/80'
-            }`}
-            title="朗读单词发音"
-          >
-            <Volume2 className="w-3 h-3" />
-            <span>{wordPhase ? '播放中' : '发音'}</span>
-          </button>
-
-          <button
-            onClick={handleCopyFull}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 transition-all cursor-pointer shadow-2xs"
-            title="复制完整释义"
-          >
-            {copiedFull ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-            <span>{copiedFull ? '已复制' : '复制释义'}</span>
-          </button>
-        </div>
       </div>
     </div>
   );

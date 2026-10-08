@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Volume2, Loader2, Copy, Check, Eraser, RefreshCw, Settings, History, Sparkles, X, ArrowRightLeft, Zap } from 'lucide-react';
+import { Volume2, Loader2, Copy, Check, Eraser, RefreshCw, Settings, History, Sparkles, X, ArrowRightLeft, Zap, PencilLine } from 'lucide-react';
 import { AppSettings, TranslationResult, WordExplanation } from '../types';
 import { audioPlayer } from '../utils/audio';
 import { consumeSSE, extractPartialTranslation } from '../services/streaming';
@@ -116,16 +116,13 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
 
   // Intelligent adaptive height split when user hasn't explicitly locked a custom split
   const effectiveVSplitPercent = React.useMemo(() => {
-    // Dictionary mode: the source sentence is already quoted inside the word
-    // card, so collapse the source box and give the dictionary panel the space.
-    if (selectedWord) return 24;
     if (userCustomVSplit) return vSplitPercent;
     const len = sourceText.trim().length;
     if (len === 0) return 38;
     if (len <= 80) return 30; // Short text: give 70% space to result & dictionary
     if (len <= 250) return 38;
     return 45; // Long text: balanced 45:55
-  }, [sourceText, userCustomVSplit, vSplitPercent, selectedWord]);
+  }, [sourceText, userCustomVSplit, vSplitPercent]);
 
   useEffect(() => {
     try {
@@ -517,6 +514,32 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
     }
   };
 
+  /** Clears the selected word and returns to the sentence translation view. */
+  const clearWordSelection = () => {
+    setSelectedWord(null);
+    setWordExplanation(null);
+  };
+
+  /**
+   * One-line context strip shown in popup word-lookup mode: the source
+   * sentence collapsed to a single line with the selected word highlighted.
+   */
+  const renderContextSentence = () => {
+    const sentence = (sourceText || result?.sourceText || '').replace(/\s+/g, ' ').trim();
+    const w = selectedWord || '';
+    const idx = w ? sentence.toLowerCase().indexOf(w.toLowerCase()) : -1;
+    if (idx === -1) return <span className="italic">“{sentence}”</span>;
+    return (
+      <span className="italic">
+        “{sentence.slice(0, idx)}
+        <mark className="bg-indigo-100 text-indigo-700 font-bold rounded px-0.5 not-italic">
+          {sentence.slice(idx, idx + w.length)}
+        </mark>
+        {sentence.slice(idx + w.length)}”
+      </span>
+    );
+  };
+
   // Selection detection helper for textarea or text selection
   const detectSelection = () => {
     const selection = window.getSelection()?.toString().trim();
@@ -729,7 +752,26 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
         }
         style={{ '--split': `${splitPercent}%` } as React.CSSProperties}
       >
-        {/* LEFT / TOP COLUMN: SOURCE INPUT BOX */}
+        {/* LEFT / TOP COLUMN: SOURCE INPUT BOX — in popup word-lookup mode the
+            whole box collapses to a one-line context strip so the word view
+            below gets almost all the vertical space. */}
+        {isPopup && selectedWord ? (
+          <div className="shrink-0 flex items-center gap-2 pl-3 pr-1.5 py-1.5 bg-white border border-slate-200/90 rounded-xl shadow-2xs select-none">
+            <span
+              className="flex-1 min-w-0 text-xs text-slate-500 truncate whitespace-nowrap"
+              title={(sourceText || result?.sourceText || '').replace(/\s+/g, ' ').trim()}
+            >
+              {renderContextSentence()}
+            </span>
+            <button
+              onClick={clearWordSelection}
+              className="p-1 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors cursor-pointer shrink-0"
+              title="返回编辑原文 / 整句翻译"
+            >
+              <PencilLine className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ) : (
         <div
           style={isPopup ? { flex: `0 0 calc(${effectiveVSplitPercent}% - 6px)` } : undefined}
           className={`bg-white border border-slate-200/90 rounded-2xl shadow-2xs overflow-hidden flex flex-col justify-between focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/10 transition-all ${
@@ -820,9 +862,11 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             </div>
           </div>
         </div>
+        )}
 
-        {/* Vertical drag handle in popup mode */}
-        {isPopup && (
+        {/* Vertical drag handle in popup mode (hidden while a word is selected —
+            the context strip has a fixed height so there is nothing to drag) */}
+        {isPopup && !selectedWord && (
           <div
             onPointerDown={handleVSplitPointerDown}
             onPointerMove={handleVSplitPointerMove}
@@ -868,15 +912,10 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             <WordContextCard
               explanation={wordExplanation}
               loading={explainingWord}
-              onClose={() => {
-                setSelectedWord(null);
-                setWordExplanation(null);
-              }}
-              onSwitchToTranslate={() => {
-                setSelectedWord(null);
-                setWordExplanation(null);
-              }}
-              sentence={sourceText || result?.sourceText || ''}
+              word={selectedWord}
+              onClose={clearWordSelection}
+              onSwitchToTranslate={clearWordSelection}
+              sentence={isPopup ? undefined : (sourceText || result?.sourceText || '')}
               settings={settings}
             />
           ) : loading ? (
