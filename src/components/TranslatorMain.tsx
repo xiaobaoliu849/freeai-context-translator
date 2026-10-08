@@ -430,13 +430,13 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
 
   // Auto-translate debounce
   useEffect(() => {
-    if (settings.autoTranslate && sourceText.trim().length > 1) {
+    if (settings.autoTranslate && !selectedWord && sourceText.trim().length > 1) {
       const timer = setTimeout(() => {
         handleTranslate();
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [sourceText, sourceLang, targetLang, settings.autoTranslate, activeProvider, activeConfig.model]);
+  }, [sourceText, sourceLang, targetLang, settings.autoTranslate, activeProvider, activeConfig.model, selectedWord]);
 
   // Auto-grow the input textarea with its content (90px → 260px). Skipped in
   // the compact popup, where the textarea scrolls inside a fixed-height pane.
@@ -812,7 +812,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
           </span>
           <div className="flex items-center gap-2">
             {selectedWord ? (
-              <button type="button" onClick={() => { clearWordSelection(); handleTranslate(); }}
+              <button type="button" onClick={() => { clearWordSelection(); if (!result?.translation || result.sourceText !== sourceText) handleTranslate(); }}
                 className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-semibold text-indigo-700 hover:bg-indigo-50">
                 改看翻译
               </button>
