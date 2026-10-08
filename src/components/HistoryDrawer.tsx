@@ -45,6 +45,8 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [playPhase, setPlayPhase] = useState<'generating' | 'playing' | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const drawerRef = React.useRef<HTMLDivElement>(null);
+  const closeRef = React.useRef<HTMLButtonElement>(null);
 
   React.useEffect(() => {
     if (!isOpen) {
@@ -52,6 +54,13 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
       setPlayingId(null);
       setPlayPhase(null);
     }
+  }, [isOpen]);
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const before = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    closeRef.current?.focus();
+    return () => { if (before?.isConnected) before.focus(); };
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -145,7 +154,20 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex justify-end">
-      <div className="yumai-history-drawer bg-white border-l border-slate-200 w-full max-w-lg h-full flex flex-col p-5 shadow-xl text-slate-800" role="dialog" aria-modal="true" aria-label="翻译历史">
+      <div ref={drawerRef}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onClose(); return; }
+          if (e.key !== 'Tab') return;
+          const controls = drawerRef.current
+            ? (Array.from(drawerRef.current.querySelectorAll('button:not([disabled]), input:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])')) as HTMLElement[])
+              .filter(el => el.getClientRects().length > 0)
+            : [];
+          if (controls.length < 2) return;
+          if (e.shiftKey && document.activeElement === controls[0]) {e.preventDefault(); controls[controls.length-1].focus();}
+          if (!e.shiftKey && document.activeElement === controls[controls.length-1]) {e.preventDefault(); controls[0].focus();}
+        }}
+        className="yumai-history-drawer bg-white border-l border-slate-200 w-full max-w-lg h-full flex flex-col p-5 shadow-xl text-slate-800"
+        role="dialog" aria-modal="true" aria-label="翻译历史">
         {copyError && <p role="alert" className="text-xs text-rose-700 pb-2">{copyError}</p>}
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-100 relative">
@@ -169,6 +191,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
               </button>
             )}
             <button
+              ref={closeRef}
               onClick={onClose}
               className="p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer" title="关闭" aria-label="关闭翻译历史"
             >
