@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { classifySelection, getReadingSegments } from './selectionMode';
+import { classifySelection, getReadingSegments, normalizeSelectedTerm } from './selectionMode';
 
 test('short terms and phrases open contextual dictionary', () => {
   assert.equal(classifySelection('breakthrough'), 'term');
@@ -23,4 +23,11 @@ test('reading segments preserve offsets for selection and editing', () => {
   const segs = getReadingSegments(text);
   assert.deepEqual(segs.map(s => s.text), ['Paragraph one.', 'Paragraph two.', 'Third.']);
   for (const segment of segs) assert.equal(text.slice(segment.start, segment.end), segment.text);
+});
+
+test('selected words preserve Japanese, Korean and accented characters', () => {
+  assert.equal(normalizeSelectedTerm('「こんにちは！」'), 'こんにちは');
+  assert.equal(normalizeSelectedTerm('“안녕하세요”'), '안녕하세요');
+  assert.equal(normalizeSelectedTerm('(résumé)'), 'résumé');
+  assert.equal(normalizeSelectedTerm('重大突破。'), '重大突破');
 });
