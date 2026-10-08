@@ -1,4 +1,4 @@
-// Service Worker for FreeTranslate Chrome Extension
+// Service Worker for 语脉 Chrome Extension
 import { handleBridgePort } from './services/backgroundBridge';
 
 // Long-lived bridge: content script & popup route LLM/TTS work here so API
@@ -9,7 +9,7 @@ function setupContextMenu() {
   chrome.contextMenus.removeAll(() => {
     chrome.contextMenus.create({
       id: 'freetranslate-translate',
-      title: 'FreeTranslate AI',
+      title: '语脉 · 翻译选中文本',
       contexts: ['selection', 'page'],
     });
   });
