@@ -301,7 +301,9 @@ export default function App({
           selectionSignal={selectionSignal}
           selectionContext={selectionContext}
           isPopup={isPopup}
+          isFloating={isFloating}
           workspaceSelection={workspaceSelection}
+          resetSignal={resetSignal}
         />
           </ReadingWorkspaceShell>
         )}
