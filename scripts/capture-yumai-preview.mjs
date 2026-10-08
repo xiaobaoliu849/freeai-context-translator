@@ -228,7 +228,7 @@ try {
   await capture('yumai-workspace-new-document.png');
   console.log('Workspace new-document reset checked');
   // Long-document smoke check: source scrolling must stay inside its card.
-  const LONG_ARTICLE = Array(8).fill(ARTICLE).join('\\n\\n');
+  const LONG_ARTICLE = Array(8).fill(ARTICLE).join('\n\n');
   await command('Runtime.evaluate',{expression:"document.querySelector('textarea').focus(); true",returnByValue:true});
   await command('Input.insertText',{text:LONG_ARTICLE});
   await sleep(550);
