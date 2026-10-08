@@ -107,9 +107,9 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
   const renderHeader = () => {
     const posTag = explanation?.pos || explanation?.partOfSpeech;
     return (
-      <div className="px-3.5 py-2.5 flex items-center gap-2 flex-wrap shrink-0 border-b border-slate-100 bg-white select-none">
+      <div className="px-4 py-3 flex items-center gap-2 flex-wrap shrink-0 border-b border-slate-100 bg-white select-none">
         {displayWord && (
-          <h3 className="text-lg font-semibold tracking-tight leading-tight text-slate-900 truncate">
+          <h3 className="text-lg font-bold tracking-tight leading-tight text-slate-900 truncate">
             {displayWord}
           </h3>
         )}
@@ -118,12 +118,12 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
         <button
           onClick={handlePlayWordAudio}
           disabled={!displayWord && !sentence}
-          className={`p-1 rounded-lg transition-all cursor-pointer disabled:opacity-30 ${
+          className={`p-2 rounded-lg transition-colors cursor-pointer disabled:opacity-30 ${
             wordPhase
               ? 'bg-indigo-100 text-indigo-700'
               : 'text-indigo-600 hover:bg-indigo-50'
           }`}
-          title="播放单词发音"
+          title="播放单词发音" aria-label="播放单词发音"
         >
           {wordPhase === 'generating' ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -165,7 +165,7 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
         <button
           onClick={handleCopyWord}
           disabled={!displayWord}
-          className="p-1 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer disabled:opacity-30"
+          className="p-2 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer disabled:opacity-30"
           title="复制单词" aria-label="复制单词"
         >
           {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
@@ -177,8 +177,8 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
             e.stopPropagation();
             onClose();
           }}
-          className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors cursor-pointer"
-          title="返回整句翻译 (Esc)"
+          className="p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+          title="返回整句翻译 (Esc)" aria-label="关闭词典，返回翻译"
         >
           <X className="w-4 h-4" />
         </button>
@@ -188,7 +188,7 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
 
   if (loading) {
     return (
-      <div className="bg-white text-slate-800 w-full flex-1 min-h-0 flex flex-col overflow-hidden animate-in fade-in duration-200">
+      <div className="yumai-word-card bg-white text-slate-800 w-full flex-1 min-h-0 flex flex-col overflow-hidden">
         {renderHeader()}
         <div className="p-4 space-y-3 animate-pulse select-none">
           <div className="flex items-center gap-2 text-indigo-600 py-1">
@@ -206,7 +206,7 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
 
   if (!explanation) {
     return (
-      <div className="bg-white text-slate-800 w-full flex-1 min-h-0 flex flex-col overflow-hidden animate-in fade-in duration-200">
+      <div className="yumai-word-card bg-white text-slate-800 w-full flex-1 min-h-0 flex flex-col overflow-hidden">
         {renderHeader()}
         <div className="flex-1 p-4 text-center space-y-3 flex flex-col items-center justify-center select-none">
           <p className="text-xs text-slate-500 font-medium">未能解析单词语境，请重试或返回整句翻译</p>
@@ -241,14 +241,14 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
   const examplesList = explanation.examples || explanation.exampleSentences || [];
 
   return (
-    <div className="bg-white text-slate-800 w-full flex-1 min-h-0 flex flex-col overflow-hidden animate-in fade-in duration-200">
+    <div className="yumai-word-card bg-white text-slate-800 w-full flex-1 min-h-0 flex flex-col overflow-hidden">
       {renderHeader()}
       {copyError && <p role="alert" className="px-3 py-1 text-xs text-rose-700">{copyError}</p>}
 
       {/* Body: the in-context meaning IS the interface (same typography as the
           translation it temporarily replaces). Secondary info stays flat —
           labels + inline chips, no nested boxes. */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-4 select-text">
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4 select-text">
         {/* Original sentence with the word highlighted (desktop only — the popup
             shows a dedicated context strip above instead) */}
         {sentence && sentence.trim() !== displayWord.trim() && (
@@ -258,19 +258,19 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
         )}
 
         {/* In-context meaning — the hero answer */}
-        <section className="bg-indigo-50/50 p-3.5 rounded-xl border border-indigo-100">
+        <section className="bg-indigo-50/60 p-4 rounded-xl border border-indigo-100">
           <div className="flex items-center gap-1.5 text-xs font-semibold mb-1.5 select-none text-indigo-700">
             <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
             <span>句中含义</span>
           </div>
-          <p className="text-lg sm:text-xl font-semibold text-slate-900 leading-snug">
+          <p className="text-xl font-semibold text-slate-900 leading-snug">
             {explanation.contextualMeaning}
           </p>
         </section>
 
         {/* Context nuance */}
         {explanation.contextExplanation && (
-          <div className="text-sm text-slate-600 leading-relaxed">
+          <div className="text-sm text-slate-600 leading-[1.8]">
             <span className="font-semibold text-slate-700 select-none inline-flex items-center gap-1 mr-1">
               <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
               语境辨析 ·
@@ -294,7 +294,7 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
         {(collocations.length > 0 || synonyms.length > 0 || antonyms.length > 0) && (
           <button type="button" aria-expanded={detailsOpen}
             onClick={() => setDetailsOpen(v => !v)}
-            className="flex items-center gap-1.5 rounded-lg px-2 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50">
+            className="flex min-h-9 items-center gap-1.5 rounded-lg px-2 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50">
             <ChevronRight className={`w-3.5 h-3.5 transition-transform ${detailsOpen ? 'rotate-90' : ''}`} />
             {detailsOpen ? '收起词汇信息' : '展开搭配、近义词与反义词'}
           </button>
@@ -355,7 +355,7 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
             <button
               onClick={() => setExamplesOpen((o) => !o)}
               aria-expanded={examplesOpen}
-              className="flex items-center gap-1 text-xs font-bold text-slate-600 hover:text-indigo-600 transition-colors cursor-pointer select-none"
+              className="flex items-center gap-1.5 min-h-9 text-xs font-semibold text-slate-600 hover:text-indigo-600 transition-colors cursor-pointer select-none"
             >
               <ChevronRight className={`w-3.5 h-3.5 text-indigo-500 transition-transform ${examplesOpen ? 'rotate-90' : ''}`} />
               <span>{examplesList.length} 条例句参考</span>
