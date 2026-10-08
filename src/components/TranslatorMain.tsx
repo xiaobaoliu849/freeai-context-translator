@@ -1016,7 +1016,18 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             onPointerUp={handleVSplitPointerUp}
             onPointerCancel={handleVSplitPointerUp}
             onDoubleClick={handleResetAdaptiveSplit}
-            className="h-3 flex items-center justify-center cursor-row-resize touch-none group select-none py-1 shrink-0"
+            onKeyDown={(e) => {
+              if (e.key === 'Home') { e.preventDefault(); handleResetAdaptiveSplit(); return; }
+              const delta = e.key === 'ArrowDown' ? 3 : e.key === 'ArrowUp' ? -3 : 0;
+              if (!delta) return;
+              e.preventDefault();
+              setVSplitPercent(Math.max(20, Math.min(75, effectiveVSplitPercent + delta)));
+              setUserCustomVSplit(true);
+              localStorage.setItem('freetranslate_vsplit_custom', 'true');
+            }}
+            role="separator" aria-label="原文和译文高度比例" aria-orientation="horizontal"
+            aria-valuenow={effectiveVSplitPercent} aria-valuemin={20} aria-valuemax={75} tabIndex={0}
+            className="h-3 flex items-center justify-center cursor-row-resize touch-none group select-none py-1 shrink-0 focus-visible:outline-2 focus-visible:outline-indigo-500"
             title={userCustomVSplit ? '拖动调整高度 (双击恢复智能自适应)' : '智能自适应高度 (拖动可手动调整)'}
           >
             <div className={`h-[3px] rounded-full transition-all ${
@@ -1032,7 +1043,16 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             onPointerMove={handleSplitPointerMove}
             onPointerUp={handleSplitPointerUp}
             onPointerCancel={handleSplitPointerUp}
-            className="hidden md:flex items-center justify-center cursor-col-resize touch-none group select-none"
+            onKeyDown={(e) => {
+              const delta = e.key === 'ArrowRight' ? 3 : e.key === 'ArrowLeft' ? -3 : 0;
+              if (e.key === 'Home') { e.preventDefault(); setSplitPercent(50); return; }
+              if (!delta) return;
+              e.preventDefault();
+              setSplitPercent(current => Math.max(20, Math.min(80, current + delta)));
+            }}
+            role="separator" aria-label="原文和译文宽度比例" aria-orientation="vertical"
+            aria-valuenow={splitPercent} aria-valuemin={20} aria-valuemax={80} tabIndex={0}
+            className="hidden md:flex items-center justify-center cursor-col-resize touch-none group select-none focus-visible:outline-2 focus-visible:outline-indigo-500"
             title="拖动调整左右面板宽度"
           >
             <div className={`w-[3px] h-16 rounded-full transition-all ${
