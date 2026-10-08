@@ -567,29 +567,51 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
     );
   };
 
-  // Selection detection helper for textarea or text selection
-  const detectSelection = () => {
-    const selection = window.getSelection()?.toString().trim();
-    if (selection && selection.length > 0 && selection.length < 80) {
-      handleSelectWord(selection);
+  // Explicit selections choose a relevant view; history retranslation remains separate.
+  const handledSelectionRef = useRef(0);
+  useEffect(() => {
+    if (!selectionSignal || handledSelectionRef.current === selectionSignal) return;
+    handledSelectionRef.current = selectionSignal;
+    if (!sourceText.trim()) return;
+    setReadingOutlineOpen(false);
+    if (classifySelection(sourceText) === 'term') {
+      handleSelectWord(sourceText, selectionContext || sourceText);
+    } else {
+      clearWordSelection();
+      handleTranslate();
     }
-  };
+  }, [selectionSignal]);
 
   const handleTextareaSelect = (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
+    if (skipSelectionRef.current) return;
     const target = e.currentTarget;
     const start = target.selectionStart;
     const end = target.selectionEnd;
-    if (start !== undefined && end !== undefined && start !== end) {
-      const selectedText = target.value.substring(start, end).trim();
-      if (selectedText && selectedText.length > 0 && selectedText.length < 80) {
-        handleSelectWord(selectedText);
-        return;
+    if (start !== end) {
+      const highlighted = target.value.substring(start, end).trim();
+      if (!highlighted) return;
+      if (classifySelection(highlighted) === 'term') {
+        const nearby = target.value.slice(Math.max(0, start - 140), Math.min(target.value.length, end + 140));
+        handleSelectWord(highlighted, nearby);
+      } else {
+        clearWordSelection();
+        setActiveSelection(highlighted);
       }
+      return;
     }
-    if (start === end && selectedWord) {
-      setSelectedWord(null);
-      setWordExplanation(null);
-    }
+    setActiveSelection('');
+    if (selectedWord) clearWordSelection();
+  };
+
+  const focusReadingSegment = (start: number, end: number) => {
+    const editor = textareaRef.current;
+    if (!editor) return;
+    // Navigation should not trigger word-lookup during programmatic selection.
+    skipSelectionRef.current = true;
+    editor.focus();
+    editor.setSelectionRange(start, end);
+    setActiveSelection(sourceText.slice(start, end));
+    window.setTimeout(() => { skipSelectionRef.current = false; }, 80);
   };
 
   const handlePlayAudio = (text: string, lang: string, target: 'source' | 'target') => {
@@ -643,7 +665,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
     // Enter inserts a newline; Ctrl/Cmd+Enter translates.
     if (e.key !== 'Enter' || (!e.ctrlKey && !e.metaKey) || e.shiftKey || e.nativeEvent.isComposing) return;
     e.preventDefault();
-    handleTranslate();
+    handleTranslate(activeSelection || undefined);
   };
 
   return (
@@ -780,6 +802,50 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
         </div>
       )}
 
+      {/* Auto-detected content intent with an explicit manual override. */}
+      {sourceText.trim() && (
+        <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs" aria-live="polite">
+          <span className="text-slate-500">
+            <Sparkles className="w-3.5 h-3.5 inline text-indigo-500 mr-1" />
+            智能识别：{selectedWord ? '词语释义' : selectionKind === 'passage' ? '长文阅读' : selectionKind === 'term' ? '短语' : '句子翻译'}
+          </span>
+          <div className="flex items-center gap-2">
+            {selectedWord ? (
+              <button type="button" onClick={() => { clearWordSelection(); handleTranslate(); }}
+                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-semibold text-indigo-700 hover:bg-indigo-50">
+                改看翻译
+              </button>
+            ) : selectionKind === 'term' ? (
+              <button type="button" onClick={() => handleSelectWord(sourceText, selectionContext || sourceText)}
+                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-semibold text-indigo-700 hover:bg-indigo-50">
+                查看语境释义
+              </button>
+            ) : null}
+            {selectionKind === 'passage' && (
+              <button type="button" onClick={() => setReadingOutlineOpen(v => !v)}
+                aria-expanded={readingOutlineOpen}
+                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-semibold text-indigo-700 hover:bg-indigo-50">
+                {readingOutlineOpen ? '收起段落' : '段落导航'}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      {selectionKind === 'passage' && readingOutlineOpen && (
+        <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm space-y-2">
+          <p className="text-xs font-semibold text-slate-600">原文段落导航（不与机器译文强行对应）</p>
+          <div className="flex flex-wrap gap-2">
+            {readingSegments.map((segment, index) => (
+              <button type="button" key={segment.start}
+                onClick={() => focusReadingSegment(segment.start, segment.end)}
+                title={segment.text} className="max-w-full truncate rounded-lg bg-slate-100 px-3 py-2 text-xs text-slate-700 hover:bg-indigo-50 hover:text-indigo-700">
+                {index + 1}. {segment.text.slice(0, 36)}{segment.text.length > 36 ? '…' : ''}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-slate-400">定位后可单独翻译所选片段。最多展示前 8 段。</p>
+        </div>
+      )}
       {/* 2 & 3. DUAL STUDIO TRANSLATION WORKSPACE — the drag handle resizes the split */}
       <div
         ref={workspaceRef}
@@ -822,6 +888,8 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             value={sourceText}
             onChange={(e) => {
               setSourceText(e.target.value);
+              setActiveSelection('');
+              setReadingOutlineOpen(false);
               if (selectedWord) {
                 setSelectedWord(null);
                 setWordExplanation(null);
@@ -829,8 +897,6 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             }}
             onSelect={handleTextareaSelect}
             onKeyDown={handleTextareaKeyDown}
-            onDoubleClick={detectSelection}
-            onMouseUp={detectSelection}
             placeholder="输入或粘贴文本，选中单词可查看语境释义...（Ctrl+Enter 翻译）"
             className={`${
               isPopup
@@ -842,6 +908,13 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
           {/* Input Box Actions Toolbar */}
           <div className="flex items-center justify-between px-3.5 py-2 border-t border-slate-100 bg-gradient-to-r from-slate-50/80 to-indigo-50/40 text-slate-500 text-xs">
             <div className="flex items-center gap-1.5">
+              {activeSelection && (
+                <button type="button" onClick={() => handleTranslate(activeSelection)}
+                  className="rounded-lg bg-indigo-50 px-2 py-1 font-semibold text-indigo-700 hover:bg-indigo-100"
+                  title="仅翻译当前高亮选中的句子或段落">
+                  翻译所选内容
+                </button>
+              )}
               {settings.autoTranslate && (
                 <button
                   onClick={openSettings}
@@ -958,7 +1031,8 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
               word={selectedWord}
               onClose={clearWordSelection}
               onSwitchToTranslate={clearWordSelection}
-              sentence={isPopup ? undefined : (sourceText || result?.sourceText || '')}
+              sentence={wordContext || sourceText || result?.sourceText || ''}
+              onRetry={() => handleSelectWord(selectedWord, wordContext)}
               settings={settings}
             />
           ) : loading ? (
@@ -969,7 +1043,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                   <div className="flex items-center justify-between pb-1.5">
                     <span className="uppercase tracking-wider font-extrabold flex items-center gap-1 bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">
                       <Sparkles className="w-3 h-3 text-violet-500" />
-                      翻译结果
+                      {result?.sourceText && result.sourceText !== sourceText ? '所选内容译文' : '翻译结果'}
                     </span>
                     <span className="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md font-medium">生成中…</span>
                   </div>
@@ -998,7 +1072,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                   <div className="flex items-center justify-between pb-1.5">
                     <span className="uppercase tracking-wider font-extrabold flex items-center gap-1 bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">
                       <Sparkles className="w-3 h-3 text-violet-500" />
-                      翻译结果
+                      {result?.sourceText && result.sourceText !== sourceText ? '所选内容译文' : '翻译结果'}
                     </span>
                     {result?.detectedLang && (
                       <span className="text-xs text-slate-500">
