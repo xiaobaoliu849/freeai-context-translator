@@ -442,15 +442,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             }
           }
         }}
-        className="bg-white border border-slate-200 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] text-slate-800 animate-in fade-in zoom-in-95 duration-150"
+        className="yumai-settings-panel bg-white border border-slate-200 rounded-2xl w-full max-w-2xl shadow-xl overflow-hidden flex flex-col max-h-[92vh] text-slate-800"
       >
         {/* Gradient hairline pop */}
-        <div className="h-[2px] bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-400 opacity-90" />
+        <div className="h-[1px] bg-slate-100" />
 
         {/* Modal Header */}
         <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
           <div className="flex items-center gap-2.5">
-            <div className="p-1.5 rounded-xl bg-gradient-to-br from-indigo-500 via-violet-500 to-fuchsia-500 text-white shadow-sm shadow-indigo-500/30 shrink-0">
+            <div className="p-2 rounded-xl bg-indigo-50 text-indigo-700 shrink-0">
               <Cpu className="w-4 h-4" />
             </div>
             <div>
@@ -469,7 +469,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         {/* Navigation Tabs (Strictly Single Line) */}
-        <div className="flex border-b border-slate-100 bg-white px-5 gap-4 sm:gap-6 text-xs font-semibold overflow-x-auto no-scrollbar">
+        <div className="yumai-settings-tabs flex border-b border-slate-100 bg-white px-5 gap-3 sm:gap-5 text-xs font-semibold overflow-x-auto no-scrollbar" role="tablist" aria-label="设置分类">
           {[
             { id: 'providers', label: '快速开始', icon: Sparkles },
             { id: 'general', label: '翻译偏好', icon: Sliders },
@@ -481,15 +481,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             return (
               <button
                 key={tab.id}
+                role="tab"
+                id={`yumai-tab-${tab.id}`}
+                aria-controls="yumai-settings-section"
+                aria-selected={isActive}
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`py-2.5 flex items-center gap-1.5 transition-all border-b-2 whitespace-nowrap shrink-0 cursor-pointer ${
                   isActive
-                    ? 'border-indigo-600 font-black'
+                    ? 'border-indigo-600 font-semibold text-indigo-700'
                     : 'text-slate-500 border-transparent hover:text-slate-800'
                 }`}
               >
                 <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-violet-600' : ''}`} />
-                <span className={isActive ? 'bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent' : ''}>
+                <span>
                   {tab.label}
                 </span>
               </button>
@@ -498,7 +502,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         {/* Modal Body */}
-        <div className="p-5 overflow-y-auto space-y-4 text-xs text-slate-600 flex-1">
+        <div id="yumai-settings-section" role="tabpanel" aria-labelledby={`yumai-tab-${activeTab}`} className="yumai-settings-body p-5 overflow-y-auto space-y-4 text-sm text-slate-600 flex-1">
           {activeTab === 'providers' && (
             <div className="space-y-3.5 max-w-xl mx-auto py-1">
               <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 px-3 py-2.5">
@@ -1085,19 +1089,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="px-5 py-3 border-t border-slate-100 bg-slate-50/70 flex items-center justify-between">
-          <span className="text-[11px] text-slate-400 font-medium">API Key 保存在本地浏览器（未额外加密）</span>
+        <div className="yumai-settings-footer px-5 py-3 border-t border-slate-100 bg-white flex items-center justify-between gap-3">
+          <span className="text-xs text-slate-500 font-medium max-w-[240px] leading-relaxed">API Key 保存在本地浏览器（未额外加密）</span>
           <div className="flex items-center gap-2">
             <button
               onClick={onClose}
-              className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-200/80 transition-all cursor-pointer shadow-2xs"
+              className="px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-colors cursor-pointer"
             >
               取消
             </button>
             <button
               id="save-settings-btn"
               onClick={handleSave}
-              className="px-5 py-2 rounded-xl text-xs font-black text-white bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 hover:from-indigo-700 hover:via-violet-700 hover:to-fuchsia-700 flex items-center gap-1.5 shadow-md shadow-indigo-500/35 hover:shadow-lg hover:shadow-indigo-500/40 hover:scale-[1.02] active:scale-98 transition-all cursor-pointer"
+              className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-[#4958ba] hover:bg-[#34469f] flex items-center gap-1.5 transition-colors cursor-pointer"
             >
               {savedSuccess ? (
                 <>
