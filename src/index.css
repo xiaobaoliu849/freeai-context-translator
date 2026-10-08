@@ -31,7 +31,7 @@
   }
 }
 
-/* Elegant thin scrollbar for extension popup and text containers */
+/* Elegant thin scrollbar with a subtle brand-gradient thumb */
 ::-webkit-scrollbar {
   width: 5px;
   height: 5px;
@@ -40,11 +40,20 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.35);
+  background: linear-gradient(180deg, rgba(129, 140, 248, 0.5), rgba(192, 132, 252, 0.5));
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(99, 102, 241, 0.6);
+  background: linear-gradient(180deg, rgba(99, 102, 241, 0.85), rgba(168, 85, 247, 0.85));
+}
+
+/* Brand-colored text selection & caret for a cohesive feel */
+::selection {
+  background: rgba(99, 102, 241, 0.22);
+  color: #1e1b4b;
+}
+textarea {
+  caret-color: #7c3aed;
 }
 
 /* Ensure smooth text rendering without subpixel clipping */

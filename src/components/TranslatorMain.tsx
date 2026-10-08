@@ -532,7 +532,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
     return (
       <span className="italic">
         “{sentence.slice(0, idx)}
-        <mark className="bg-indigo-100 text-indigo-700 font-bold rounded px-0.5 not-italic">
+        <mark className="bg-gradient-to-r from-indigo-100 to-violet-100 text-indigo-700 font-bold rounded px-0.5 not-italic border-b-2 border-violet-300">
           {sentence.slice(idx, idx + w.length)}
         </mark>
         {sentence.slice(idx + w.length)}”
@@ -615,14 +615,14 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
       : 'max-w-[1400px] mx-auto px-3 sm:px-6 py-3 sm:py-5 flex flex-col gap-3 sm:gap-4'
     }>
       {/* 1. ELEGANT LANGUAGE SELECTOR TOOLBAR */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl p-2 sm:p-2.5 shadow-2xs flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
+      <div className="bg-white/90 backdrop-blur-sm border border-slate-200/90 rounded-2xl p-2 sm:p-2.5 shadow-sm shadow-slate-200/60 flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
         {/* Source Language Select */}
         <div className="flex items-center gap-1 flex-1 min-w-[120px]">
           {!isPopup && <span className="text-[11px] font-extrabold text-slate-400 pl-1 uppercase tracking-wider hidden sm:inline">From</span>}
           <select
             value={sourceLang}
             onChange={(e) => setSourceLang(e.target.value)}
-            className="bg-slate-50 hover:bg-slate-100 text-slate-800 text-xs font-bold px-2 py-1.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer w-full transition-colors"
+            className="bg-slate-50 hover:bg-indigo-50/70 text-slate-800 text-xs font-bold px-2 py-1.5 rounded-xl border border-slate-200 hover:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 focus:border-indigo-400 cursor-pointer w-full transition-all"
           >
             <option value="auto">自动识别 (Auto)</option>
             {languages.map((l) => (
@@ -636,7 +636,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
         {/* Swap Button */}
         <button
           onClick={onSwapLanguages}
-          className="p-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl border border-slate-200/90 transition-all cursor-pointer shadow-2xs hover:scale-105 active:scale-95 shrink-0"
+          className="p-1.5 text-white bg-gradient-to-br from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 rounded-xl transition-all cursor-pointer shadow-md shadow-indigo-500/30 hover:shadow-lg hover:shadow-indigo-500/40 hover:scale-110 active:scale-95 shrink-0"
           title="互换语言"
         >
           <ArrowRightLeft className="w-3.5 h-3.5" />
@@ -648,7 +648,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
           <select
             value={targetLang}
             onChange={(e) => setTargetLang(e.target.value)}
-            className="bg-slate-50 hover:bg-slate-100 text-slate-800 text-xs font-bold px-2 py-1.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer w-full transition-colors"
+            className="bg-slate-50 hover:bg-violet-50/70 text-slate-800 text-xs font-bold px-2 py-1.5 rounded-xl border border-slate-200 hover:border-violet-300 focus:outline-none focus:ring-2 focus:ring-violet-500/25 focus:border-violet-400 cursor-pointer w-full transition-all"
           >
             {languages.map((l) => (
               <option key={l.code} value={l.code}>
@@ -684,10 +684,10 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
         <button
           onClick={() => (loading ? handleStop() : handleTranslate())}
           disabled={!sourceText.trim()}
-          className={`flex items-center justify-center gap-1.5 text-white text-xs font-extrabold px-3.5 py-1.5 rounded-xl transition-all shadow-2xs hover:shadow-xs disabled:opacity-40 cursor-pointer shrink-0 ${
+          className={`flex items-center justify-center gap-1.5 text-white text-xs font-extrabold px-3.5 py-1.5 rounded-xl transition-all hover:scale-[1.04] active:scale-95 disabled:opacity-40 disabled:hover:scale-100 disabled:shadow-none cursor-pointer shrink-0 ${
             loading
-              ? 'bg-rose-500 hover:bg-rose-600'
-              : 'bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700'
+              ? 'bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 shadow-md shadow-rose-500/30'
+              : 'bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 hover:from-indigo-700 hover:via-violet-700 hover:to-fuchsia-700 shadow-md shadow-indigo-500/40 hover:shadow-lg hover:shadow-violet-500/40'
           }`}
           title={loading ? '停止生成' : '快捷键: Enter（Shift+Enter 换行）'}
         >
@@ -698,7 +698,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             </>
           ) : (
             <>
-              <Sparkles className="w-3.5 h-3.5 text-indigo-200 shrink-0" />
+              <Sparkles className="w-3.5 h-3.5 text-fuchsia-200 shrink-0" />
               <span>翻译</span>
             </>
           )}
@@ -707,12 +707,12 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
 
       {/* ERROR MESSAGE ALERT */}
       {error && (
-        <div className="bg-rose-50 border border-rose-200/90 text-rose-800 text-xs rounded-xl p-2.5 flex items-start justify-between gap-2 animate-in fade-in slide-in-from-top-1 shadow-2xs max-w-full overflow-hidden shrink-0">
+        <div className="bg-gradient-to-r from-rose-50 via-rose-50/70 to-pink-50 border border-rose-200 text-rose-800 text-xs rounded-2xl p-2.5 sm:p-3 flex items-start justify-between gap-2.5 animate-in fade-in slide-in-from-top-1 shadow-sm shadow-rose-200/40 max-w-full overflow-hidden shrink-0">
           <div className="flex items-start gap-2 min-w-0 flex-1 overflow-hidden">
-            <span className="font-extrabold bg-rose-200 text-rose-900 rounded-md px-1.5 py-0.5 text-[10px] uppercase tracking-wider shrink-0 mt-0.5">
+            <span className="font-extrabold bg-gradient-to-r from-rose-500 to-pink-500 text-white rounded-md px-1.5 py-0.5 text-[10px] uppercase tracking-wider shrink-0 mt-0.5 shadow-2xs">
               错误
             </span>
-            <p className="leading-snug font-medium text-[11px] break-all flex-1 select-text">
+            <p className="leading-snug font-medium text-[11px] break-all flex-1 select-text text-rose-900">
               {error}
             </p>
           </div>
@@ -727,14 +727,14 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
               error.includes('billing')) && (
               <button
                 onClick={openSettings}
-                className="bg-rose-600 hover:bg-rose-700 text-white font-bold px-2 py-1 rounded-lg text-[11px] cursor-pointer shadow-2xs transition-colors whitespace-nowrap"
+                className="bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 text-white font-extrabold px-2.5 py-1 rounded-xl text-[11px] cursor-pointer shadow-sm shadow-rose-500/30 hover:scale-105 active:scale-95 transition-all whitespace-nowrap"
               >
                 ⚙️ 设置 Key / 模型
               </button>
             )}
             <button
               onClick={() => setError(null)}
-              className="p-1 hover:bg-rose-100 rounded-lg text-rose-500 hover:text-rose-800 transition-colors cursor-pointer"
+              className="p-1 hover:bg-rose-100/80 rounded-lg text-rose-500 hover:text-rose-800 transition-colors cursor-pointer"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -756,25 +756,26 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             whole box collapses to a one-line context strip so the word view
             below gets almost all the vertical space. */}
         {isPopup && selectedWord ? (
-          <div className="shrink-0 flex items-center gap-2 pl-3 pr-1.5 py-1.5 bg-white border border-slate-200/90 rounded-xl shadow-2xs select-none">
+          <div className="shrink-0 flex items-center justify-between gap-2 pl-3 pr-1.5 py-1.5 bg-gradient-to-r from-indigo-50/80 via-white to-violet-50/60 border border-indigo-200/90 rounded-xl shadow-2xs select-none">
             <span
-              className="flex-1 min-w-0 text-xs text-slate-500 truncate whitespace-nowrap"
+              className="flex-1 min-w-0 text-xs text-slate-600 truncate whitespace-nowrap font-medium"
               title={(sourceText || result?.sourceText || '').replace(/\s+/g, ' ').trim()}
             >
               {renderContextSentence()}
             </span>
             <button
               onClick={clearWordSelection}
-              className="p-1 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors cursor-pointer shrink-0"
+              className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-bold text-indigo-700 bg-indigo-100/70 hover:bg-indigo-200/80 transition-all cursor-pointer shrink-0 shadow-2xs hover:scale-105 active:scale-95"
               title="返回编辑原文 / 整句翻译"
             >
-              <PencilLine className="w-3.5 h-3.5" />
+              <PencilLine className="w-3 h-3 text-indigo-600" />
+              <span>编辑原文</span>
             </button>
           </div>
         ) : (
         <div
           style={isPopup ? { flex: `0 0 calc(${effectiveVSplitPercent}% - 6px)` } : undefined}
-          className={`bg-white border border-slate-200/90 rounded-2xl shadow-2xs overflow-hidden flex flex-col justify-between focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-500/10 transition-all ${
+          className={`bg-white border border-slate-200/90 rounded-2xl shadow-sm shadow-slate-200/50 hover:shadow-md hover:shadow-indigo-100 overflow-hidden flex flex-col justify-between focus-within:border-indigo-400 focus-within:ring-4 focus-within:ring-indigo-500/15 focus-within:shadow-lg focus-within:shadow-indigo-500/10 transition-all ${
             isPopup ? 'min-h-[85px]' : 'min-h-[240px] sm:min-h-[300px]'
           }`}
         >
@@ -801,7 +802,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
           />
 
           {/* Input Box Actions Toolbar */}
-          <div className="flex items-center justify-between px-3.5 py-2 border-t border-slate-100 bg-slate-50/60 text-slate-500 text-xs">
+          <div className="flex items-center justify-between px-3.5 py-2 border-t border-slate-100 bg-gradient-to-r from-slate-50/80 to-indigo-50/40 text-slate-500 text-xs">
             <div className="flex items-center gap-1.5">
               {settings.autoTranslate && (
                 <button
@@ -824,8 +825,8 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
               <button
                 onClick={() => handlePlayAudio(selectedWord || sourceText, sourceLang, 'source')}
                 disabled={!sourceText.trim() && !selectedWord}
-                className={`p-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1 ${
-                  playingTarget === 'source' ? 'bg-indigo-100 text-indigo-700' : 'hover:bg-slate-200/70 text-slate-600 hover:text-slate-900'
+                className={`p-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                  playingTarget === 'source' ? 'bg-indigo-100 text-indigo-700 shadow-inner' : 'hover:bg-indigo-50 text-slate-500 hover:text-indigo-600'
                 } disabled:opacity-30`}
                 title={selectedWord ? `播放 "${selectedWord}"` : "播放原文"}
               >
@@ -839,7 +840,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
               <button
                 onClick={() => handleCopy(selectedWord || sourceText)}
                 disabled={!sourceText.trim()}
-                className="p-1.5 rounded-lg hover:bg-slate-200/70 text-slate-600 hover:text-slate-900 transition-colors disabled:opacity-30 cursor-pointer"
+                className="p-1.5 rounded-lg hover:bg-emerald-50 text-slate-500 hover:text-emerald-600 transition-all disabled:opacity-30 cursor-pointer"
                 title={selectedWord ? `复制 "${selectedWord}"` : "复制原文"}
               >
                 <Copy className="w-3.5 h-3.5" />
@@ -854,7 +855,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                   try { localStorage.removeItem('freetranslate_draft'); } catch(e){}
                 }}
                 disabled={!sourceText.trim()}
-                className="p-1.5 rounded-lg hover:bg-slate-200/70 text-slate-600 hover:text-slate-900 transition-colors disabled:opacity-30 cursor-pointer"
+                className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-500 hover:text-rose-600 transition-all disabled:opacity-30 cursor-pointer"
                 title="清空文本"
               >
                 <Eraser className="w-3.5 h-3.5" />
@@ -877,7 +878,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             title={userCustomVSplit ? '拖动调整高度 (双击恢复智能自适应)' : '智能自适应高度 (拖动可手动调整)'}
           >
             <div className={`h-[3px] rounded-full transition-all ${
-              vSplitDragging ? 'bg-indigo-500 w-16' : 'bg-slate-200 group-hover:bg-indigo-400 w-10'
+              vSplitDragging ? 'bg-gradient-to-r from-indigo-500 to-violet-500 w-16 shadow-sm shadow-indigo-500/40' : 'bg-slate-300 group-hover:bg-gradient-to-r group-hover:from-indigo-400 group-hover:to-violet-400 w-10'
             }`} />
           </div>
         )}
@@ -893,7 +894,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             title="拖动调整左右面板宽度"
           >
             <div className={`w-[3px] h-16 rounded-full transition-all ${
-              splitDragging ? 'bg-indigo-500 h-24' : 'bg-slate-200 group-hover:bg-indigo-400'
+              splitDragging ? 'bg-gradient-to-b from-indigo-500 to-violet-500 h-24 shadow-sm shadow-indigo-500/40' : 'bg-slate-300 group-hover:bg-gradient-to-b group-hover:from-indigo-400 group-hover:to-violet-400'
             }`} />
           </div>
         )}
@@ -901,7 +902,11 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
         {/* RIGHT / BOTTOM COLUMN: TRANSLATION RESULT BOX / DICTIONARY MODE */}
         <div
           style={isPopup ? { flex: '1 1 0%' } : undefined}
-          className={`bg-white border border-slate-200/90 rounded-2xl shadow-2xs relative flex flex-col justify-between transition-all ${
+          className={`border border-indigo-100 rounded-2xl shadow-sm shadow-indigo-100/60 relative flex flex-col justify-between transition-all ${
+            selectedWord
+              ? 'bg-white'
+              : 'bg-gradient-to-b from-indigo-50/80 via-white to-violet-50/50'
+          } ${
             isPopup
               ? (selectedWord ? 'min-h-[110px] overflow-hidden p-0' : 'min-h-[110px] overflow-y-auto p-3.5 sm:p-4')
               : (selectedWord ? 'min-h-[240px] sm:min-h-[300px] overflow-hidden p-0' : 'p-3.5 sm:p-4 min-h-[240px] sm:min-h-[300px]')
@@ -922,9 +927,15 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             streamingText ? (
               /* Typewriter view while the SSE stream is live */
               <div className="space-y-2">
-                <div className="flex items-center justify-between text-[11px] text-slate-400 font-semibold border-b border-slate-100 pb-1.5">
-                  <span className="uppercase tracking-wider font-bold text-slate-500">翻译结果</span>
-                  <span className="text-[10px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-mono animate-pulse">生成中…</span>
+                <div className="text-[11px] font-semibold">
+                  <div className="flex items-center justify-between pb-1.5">
+                    <span className="uppercase tracking-wider font-extrabold flex items-center gap-1 bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">
+                      <Sparkles className="w-3 h-3 text-violet-500" />
+                      翻译结果
+                    </span>
+                    <span className="text-[10px] bg-gradient-to-r from-indigo-500 to-violet-500 text-white px-1.5 py-0.5 rounded-md font-mono font-bold animate-pulse shadow-sm shadow-indigo-500/30">生成中…</span>
+                  </div>
+                  <div className="h-px bg-gradient-to-r from-indigo-300 via-violet-300 to-transparent" />
                 </div>
                 <div className={`${
                   isPopup
@@ -932,7 +943,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                     : 'text-slate-900 text-base sm:text-lg font-medium leading-relaxed tracking-tight select-text min-h-[60px] whitespace-pre-wrap'
                 }`}>
                   {streamingText}
-                  <span className="inline-block w-[2px] h-[1.1em] bg-indigo-500 ml-0.5 align-text-bottom animate-pulse rounded-sm" />
+                  <span className="inline-block w-[2px] h-[1.1em] bg-gradient-to-b from-indigo-500 to-violet-500 ml-0.5 align-text-bottom animate-pulse rounded-sm" />
                 </div>
               </div>
             ) : (
@@ -945,25 +956,32 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             <>
               <div className="space-y-2">
                 {/* Output Header */}
-                <div className="flex items-center justify-between text-[11px] text-slate-400 font-semibold border-b border-slate-100 pb-1.5">
-                  <span className="uppercase tracking-wider font-bold text-slate-500">翻译结果</span>
-                  {result?.detectedLang && (
-                    <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-mono">
-                      识别语种: {result.detectedLang}
+                <div className="text-[11px] font-semibold">
+                  <div className="flex items-center justify-between pb-1.5">
+                    <span className="uppercase tracking-wider font-extrabold flex items-center gap-1 bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">
+                      <Sparkles className="w-3 h-3 text-violet-500" />
+                      翻译结果
                     </span>
-                  )}
+                    {result?.detectedLang && (
+                      <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200/80 px-1.5 py-0.5 rounded-md font-mono font-bold shadow-2xs">
+                        识别语种: {result.detectedLang}
+                      </span>
+                    )}
+                  </div>
+                  <div className="h-px bg-gradient-to-r from-indigo-300 via-violet-300 to-transparent" />
                 </div>
 
                 {/* Full Sentence Translation - selectable and copyable without hijacking */}
                 <div
                   className={`${
                     isPopup
-                      ? 'text-slate-900 text-sm sm:text-[15px] font-normal leading-relaxed tracking-normal select-text min-h-[60px] whitespace-pre-wrap pt-0.5'
-                      : 'text-slate-900 text-base sm:text-lg font-medium leading-relaxed tracking-tight select-text min-h-[60px] whitespace-pre-wrap'
+                      ? 'text-slate-900 text-sm sm:text-[15px] font-medium leading-relaxed tracking-normal select-text min-h-[60px] whitespace-pre-wrap pt-0.5'
+                      : 'text-slate-900 text-base sm:text-lg font-semibold leading-relaxed tracking-tight select-text min-h-[60px] whitespace-pre-wrap'
                   }`}
                 >
                   {result?.translation || (
-                    <span className="text-slate-300 italic font-normal text-xs sm:text-sm">
+                    <span className="text-slate-400 italic font-normal text-xs sm:text-sm flex items-center gap-1.5 pt-2 select-none">
+                      <Sparkles className="w-3.5 h-3.5 text-indigo-300 animate-pulse" />
                       翻译结果将在此即时显示...
                     </span>
                   )}
@@ -971,18 +989,22 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
               </div>
 
               {/* Translation Card Actions Footer */}
-              <div className="flex items-center justify-between pt-2.5 mt-2 border-t border-slate-100 text-xs text-slate-400">
-                <div className="flex items-center gap-1 text-[10px]">
-                  <span>引擎:</span>
-                  <span className="font-bold text-slate-700 uppercase">{settings.defaultProvider}</span>
+              <div className="flex items-center justify-between pt-2.5 mt-2 border-t border-indigo-100/80 text-xs text-slate-400">
+                <div className="flex items-center gap-1.5 text-[10px]">
+                  <span>引擎</span>
+                  <span className="px-1.5 py-0.5 rounded-md bg-gradient-to-r from-indigo-500 to-violet-500 text-white font-extrabold uppercase text-[9px] tracking-wide shadow-sm shadow-indigo-500/30">
+                    {settings.defaultProvider}
+                  </span>
                 </div>
 
                 <div className="flex items-center gap-1.5">
                   <button
                     onClick={() => handlePlayAudio(result?.translation || '', targetLang, 'target')}
                     disabled={!result?.translation}
-                    className={`p-2 rounded-xl transition-colors cursor-pointer ${
-                      playingTarget === 'target' ? 'bg-indigo-100 text-indigo-700' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
+                    className={`p-2 rounded-xl transition-all cursor-pointer ${
+                      playingTarget === 'target'
+                        ? 'bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-md shadow-indigo-500/30'
+                        : 'text-slate-500 hover:text-indigo-600 hover:bg-indigo-50'
                     } disabled:opacity-30`}
                     title="朗读译文"
                   >
@@ -996,7 +1018,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                   <button
                     onClick={() => result?.translation && handleCopy(result.translation)}
                     disabled={!result?.translation}
-                    className="p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 disabled:opacity-30 cursor-pointer transition-colors"
+                    className="p-2 rounded-xl text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 disabled:opacity-30 cursor-pointer transition-all"
                     title="复制译文"
                   >
                     {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}

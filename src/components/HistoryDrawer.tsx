@@ -141,11 +141,11 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
     <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex justify-end">
       <div className="bg-white border-l border-slate-200 w-full max-w-lg h-full flex flex-col p-5 shadow-2xl text-slate-800 animate-in slide-in-from-right duration-200">
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+        <div className="flex items-center justify-between pb-4 border-b border-slate-100 relative">
           <div className="flex items-center gap-2">
             <Clock className="w-5 h-5 text-indigo-600" />
-            <h3 className="font-bold text-base text-slate-900">翻译历史</h3>
-            <span className="text-xs bg-indigo-50 text-indigo-700 font-bold px-2 py-0.5 rounded-full border border-indigo-100">
+            <h3 className="font-extrabold text-base text-slate-900 tracking-tight">翻译历史</h3>
+            <span className="text-xs bg-gradient-to-r from-indigo-500 to-violet-500 text-white font-black px-2 py-0.5 rounded-full shadow-sm shadow-indigo-500/30">
               {history.length}
             </span>
           </div>
@@ -154,19 +154,19 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
             {filteredHistory.length > 0 && (
               <button
                 onClick={toggleExpandAll}
-                className="text-xs font-semibold text-slate-500 hover:text-indigo-600 flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+                className="text-xs font-bold text-slate-600 hover:text-indigo-600 flex items-center gap-1 px-2.5 py-1 rounded-xl hover:bg-indigo-50/70 transition-all cursor-pointer border border-slate-200/80 shadow-2xs"
                 title={expandedIds.size === filteredHistory.length ? '全部收起' : '全部展开'}
               >
-                <ChevronsUpDown className="w-3.5 h-3.5" />
+                <ChevronsUpDown className="w-3.5 h-3.5 text-indigo-500" />
                 <span>{expandedIds.size === filteredHistory.length ? '全部收起' : '全部展开'}</span>
               </button>
             )}
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+              className="p-1.5 rounded-xl text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer border border-slate-200/80 shadow-2xs"
               title="关闭"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -181,7 +181,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="搜索原文或译文..."
-                className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200/90 rounded-xl text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 focus:border-indigo-400 focus:bg-white shadow-2xs transition-all"
               />
               {searchQuery && (
                 <button
@@ -208,24 +208,24 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
               return (
                 <div
                   key={item.id}
-                  className={`bg-slate-50/90 border transition-all rounded-xl p-3.5 ${
+                  className={`border transition-all rounded-2xl p-3.5 ${
                     isExpanded
-                      ? 'border-indigo-300 shadow-xs bg-white'
-                      : 'border-slate-200 hover:border-indigo-200 hover:bg-slate-50'
+                      ? 'border-indigo-300 shadow-md shadow-indigo-100/60 bg-white'
+                      : 'border-slate-200/90 hover:border-indigo-300 hover:shadow-xs bg-slate-50/70 hover:bg-white'
                   }`}
                 >
                   {/* Top Bar: Language & Timestamp & Expand button */}
                   <div className="flex items-center justify-between text-[11px] text-slate-400 mb-2">
-                    <span className="font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50/80 px-2 py-0.5 rounded-md">
+                    <span className="font-black uppercase tracking-wider text-white bg-gradient-to-r from-indigo-500 to-violet-500 px-2 py-0.5 rounded-md text-[10px] shadow-2xs">
                       {item.sourceLang} → {item.targetLang}
                     </span>
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-[10px]">
+                      <span className="font-mono text-[10px] text-slate-500 font-semibold">
                         {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                       <button
                         onClick={(e) => toggleExpand(item.id, e)}
-                        className="p-1 rounded-md text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors cursor-pointer flex items-center gap-0.5 text-[10px] font-semibold"
+                        className="p-1 rounded-md text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors cursor-pointer flex items-center gap-0.5 text-[10px] font-bold"
                         title={isExpanded ? '收起详情' : '展开查看完整内容'}
                       >
                         <span>{isExpanded ? '收起' : '展开'}</span>
@@ -237,7 +237,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
                   {/* Source & Translated Text Content */}
                   <div
                     onClick={() => toggleExpand(item.id)}
-                    className="cursor-pointer space-y-1.5"
+                    className="cursor-pointer space-y-2"
                     title={isExpanded ? '点击收起' : '点击展开查看全部内容'}
                   >
                     {/* Source Text */}
@@ -248,26 +248,28 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
                     </div>
 
                     {/* Translation */}
-                    <div className="relative group pt-1">
-                      <p className={`text-xs text-emerald-700 font-semibold leading-relaxed ${isExpanded ? 'whitespace-pre-wrap text-emerald-800' : 'line-clamp-2'}`}>
-                        {item.translation}
-                      </p>
+                    <div className="relative group">
+                      <div className="p-2.5 rounded-xl bg-gradient-to-br from-indigo-50/70 via-white to-violet-50/40 border border-indigo-100 shadow-2xs">
+                        <p className={`text-xs text-indigo-950 font-bold leading-relaxed ${isExpanded ? 'whitespace-pre-wrap' : 'line-clamp-2'}`}>
+                          {item.translation}
+                        </p>
+                      </div>
                     </div>
                   </div>
 
                   {/* Actions Footer */}
-                  <div className="mt-3 pt-2.5 border-t border-slate-200/70 flex items-center justify-between flex-wrap gap-2">
+                  <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between flex-wrap gap-2">
                     {/* Load to Editor Action */}
                     <button
                       onClick={() => {
                         onSelectHistory(item);
                         onClose();
                       }}
-                      className="text-[11px] text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 px-2.5 py-1 rounded-lg flex items-center gap-1 font-bold transition-colors cursor-pointer"
+                      className="text-[11px] text-indigo-700 bg-gradient-to-r from-indigo-50 to-violet-50 hover:from-indigo-100 hover:to-violet-100 border border-indigo-200/80 px-2.5 py-1 rounded-xl flex items-center gap-1 font-extrabold transition-all cursor-pointer shadow-2xs hover:scale-105 active:scale-95"
                       title="载入到翻译主界面"
                     >
                       <span>载入原文</span>
-                      <ArrowRight className="w-3 h-3" />
+                      <ArrowRight className="w-3 h-3 text-indigo-600" />
                     </button>
 
                     {/* Tool Buttons */}
@@ -342,7 +344,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
           <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
             <button
               onClick={handleExport}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-300 border border-slate-200 transition-all cursor-pointer shadow-2xs hover:scale-105 active:scale-95"
               title="导出历史记录 (JSON)"
             >
               <Download className="w-3.5 h-3.5" />
@@ -351,7 +353,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
 
             <button
               onClick={onClearHistory}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-600 hover:text-white border border-rose-200 hover:border-rose-600 transition-all cursor-pointer shadow-2xs hover:scale-105 active:scale-95"
             >
               <Trash2 className="w-3.5 h-3.5" />
               <span>清空历史</span>

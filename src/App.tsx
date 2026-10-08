@@ -228,7 +228,7 @@ export default function App({
   };
 
   return (
-    <div className={`${isPopup ? 'h-screen overflow-hidden' : 'min-h-screen'} bg-slate-50 text-slate-900 flex flex-col font-sans selection:bg-indigo-500 selection:text-white`}>
+    <div className={`${isPopup ? 'h-screen overflow-hidden' : 'min-h-screen'} bg-[linear-gradient(155deg,#eef2ff_0%,#f8fafc_42%,#faf5ff_100%)] text-slate-900 flex flex-col font-sans selection:bg-indigo-500 selection:text-white`}>
       {/* Header Bar */}
       <Header
         openSettings={() => setIsSettingsOpen(true)}
