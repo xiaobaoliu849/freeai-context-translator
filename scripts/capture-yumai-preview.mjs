@@ -3,9 +3,8 @@
  * headless Google Chrome's Chrome DevTools Protocol (Node 22 built-ins only).
  * No API requests, keys or personal data are used in the sample.
  */
-import { spawn, spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { once } from 'node:events';
 
 const ROOT = new URL('../', import.meta.url);
 const SAMPLE = 'Excited to collaborate with the team at Amazon to bring the power of Android and Google Play to more people. Our goal is to make technology useful and accessible for everyone.';
@@ -42,15 +41,14 @@ try {
   const pages = await waitFor('http://127.0.0.1:9222/json/list', a => Array.isArray(a) && a.some(x => x.type === 'page'), 100);
   const page = pages.find(x => x.type === 'page');
   connection = new WebSocket(page.webSocketDebuggerUrl);
-  await once(connection, 'open').catch(async () => {
-    // Built-in browser WebSocket implementations may not expose EventEmitter.
-    if (connection.readyState !== WebSocket.OPEN) {
-      await new Promise((resolve, reject) => {
-        connection.addEventListener('open', resolve, {once:true});
-        connection.addEventListener('error', reject, {once:true});
-      });
-    }
+  console.log('CDP target discovered; waiting for WebSocket');
+  await new Promise((resolve, reject) => {
+    if (connection.readyState === WebSocket.OPEN) return resolve();
+    const timeout=setTimeout(() => reject(new Error('CDP websocket connection timeout')), 9000);
+    connection.addEventListener('open', () => { clearTimeout(timeout); resolve(); }, {once:true});
+    connection.addEventListener('error', (e) => { clearTimeout(timeout); reject(e); }, {once:true});
   });
+  console.log('Connected to Chrome DevTools');
   const pending = new Map();
   let seq = 0;
   connection.addEventListener('message', ({data}) => {
@@ -64,9 +62,14 @@ try {
   });
   const command = (method, params={}) => new Promise((resolve, reject) => {
     const id = ++seq;
-    pending.set(id, {resolve,reject});
+    const timeout=setTimeout(() => { pending.delete(id); reject(new Error('CDP command timeout: '+method)); }, 10000);
+    pending.set(id, {
+      resolve: (value) => {clearTimeout(timeout); resolve(value);},
+      reject: (error) => {clearTimeout(timeout); reject(error);}
+    });
     connection.send(JSON.stringify({id,method,params}));
   });
+  console.log('Starting navigation');
   await command('Page.enable');
   await command('Runtime.enable');
   await command('Emulation.setDeviceMetricsOverride',{width:560,height:595,deviceScaleFactor:1,mobile:false});
@@ -85,6 +88,7 @@ try {
     await writeFile(new URL('../preview/'+name,import.meta.url),Buffer.from(snap.data,'base64'));
   };
   await capture('yumai-popup-empty.png');
+  console.log('Empty popup screenshot saved');
 
   // Real input interaction (not a fabricated HTML mock).
   const focus=await command('Runtime.evaluate',{expression:"document.querySelector('textarea').focus(); true",returnByValue:true});
