@@ -1090,13 +1090,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {/* Footer Actions */}
         <div className="yumai-settings-footer px-5 py-3 border-t border-slate-100 bg-white flex items-center justify-between gap-3">
-          <span className="text-xs text-slate-500 font-medium max-w-[240px] leading-relaxed">API Key 保存在本地浏览器（未额外加密）</span>
+          <span className="text-xs text-slate-500 font-medium max-w-[240px] leading-relaxed">设置在扩展中会自动同步；API Key 保存在本地浏览器，未额外加密</span>
           <div className="flex items-center gap-2">
             <button
               onClick={onClose}
               className="px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-colors cursor-pointer"
             >
-              取消
+              关闭
             </button>
             <button
               id="save-settings-btn"
