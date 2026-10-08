@@ -71,6 +71,7 @@ export const TranslationCard: React.FC<TranslationCardProps> = ({
   const [loading, setLoading] = useState(initialLoading);
   const [copiedTrans, setCopiedTrans] = useState(false);
   const [copiedSource, setCopiedSource] = useState(false);
+  const [copyError, setCopyError] = useState<string | null>(null);
   const [audioTarget, setAudioTarget] = useState<'source' | 'target' | null>(null);
   const [audioPhase, setAudioPhase] = useState<'generating' | 'playing' | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -150,14 +151,21 @@ export const TranslationCard: React.FC<TranslationCardProps> = ({
     }
   };
 
-  const handleCopy = (content: string, type: 'source' | 'target') => {
-    navigator.clipboard.writeText(content).catch(() => {});
-    if (type === 'target') {
-      setCopiedTrans(true);
-      setTimeout(() => setCopiedTrans(false), 1500);
-    } else {
-      setCopiedSource(true);
-      setTimeout(() => setCopiedSource(false), 1500);
+  const handleCopy = async (content: string, type: 'source' | 'target') => {
+    setCopyError(null);
+    setCopiedTrans(false);
+    setCopiedSource(false);
+    try {
+      await navigator.clipboard.writeText(content);
+      if (type === 'target') {
+        setCopiedTrans(true);
+        setTimeout(() => setCopiedTrans(false), 1500);
+      } else {
+        setCopiedSource(true);
+        setTimeout(() => setCopiedSource(false), 1500);
+      }
+    } catch {
+      setCopyError('复制失败，请检查浏览器剪贴板权限');
     }
   };
 
@@ -198,11 +206,10 @@ export const TranslationCard: React.FC<TranslationCardProps> = ({
 
       {/* Card Header (Draggable Handle) */}
       <div
-        onPointerDown={onDragStart}
         className="px-3.5 py-2.5 bg-slate-50/90 border-b border-slate-200/80 flex items-center justify-between cursor-move select-none shrink-0"
         title="按住拖拽移动弹窗"
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 cursor-move" onPointerDown={onDragStart} title="按住品牌区域拖动翻译卡片">
           <div className="w-5 h-5 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-black text-[10px] shadow-xs">
             FT
           </div>
@@ -253,7 +260,7 @@ export const TranslationCard: React.FC<TranslationCardProps> = ({
               onClose();
             }}
             className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors cursor-pointer"
-            title="关闭 (Esc)"
+            title="关闭 (Esc)" aria-label="关闭翻译卡片"
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -318,6 +325,7 @@ export const TranslationCard: React.FC<TranslationCardProps> = ({
 
       {/* Main Content Area */}
       <div className="p-3.5 space-y-2.5 overflow-y-auto flex-1 min-h-0">
+        {copyError && <p role="alert" className="text-xs text-rose-700">{copyError}</p>}
         {note && (
           <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1 leading-relaxed">
             {note}
