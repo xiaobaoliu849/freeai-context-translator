@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "FreeTranslate AI",
+  "name": "语脉 · YUMAI",
   "version": "1.0.0",
-  "description": "Contextual AI Translator & Chrome Extension with in-context word breakdown, TTS speech audio, and selection popups.",
+  "description": "读懂文字，更懂语境。AI 语境翻译、划词释义、自然朗读与多模型支持。",
   "permissions": [
     "activeTab",
     "contextMenus",
@@ -62,5 +62,6 @@
   "host_permissions": [
     "https://*/*",
     "http://*/*"
-  ]
+  ],
+  "short_name": "语脉"
 }
