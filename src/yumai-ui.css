@@ -223,3 +223,27 @@
 @media (prefers-reduced-motion: reduce) {
  .yumai-workspace-outline .yumai-outline-item { transition: none; }
 }
+
+/* Phase 4 — in-page context overlay is not a scaled-down editor. */
+.yumai-floating .yumai-header > div { height: 56px; padding-inline: 14px; }
+.yumai-floating .yumai-floating-snippet {
+  border-radius: 13px;
+  box-shadow: 0 1px 2px rgb(17 33 63 / 3%);
+}
+.yumai-floating .yumai-floating-snippet .yumai-secondary-action {
+  min-height: 30px;
+  padding: 4px 9px;
+  font-size: 11px;
+}
+.yumai-floating .yumai-floating-snippet p { overflow-wrap: anywhere; }
+.yumai-floating .yumai-language-bar {
+  min-height: 47px;
+  padding: 4px 8px;
+}
+.yumai-floating .yumai-result-panel { border-radius: 14px; }
+.yumai-floating .yumai-result-text { font-size: 15px !important; line-height: 1.72 !important; }
+.yumai-floating .yumai-word-card > div:first-child { padding: 10px 14px; }
+.yumai-floating .yumai-word-card > div:nth-child(2) { padding-inline: 14px; }
+.yumai-floating .yumai-provider { background: #f3f4f8; }
+.yumai-floating .yumai-context-chip { font-size: 11px; }
+.yumai-floating .yumai-source-editor { font-size: 14px !important; }
