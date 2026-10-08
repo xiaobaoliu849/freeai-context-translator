@@ -36,6 +36,7 @@ async function getSavedSettings(): Promise<AppSettings> {
 
 interface SelectionPopoverProps {
   selectedText: string;
+  selectionContext?: string;
   position: { x: number; y: number };
   onClose: () => void;
   settings: AppSettings;
@@ -43,6 +44,7 @@ interface SelectionPopoverProps {
 
 const SelectionPopover: React.FC<SelectionPopoverProps> = ({
   selectedText,
+  selectionContext,
   position,
   onClose,
   settings,
@@ -141,6 +143,7 @@ const SelectionPopover: React.FC<SelectionPopoverProps> = ({
     >
       <App
         initialText={selectedText}
+        initialContext={selectionContext}
         initialSettings={settings}
         isFloating={true}
         isPinned={isPinned}
@@ -232,7 +235,26 @@ function removeFloatBtn() {
   } catch (e) {}
 }
 
-function showFloatBtn(text: string, x: number, y: number, mode: 'click' | 'hover') {
+/** Only read a short span around a user's explicit selection, never entire paragraphs
+ * or surrounding form fields. The selected term remains the only trigger.
+ */
+function getSelectionContext(selectedText: string): string {
+  const sel = window.getSelection();
+  if (!sel || sel.isCollapsed || !sel.rangeCount || !selectedText.trim()) return '';
+  const range = sel.getRangeAt(0);
+  const node = range.startContainer;
+  if (node.nodeType !== Node.TEXT_NODE || node !== range.endContainer) return '';
+  const value = node.textContent || '';
+  // Ignore selections inside editable fields (which may contain private data).
+  if (node.parentElement?.closest('input, textarea, [contenteditable], [contenteditable="true"]')) return '';
+  const selected = value.slice(range.startOffset, range.endOffset).trim();
+  if (selected !== selectedText.trim()) return '';
+  const left = Math.max(0, range.startOffset - 140);
+  const right = Math.min(value.length, range.endOffset + 140);
+  return value.slice(left, right).replace(/\s+/g, ' ').trim().slice(0, 380);
+}
+
+function showFloatBtn(text: string, x: number, y: number, mode: 'click' | 'hover', selectionContext = '') {
   removeFloatBtn();
 
   const btn = document.createElement('button');
@@ -267,7 +289,7 @@ function showFloatBtn(text: string, x: number, y: number, mode: 'click' | 'hover
 
   const open = () => {
     removeFloatBtn();
-    showPopover(text, x, y);
+    showPopover(text, x, y, selectionContext);
   };
 
   btn.addEventListener('click', (e) => {
@@ -295,7 +317,7 @@ function showFloatBtn(text: string, x: number, y: number, mode: 'click' | 'hover
   activeFloatBtn = btn;
 }
 
-function showPopover(text: string, x: number, y: number) {
+function showPopover(text: string, x: number, y: number, selectionContext = '') {
   // Synchronously tear down any existing instance to avoid race conditions
   removePopover();
 
@@ -328,6 +350,7 @@ function showPopover(text: string, x: number, y: number) {
   root.render(
     <SelectionPopover
       selectedText={text}
+      selectionContext={selectionContext}
       position={{ x, y }}
       onClose={removePopover}
       settings={currentSettings}
@@ -406,12 +429,12 @@ function handleSelectionEvent(e: MouseEvent | TouchEvent) {
   const clientY = touch?.clientY ?? (e instanceof MouseEvent ? e.clientY : 0);
 
   if (mode === 'select') {
-    showPopover(selection, clientX, clientY);
+    showPopover(selection, clientX, clientY, insideFormField ? '' : getSelectionContext(selection));
   } else {
     // Floating "译" button for word or short selections
     const wordCount = selection.trim().split(/\s+/).length;
     if (wordCount > 15) return;
-    showFloatBtn(selection, clientX, clientY, mode);
+    showFloatBtn(selection, clientX, clientY, mode, insideFormField ? '' : getSelectionContext(selection));
   }
 }
 
@@ -473,13 +496,15 @@ if (isTopFrame && !contentGlobal.__ftTopFrameReady) {
       if (message.action === 'TRANSLATE_SELECTION' || message.action === 'AUTO_SELECTION' || message.action === 'EXPLAIN_SELECTION') {
         removeFloatBtn();
         const pos = getSelectionPosition();
-        showPopover(message.text || '', pos.x, pos.y);
+        const selectedText = message.text || '';
+        showPopover(selectedText, pos.x, pos.y, getSelectionContext(selectedText));
         // Respond so the sender's callback sees no chrome.runtime.lastError;
         // otherwise background.ts assumes the content script is missing and
         // re-injects it, creating a duplicate instance.
         sendResponse({ ok: true });
       } else if (message.action === 'REQUEST_SELECTION') {
-        sendResponse({ text: window.getSelection()?.toString().trim() || '' });
+        const selectedText = window.getSelection()?.toString().trim() || '';
+        sendResponse({ text: selectedText, context: getSelectionContext(selectedText) });
         return true;
       }
     });
