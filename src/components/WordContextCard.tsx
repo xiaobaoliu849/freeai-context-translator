@@ -43,6 +43,7 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
 }) => {
   const [wordPhase, setWordPhase] = useState<'generating' | 'playing' | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState<string | null>(null);
   const [examplesOpen, setExamplesOpen] = useState(false);
 
   // Keyboard shortcut listener: Escape key closes card
@@ -83,11 +84,17 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
     });
   };
 
-  const handleCopyWord = () => {
+  const handleCopyWord = async () => {
     if (!displayWord) return;
-    navigator.clipboard.writeText(displayWord).catch(() => {});
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    setCopyError(null);
+    setCopied(false);
+    try {
+      await navigator.clipboard.writeText(displayWord);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setCopyError('无法复制单词，请检查剪贴板权限');
+    }
   };
 
   // Compact single-row header: word + pronunciation + badges + close. This is
@@ -154,7 +161,7 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
           onClick={handleCopyWord}
           disabled={!displayWord}
           className="p-1 rounded-lg text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer disabled:opacity-30"
-          title="复制单词"
+          title="复制单词" aria-label="复制单词"
         >
           {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
         </button>
@@ -231,6 +238,7 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
   return (
     <div className="bg-white text-slate-800 w-full flex-1 min-h-0 flex flex-col overflow-hidden animate-in fade-in duration-200">
       {renderHeader()}
+      {copyError && <p role="alert" className="px-3 py-1 text-xs text-rose-700">{copyError}</p>}
 
       {/* Body: the in-context meaning IS the interface (same typography as the
           translation it temporarily replaces). Secondary info stays flat —
