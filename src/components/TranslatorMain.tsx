@@ -3,7 +3,8 @@ import { Volume2, Loader2, Copy, Check, Eraser, RefreshCw, Settings, History, Sp
 import { AppSettings, TranslationResult, WordExplanation } from '../types';
 import { audioPlayer } from '../utils/audio';
 import { consumeSSE, extractPartialTranslation } from '../services/streaming';
-import { bridgeTranslate, isExtensionContext } from '../services/bridge';
+import { bridgeTranslate, bridgeExplain, isExtensionContext } from '../services/bridge';
+import { classifySelection, getReadingSegments } from '../utils/selectionMode';
 import { WordContextCard } from './WordContextCard';
 
 interface TranslatorMainProps {
@@ -21,6 +22,10 @@ interface TranslatorMainProps {
   openHistory: () => void;
   /** Bumped by App when the user retranslates a history item. */
   retranslateSignal?: number;
+  /** Bumped when a webpage selection is sent to this UI. */
+  selectionSignal?: number;
+  /** Limited surrounding text from the same page text node; never form-field data. */
+  selectionContext?: string;
   /** Compact app-shell layout used inside the 440x570 extension popup. */
   isPopup?: boolean;
 }
@@ -57,6 +62,8 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
   openSettings,
   openHistory,
   retranslateSignal = 0,
+  selectionSignal = 0,
+  selectionContext = '',
   isPopup = false,
 }) => {
   const [loading, setLoading] = useState(false);
@@ -80,6 +87,13 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
 
   // Selected word context state & cache
   const [selectedWord, setSelectedWord] = useState<string | null>(null);
+  const [wordContext, setWordContext] = useState<string>('');
+  const [activeSelection, setActiveSelection] = useState<string>('');
+  const [readingOutlineOpen, setReadingOutlineOpen] = useState(false);
+  const wordReqIdRef = useRef(0);
+  const skipSelectionRef = useRef(false);
+  const selectionKind = classifySelection(sourceText);
+  const readingSegments = React.useMemo(() => selectionKind === 'passage' ? getReadingSegments(sourceText) : [], [sourceText, selectionKind]);
   const [wordExplanation, setWordExplanation] = useState<WordExplanation | null>(null);
   const [explainingWord, setExplainingWord] = useState(false);
   // Free-drag split between the source/target panels (desktop). The value is
@@ -215,11 +229,11 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
    * Streaming translate through the background bridge (extension context):
    * deltas arrive over the port and drive the same typewriter UI.
    */
-  const translateViaBridge = async (signal: AbortSignal): Promise<{ translation: string; detectedLang?: string }> => {
+  const translateViaBridge = async (signal: AbortSignal, textToTranslate: string): Promise<{ translation: string; detectedLang?: string }> => {
     let raw = '';
     return bridgeTranslate(
       {
-        text: sourceText,
+        text: textToTranslate,
         sourceLang,
         targetLang,
         provider: activeProvider,
@@ -320,7 +334,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
       try {
         // 1. Prefer streaming. In the extension this goes through the
         // background bridge; in the web app through the server SSE endpoint.
-        data = isExtensionContext() ? await translateViaBridge(controller.signal) : await translateViaStream(body, controller.signal);
+        data = isExtensionContext() ? await translateViaBridge(controller.signal, text) : await translateViaStream(body, controller.signal);
       } catch (err: any) {
         // If this request was aborted (superseded by a newer one, or the user
         // pressed Stop), don't waste a call on the fallback path — propagate.
@@ -447,11 +461,14 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
   }, [retranslateSignal]);
 
   // Handle selecting a word in context with instant cache retrieval
-  const handleSelectWord = async (word: string) => {
+  const handleSelectWord = async (word: string, contextOverride?: string) => {
     const cleanWord = word.trim().replace(/^[^a-zA-Z0-9\u4e00-\u9fa5]+|[^a-zA-Z0-9\u4e00-\u9fa5]+$/g, '');
     if (!cleanWord) return;
-
-    const cacheKey = `${cleanWord.toLowerCase()}_${targetLang}_${activeProvider}_${activeConfig.model}`;
+    const lookupSentence = (contextOverride || sourceText || result?.sourceText || cleanWord).slice(0, 380);
+    const requestId = ++wordReqIdRef.current;
+    setWordContext(lookupSentence);
+    setActiveSelection('');
+    const cacheKey = `${cleanWord.toLowerCase()}_${targetLang}_${activeProvider}_${activeConfig.model}_${lookupSentence.toLowerCase()}`;
 
     // Return cached explanation instantly if available
     if (wordCacheRef.current[cacheKey]) {
@@ -462,62 +479,70 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
     }
 
     setSelectedWord(cleanWord);
+    setWordExplanation(null);
     setExplainingWord(true);
 
     try {
       let data: any;
       const apiKeyToUse = activeConfig.apiKey || (activeProvider === 'gemini' ? settings.geminiApiKey : '');
 
-      try {
-        const res = await fetch('/api/explain-word', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            sentence: sourceText || result?.sourceText,
+      if (isExtensionContext()) {
+        // Always use the extension background bridge: keys never enter page context.
+        data = await bridgeExplain({
+          sentence: lookupSentence,
+          selectedWord: cleanWord,
+          targetLang,
+          provider: activeProvider,
+          baseUrl: activeConfig.baseUrl,
+          model: activeConfig.model || settings.apiModel,
+        });
+      } else {
+        try {
+          const res = await fetch('/api/explain-word', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sentence: lookupSentence,
+              selectedWord: cleanWord,
+              targetLang,
+              provider: activeProvider,
+              apiKey: apiKeyToUse,
+              baseUrl: activeConfig.baseUrl,
+              model: activeConfig.model || settings.apiModel,
+            }),
+          });
+          if (!res.ok) throw new Error('Server API unavailable');
+          data = await res.json();
+        } catch {
+          const { explainWordClient } = await import('../services/aiProvider');
+          data = await explainWordClient({
+            sentence: lookupSentence,
             selectedWord: cleanWord,
             targetLang,
             provider: activeProvider,
             apiKey: apiKeyToUse,
             baseUrl: activeConfig.baseUrl,
             model: activeConfig.model || settings.apiModel,
-          }),
-        });
-        if (res.ok) {
-          data = await res.json();
-        } else {
-          throw new Error('Server API unavailable');
+          });
         }
-      } catch (_e) {
-        const { explainWordClient } = await import('../services/aiProvider');
-        data = await explainWordClient({
-          sentence: sourceText || result?.sourceText || cleanWord,
-          selectedWord: cleanWord,
-          targetLang,
-          provider: activeProvider,
-          apiKey: apiKeyToUse,
-          baseUrl: activeConfig.baseUrl,
-          model: activeConfig.model || settings.apiModel,
-        });
       }
+      if (requestId !== wordReqIdRef.current) return;
 
       cacheWord(cacheKey, data); // Store in cache
       setWordExplanation(data);
     } catch (err) {
+      if (requestId !== wordReqIdRef.current) return;
       console.error('Failed to explain word:', err);
-      const fallbackObj: WordExplanation = {
-        word: cleanWord,
-        contextualMeaning: cleanWord,
-        contextExplanation: `In-context analysis for "${cleanWord}".`,
-      };
-      cacheWord(cacheKey, fallbackObj);
-      setWordExplanation(fallbackObj);
+      // Do not fabricate a meaning on API failure. Show the dictionary's retry state.
+      setWordExplanation(null);
     } finally {
-      setExplainingWord(false);
+      if (requestId === wordReqIdRef.current) setExplainingWord(false);
     }
   };
 
   /** Clears the selected word and returns to the sentence translation view. */
   const clearWordSelection = () => {
+    wordReqIdRef.current++;
     setSelectedWord(null);
     setWordExplanation(null);
   };
@@ -527,7 +552,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
    * sentence collapsed to a single line with the selected word highlighted.
    */
   const renderContextSentence = () => {
-    const sentence = (sourceText || result?.sourceText || '').replace(/\s+/g, ' ').trim();
+    const sentence = (wordContext || sourceText || result?.sourceText || '').replace(/\s+/g, ' ').trim();
     const w = selectedWord || '';
     const idx = w ? sentence.toLowerCase().indexOf(w.toLowerCase()) : -1;
     if (idx === -1) return <span className="italic">“{sentence}”</span>;
