@@ -45,7 +45,11 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState<string | null>(null);
   const [examplesOpen, setExamplesOpen] = useState(false);
-  useEffect(() => setExamplesOpen(false), [word]);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  useEffect(() => {
+    setExamplesOpen(false);
+    setDetailsOpen(false);
+  }, [word]);
 
   // Keyboard shortcut listener: Escape key closes card
   useEffect(() => {
@@ -286,6 +290,16 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
           </div>
         )}
 
+        {/* Additional vocabulary data is optional; the contextual meaning remains the hero. */}
+        {(collocations.length > 0 || synonyms.length > 0 || antonyms.length > 0) && (
+          <button type="button" aria-expanded={detailsOpen}
+            onClick={() => setDetailsOpen(v => !v)}
+            className="flex items-center gap-1.5 rounded-lg px-2 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50">
+            <ChevronRight className={`w-3.5 h-3.5 transition-transform ${detailsOpen ? 'rotate-90' : ''}`} />
+            {detailsOpen ? '收起词汇信息' : '展开搭配、近义词与反义词'}
+          </button>
+        )}
+        {detailsOpen && (<>
         {/* Collocations — inline chips */}
         {collocations.length > 0 && (
           <div>
@@ -334,6 +348,7 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
           </div>
         )}
 
+        </>)}
         {/* Examples — collapsed behind a single line by default */}
         {examplesList.length > 0 && (
           <div>
