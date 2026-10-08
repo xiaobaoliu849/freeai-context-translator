@@ -3,7 +3,8 @@ import { Volume2, Loader2, Copy, Check, Eraser, RefreshCw, Settings, History, Sp
 import { AppSettings, TranslationResult, WordExplanation } from '../types';
 import { audioPlayer } from '../utils/audio';
 import { consumeSSE, extractPartialTranslation } from '../services/streaming';
-import { bridgeTranslate, isExtensionContext } from '../services/bridge';
+import { bridgeTranslate, bridgeExplain, isExtensionContext } from '../services/bridge';
+import { classifySelection, getReadingSegments, normalizeSelectedTerm } from '../utils/selectionMode';
 import { WordContextCard } from './WordContextCard';
 
 interface TranslatorMainProps {
@@ -21,6 +22,10 @@ interface TranslatorMainProps {
   openHistory: () => void;
   /** Bumped by App when the user retranslates a history item. */
   retranslateSignal?: number;
+  /** Bumped when a webpage selection is sent to this UI. */
+  selectionSignal?: number;
+  /** Limited surrounding text from the same page text node; never form-field data. */
+  selectionContext?: string;
   /** Compact app-shell layout used inside the 440x570 extension popup. */
   isPopup?: boolean;
 }
@@ -57,6 +62,8 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
   openSettings,
   openHistory,
   retranslateSignal = 0,
+  selectionSignal = 0,
+  selectionContext = '',
   isPopup = false,
 }) => {
   const [loading, setLoading] = useState(false);
@@ -80,6 +87,13 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
 
   // Selected word context state & cache
   const [selectedWord, setSelectedWord] = useState<string | null>(null);
+  const [wordContext, setWordContext] = useState<string>('');
+  const [activeSelection, setActiveSelection] = useState<string>('');
+  const [readingOutlineOpen, setReadingOutlineOpen] = useState(false);
+  const wordReqIdRef = useRef(0);
+  const skipSelectionRef = useRef(false);
+  const selectionKind = classifySelection(sourceText);
+  const readingSegments = React.useMemo(() => selectionKind === 'passage' ? getReadingSegments(sourceText) : [], [sourceText, selectionKind]);
   const [wordExplanation, setWordExplanation] = useState<WordExplanation | null>(null);
   const [explainingWord, setExplainingWord] = useState(false);
   // Free-drag split between the source/target panels (desktop). The value is
@@ -215,11 +229,11 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
    * Streaming translate through the background bridge (extension context):
    * deltas arrive over the port and drive the same typewriter UI.
    */
-  const translateViaBridge = async (signal: AbortSignal): Promise<{ translation: string; detectedLang?: string }> => {
+  const translateViaBridge = async (signal: AbortSignal, textToTranslate: string): Promise<{ translation: string; detectedLang?: string }> => {
     let raw = '';
     return bridgeTranslate(
       {
-        text: sourceText,
+        text: textToTranslate,
         sourceLang,
         targetLang,
         provider: activeProvider,
@@ -320,7 +334,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
       try {
         // 1. Prefer streaming. In the extension this goes through the
         // background bridge; in the web app through the server SSE endpoint.
-        data = isExtensionContext() ? await translateViaBridge(controller.signal) : await translateViaStream(body, controller.signal);
+        data = isExtensionContext() ? await translateViaBridge(controller.signal, text) : await translateViaStream(body, controller.signal);
       } catch (err: any) {
         // If this request was aborted (superseded by a newer one, or the user
         // pressed Stop), don't waste a call on the fallback path — propagate.
@@ -416,13 +430,13 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
 
   // Auto-translate debounce
   useEffect(() => {
-    if (settings.autoTranslate && sourceText.trim().length > 1) {
+    if (settings.autoTranslate && !selectedWord && sourceText.trim().length > 1) {
       const timer = setTimeout(() => {
         handleTranslate();
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [sourceText, sourceLang, targetLang, settings.autoTranslate, activeProvider, activeConfig.model]);
+  }, [sourceText, sourceLang, targetLang, settings.autoTranslate, activeProvider, activeConfig.model, selectedWord]);
 
   // Auto-grow the input textarea with its content (90px → 260px). Skipped in
   // the compact popup, where the textarea scrolls inside a fixed-height pane.
@@ -447,11 +461,15 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
   }, [retranslateSignal]);
 
   // Handle selecting a word in context with instant cache retrieval
-  const handleSelectWord = async (word: string) => {
-    const cleanWord = word.trim().replace(/^[^a-zA-Z0-9\u4e00-\u9fa5]+|[^a-zA-Z0-9\u4e00-\u9fa5]+$/g, '');
+  const handleSelectWord = async (word: string, contextOverride?: string) => {
+    const cleanWord = normalizeSelectedTerm(word);
     if (!cleanWord) return;
-
-    const cacheKey = `${cleanWord.toLowerCase()}_${targetLang}_${activeProvider}_${activeConfig.model}`;
+    const lookupSentence = (contextOverride || sourceText || result?.sourceText || cleanWord).slice(0, 380);
+    const requestId = ++wordReqIdRef.current;
+    setWordContext(lookupSentence);
+    setActiveSelection('');
+    setReadingOutlineOpen(false);
+    const cacheKey = `${cleanWord.toLowerCase()}_${targetLang}_${activeProvider}_${activeConfig.model}_${lookupSentence.toLowerCase()}`;
 
     // Return cached explanation instantly if available
     if (wordCacheRef.current[cacheKey]) {
@@ -462,62 +480,70 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
     }
 
     setSelectedWord(cleanWord);
+    setWordExplanation(null);
     setExplainingWord(true);
 
     try {
       let data: any;
       const apiKeyToUse = activeConfig.apiKey || (activeProvider === 'gemini' ? settings.geminiApiKey : '');
 
-      try {
-        const res = await fetch('/api/explain-word', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            sentence: sourceText || result?.sourceText,
+      if (isExtensionContext()) {
+        // Always use the extension background bridge: keys never enter page context.
+        data = await bridgeExplain({
+          sentence: lookupSentence,
+          selectedWord: cleanWord,
+          targetLang,
+          provider: activeProvider,
+          baseUrl: activeConfig.baseUrl,
+          model: activeConfig.model || settings.apiModel,
+        });
+      } else {
+        try {
+          const res = await fetch('/api/explain-word', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sentence: lookupSentence,
+              selectedWord: cleanWord,
+              targetLang,
+              provider: activeProvider,
+              apiKey: apiKeyToUse,
+              baseUrl: activeConfig.baseUrl,
+              model: activeConfig.model || settings.apiModel,
+            }),
+          });
+          if (!res.ok) throw new Error('Server API unavailable');
+          data = await res.json();
+        } catch {
+          const { explainWordClient } = await import('../services/aiProvider');
+          data = await explainWordClient({
+            sentence: lookupSentence,
             selectedWord: cleanWord,
             targetLang,
             provider: activeProvider,
             apiKey: apiKeyToUse,
             baseUrl: activeConfig.baseUrl,
             model: activeConfig.model || settings.apiModel,
-          }),
-        });
-        if (res.ok) {
-          data = await res.json();
-        } else {
-          throw new Error('Server API unavailable');
+          });
         }
-      } catch (_e) {
-        const { explainWordClient } = await import('../services/aiProvider');
-        data = await explainWordClient({
-          sentence: sourceText || result?.sourceText || cleanWord,
-          selectedWord: cleanWord,
-          targetLang,
-          provider: activeProvider,
-          apiKey: apiKeyToUse,
-          baseUrl: activeConfig.baseUrl,
-          model: activeConfig.model || settings.apiModel,
-        });
       }
+      if (requestId !== wordReqIdRef.current) return;
 
       cacheWord(cacheKey, data); // Store in cache
       setWordExplanation(data);
     } catch (err) {
+      if (requestId !== wordReqIdRef.current) return;
       console.error('Failed to explain word:', err);
-      const fallbackObj: WordExplanation = {
-        word: cleanWord,
-        contextualMeaning: cleanWord,
-        contextExplanation: `In-context analysis for "${cleanWord}".`,
-      };
-      cacheWord(cacheKey, fallbackObj);
-      setWordExplanation(fallbackObj);
+      // Do not fabricate a meaning on API failure. Show the dictionary's retry state.
+      setWordExplanation(null);
     } finally {
-      setExplainingWord(false);
+      if (requestId === wordReqIdRef.current) setExplainingWord(false);
     }
   };
 
   /** Clears the selected word and returns to the sentence translation view. */
   const clearWordSelection = () => {
+    wordReqIdRef.current++;
     setSelectedWord(null);
     setWordExplanation(null);
   };
@@ -527,7 +553,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
    * sentence collapsed to a single line with the selected word highlighted.
    */
   const renderContextSentence = () => {
-    const sentence = (sourceText || result?.sourceText || '').replace(/\s+/g, ' ').trim();
+    const sentence = (wordContext || sourceText || result?.sourceText || '').replace(/\s+/g, ' ').trim();
     const w = selectedWord || '';
     const idx = w ? sentence.toLowerCase().indexOf(w.toLowerCase()) : -1;
     if (idx === -1) return <span className="italic">“{sentence}”</span>;
@@ -542,29 +568,51 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
     );
   };
 
-  // Selection detection helper for textarea or text selection
-  const detectSelection = () => {
-    const selection = window.getSelection()?.toString().trim();
-    if (selection && selection.length > 0 && selection.length < 80) {
-      handleSelectWord(selection);
+  // Explicit selections choose a relevant view; history retranslation remains separate.
+  const handledSelectionRef = useRef(0);
+  useEffect(() => {
+    if (!selectionSignal || handledSelectionRef.current === selectionSignal) return;
+    handledSelectionRef.current = selectionSignal;
+    if (!sourceText.trim()) return;
+    setReadingOutlineOpen(false);
+    if (classifySelection(sourceText) === 'term') {
+      handleSelectWord(sourceText, selectionContext || sourceText);
+    } else {
+      clearWordSelection();
+      handleTranslate();
     }
-  };
+  }, [selectionSignal]);
 
   const handleTextareaSelect = (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
+    if (skipSelectionRef.current) return;
     const target = e.currentTarget;
     const start = target.selectionStart;
     const end = target.selectionEnd;
-    if (start !== undefined && end !== undefined && start !== end) {
-      const selectedText = target.value.substring(start, end).trim();
-      if (selectedText && selectedText.length > 0 && selectedText.length < 80) {
-        handleSelectWord(selectedText);
-        return;
+    if (start !== end) {
+      const highlighted = target.value.substring(start, end).trim();
+      if (!highlighted) return;
+      if (classifySelection(highlighted) === 'term') {
+        const nearby = target.value.slice(Math.max(0, start - 140), Math.min(target.value.length, end + 140));
+        handleSelectWord(highlighted, nearby);
+      } else {
+        clearWordSelection();
+        setActiveSelection(highlighted);
       }
+      return;
     }
-    if (start === end && selectedWord) {
-      setSelectedWord(null);
-      setWordExplanation(null);
-    }
+    setActiveSelection('');
+    if (selectedWord) clearWordSelection();
+  };
+
+  const focusReadingSegment = (start: number, end: number) => {
+    const editor = textareaRef.current;
+    if (!editor) return;
+    // Navigation should not trigger word-lookup during programmatic selection.
+    skipSelectionRef.current = true;
+    editor.focus();
+    editor.setSelectionRange(start, end);
+    setActiveSelection(sourceText.slice(start, end));
+    window.setTimeout(() => { skipSelectionRef.current = false; }, 80);
   };
 
   const handlePlayAudio = (text: string, lang: string, target: 'source' | 'target') => {
@@ -618,7 +666,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
     // Enter inserts a newline; Ctrl/Cmd+Enter translates.
     if (e.key !== 'Enter' || (!e.ctrlKey && !e.metaKey) || e.shiftKey || e.nativeEvent.isComposing) return;
     e.preventDefault();
-    handleTranslate();
+    handleTranslate(activeSelection || undefined);
   };
 
   return (
@@ -755,6 +803,50 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
         </div>
       )}
 
+      {/* Auto-detected content intent with an explicit manual override. */}
+      {sourceText.trim() && (
+        <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs" aria-live="polite">
+          <span className="text-slate-500">
+            <Sparkles className="w-3.5 h-3.5 inline text-indigo-500 mr-1" />
+            智能识别：{selectedWord ? '词语释义' : selectionKind === 'passage' ? '长文阅读' : selectionKind === 'term' ? '短语' : '句子翻译'}
+          </span>
+          <div className="flex items-center gap-2">
+            {selectedWord ? (
+              <button type="button" onClick={() => { clearWordSelection(); if (!result?.translation || result.sourceText !== sourceText) handleTranslate(); }}
+                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-semibold text-indigo-700 hover:bg-indigo-50">
+                改看翻译
+              </button>
+            ) : selectionKind === 'term' ? (
+              <button type="button" onClick={() => handleSelectWord(sourceText, selectionContext || sourceText)}
+                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-semibold text-indigo-700 hover:bg-indigo-50">
+                查看语境释义
+              </button>
+            ) : null}
+            {selectionKind === 'passage' && (
+              <button type="button" onClick={() => setReadingOutlineOpen(v => !v)}
+                aria-expanded={readingOutlineOpen}
+                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-semibold text-indigo-700 hover:bg-indigo-50">
+                {readingOutlineOpen ? '收起段落' : '段落导航'}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      {selectionKind === 'passage' && readingOutlineOpen && !selectedWord && (
+        <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm space-y-2">
+          <p className="text-xs font-semibold text-slate-600">原文段落导航（不与机器译文强行对应）</p>
+          <div className="flex flex-wrap gap-2">
+            {readingSegments.map((segment, index) => (
+              <button type="button" key={segment.start}
+                onClick={() => focusReadingSegment(segment.start, segment.end)}
+                title={segment.text} className="max-w-full truncate rounded-lg bg-slate-100 px-3 py-2 text-xs text-slate-700 hover:bg-indigo-50 hover:text-indigo-700">
+                {index + 1}. {segment.text.slice(0, 36)}{segment.text.length > 36 ? '…' : ''}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-slate-400">定位后可单独翻译所选片段。最多展示前 8 段。</p>
+        </div>
+      )}
       {/* 2 & 3. DUAL STUDIO TRANSLATION WORKSPACE — the drag handle resizes the split */}
       <div
         ref={workspaceRef}
@@ -797,6 +889,8 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             value={sourceText}
             onChange={(e) => {
               setSourceText(e.target.value);
+              setActiveSelection('');
+              setReadingOutlineOpen(false);
               if (selectedWord) {
                 setSelectedWord(null);
                 setWordExplanation(null);
@@ -804,8 +898,6 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             }}
             onSelect={handleTextareaSelect}
             onKeyDown={handleTextareaKeyDown}
-            onDoubleClick={detectSelection}
-            onMouseUp={detectSelection}
             placeholder="输入或粘贴文本，选中单词可查看语境释义...（Ctrl+Enter 翻译）"
             className={`${
               isPopup
@@ -817,6 +909,13 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
           {/* Input Box Actions Toolbar */}
           <div className="flex items-center justify-between px-3.5 py-2 border-t border-slate-100 bg-gradient-to-r from-slate-50/80 to-indigo-50/40 text-slate-500 text-xs">
             <div className="flex items-center gap-1.5">
+              {activeSelection && (
+                <button type="button" onClick={() => handleTranslate(activeSelection)}
+                  className="rounded-lg bg-indigo-50 px-2 py-1 font-semibold text-indigo-700 hover:bg-indigo-100"
+                  title="仅翻译当前高亮选中的句子或段落">
+                  翻译所选内容
+                </button>
+              )}
               {settings.autoTranslate && (
                 <button
                   onClick={openSettings}
@@ -933,7 +1032,8 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
               word={selectedWord}
               onClose={clearWordSelection}
               onSwitchToTranslate={clearWordSelection}
-              sentence={isPopup ? undefined : (sourceText || result?.sourceText || '')}
+              sentence={wordContext || sourceText || result?.sourceText || ''}
+              onRetry={() => handleSelectWord(selectedWord, wordContext)}
               settings={settings}
             />
           ) : loading ? (
@@ -944,7 +1044,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                   <div className="flex items-center justify-between pb-1.5">
                     <span className="uppercase tracking-wider font-extrabold flex items-center gap-1 bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">
                       <Sparkles className="w-3 h-3 text-violet-500" />
-                      翻译结果
+                      {result?.sourceText && result.sourceText !== sourceText ? '所选内容译文' : '翻译结果'}
                     </span>
                     <span className="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md font-medium">生成中…</span>
                   </div>
@@ -973,7 +1073,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                   <div className="flex items-center justify-between pb-1.5">
                     <span className="uppercase tracking-wider font-extrabold flex items-center gap-1 bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">
                       <Sparkles className="w-3 h-3 text-violet-500" />
-                      翻译结果
+                      {result?.sourceText && result.sourceText !== sourceText ? '所选内容译文' : '翻译结果'}
                     </span>
                     {result?.detectedLang && (
                       <span className="text-xs text-slate-500">
