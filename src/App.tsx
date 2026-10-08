@@ -236,7 +236,7 @@ export default function App({
   };
 
   return (
-    <div className={`yumai-app ${isPopup ? 'yumai-popup h-screen overflow-hidden' : 'min-h-screen'} flex flex-col text-slate-900 selection:bg-indigo-100 selection:text-slate-900`}>
+    <div className={`yumai-app ${isFloating ? 'yumai-floating' : ''} ${isPopup ? 'yumai-popup h-screen overflow-hidden' : 'min-h-screen'} flex flex-col text-slate-900 selection:bg-indigo-100 selection:text-slate-900`}>
       {/* Header Bar */}
       <Header
         openSettings={() => setIsSettingsOpen(true)}
@@ -270,6 +270,7 @@ export default function App({
           selectionSignal={selectionSignal}
           selectionContext={selectionContext}
           isPopup={isPopup}
+          isFloating={isFloating}
           workspaceSelection={workspaceSelection}
         />
         ) : (
