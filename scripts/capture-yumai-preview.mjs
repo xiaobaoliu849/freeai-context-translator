@@ -8,6 +8,11 @@ import { mkdir, writeFile } from 'node:fs/promises';
 
 const ROOT = new URL('../', import.meta.url);
 const SAMPLE = 'Excited to collaborate with the team at Amazon to bring the power of Android and Google Play to more people. Our goal is to make technology useful and accessible for everyone.';
+const ARTICLE = [
+  'Amazon announced a new generation of Alexa tablets designed around the needs of everyday users. Engineers worked closely with Android developers to deliver familiar apps.',
+  'The partnership brings new opportunities for people who value reading, learning and accessible technology. Designers focused on a calmer and more useful experience.',
+  'We are excited to collaborate with researchers and customers. Together, we can turn difficult ideas into tools that help people in practical ways.'
+].join('\\n\\n');
 const DEMO_TRANSLATION = '我们很期待与亚马逊团队合作，让更多人感受到 Android 和 Google Play 的便利。我们的目标是让技术真正为每个人创造价值。';
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -28,6 +33,9 @@ async function waitFor(url, test, retries = 80) {
 const server = spawn('python3', ['-m', 'http.server', '4173', '--bind', '127.0.0.1', '--directory', 'dist'], {
   cwd: ROOT, stdio: 'ignore',
 });
+const webServer = spawn('python3', ['-m', 'http.server', '4174', '--bind', '127.0.0.1', '--directory', 'dist-web'], {
+  cwd: ROOT, stdio: 'ignore',
+});
 const chrome = spawn('google-chrome', [
   '--headless=new', '--no-sandbox', '--disable-gpu', '--hide-scrollbars',
   '--disable-dev-shm-usage', '--disable-extensions',
@@ -39,6 +47,7 @@ const chrome = spawn('google-chrome', [
 let connection;
 try {
   await waitFor('http://127.0.0.1:4173/popup.html', () => true, 70);
+  await waitFor('http://127.0.0.1:4174/index.html', () => true, 70);
   const pages = await waitFor('http://127.0.0.1:9222/json/list', a => Array.isArray(a) && a.some(x => x.type === 'page'), 100);
   const page = pages.find(x => x.type === 'page');
   connection = new WebSocket(page.webSocketDebuggerUrl);
@@ -86,7 +95,7 @@ try {
   console.log('Starting navigation');
   await command('Page.enable');
   await command('Runtime.enable');
-  await command('Fetch.enable', {patterns:[{urlPattern:'*://127.0.0.1:4173/api/translate*',requestStage:'Request'}]});
+  await command('Fetch.enable', {patterns:[{urlPattern:'*://127.0.0.1:4173/api/translate*',requestStage:'Request'}, {urlPattern:'*://127.0.0.1:4174/api/translate*',requestStage:'Request'}]});
   await command('Emulation.setDeviceMetricsOverride',{width:560,height:595,deviceScaleFactor:1,mobile:false});
   await command('Page.navigate',{url:'http://127.0.0.1:4173/popup.html'});
   let ready=false;
@@ -149,9 +158,55 @@ try {
   await capture('yumai-popup-demo-translation.png');
   console.log('Demo translation screenshot saved');
   await writeFile(new URL('../preview/yumai-popup-layout.json',import.meta.url),JSON.stringify({...info,demoTranslation:true},null,2)+'\n');
+  // Full-tab workspace — same production React App, different actual route and layout.
+  await command('Emulation.setDeviceMetricsOverride',{width:1440,height:900,deviceScaleFactor:1,mobile:false});
+  await command('Page.navigate',{url:'http://127.0.0.1:4174/index.html'});
+  let workspaceReady=false;
+  for(let i=0;i<55;i++){
+    const status=await command('Runtime.evaluate',{expression:"Boolean(document.querySelector('.yumai-workspace-outline') && document.querySelector('textarea'))",returnByValue:true});
+    if(status.result?.value) {workspaceReady=true;break;}
+    await sleep(180);
+  }
+  if(!workspaceReady)throw new Error('Full-tab reading workspace did not mount');
+  await command('Runtime.evaluate',{expression:"document.querySelector('textarea').focus(); true",returnByValue:true});
+  await command('Input.insertText',{text:ARTICLE});
+  await sleep(500);
+  const outline=await command('Runtime.evaluate',{
+    expression:"({length:document.querySelector('textarea')?.value.length,items:document.querySelectorAll('.yumai-outline-item').length,workspace:!!document.querySelector('.yumai-workspace')})",
+    returnByValue:true
+  });
+  const outlineInfo=outline.result?.value;
+  if(outlineInfo?.items<3 || outlineInfo.length!==ARTICLE.length) throw new Error('Workspace outline smoke test failed: '+JSON.stringify(outlineInfo));
+  await command('Runtime.evaluate',{expression:"Array.from(document.querySelectorAll('button')).find(b => b.textContent.trim() === '翻译')?.click(); true",returnByValue:true});
+  let workspaceTranslated=false;
+  for(let i=0;i<55;i++){
+    const c=await command('Runtime.evaluate',{expression:"document.querySelector('.yumai-result-text')?.textContent?.includes('我们很期待') || false",returnByValue:true});
+    if(c.result?.value){workspaceTranslated=true;break;}
+    await sleep(180);
+  }
+  if(!workspaceTranslated)throw new Error('Workspace did not display a mock translation');
+  await capture('yumai-workspace-1440.png');
+  await writeFile(new URL('../preview/yumai-workspace-layout.json',import.meta.url),JSON.stringify(outlineInfo,null,2)+'\\n');
+  console.log('Full-tab workspace screenshot saved');
+
+  // CI-only component fixture uses the real production Header + WordContextCard.
+  await command('Emulation.setDeviceMetricsOverride',{width:1100,height:850,deviceScaleFactor:1,mobile:false});
+  await command('Page.navigate',{url:'http://127.0.0.1:4174/preview-overlay.html'});
+  let overlayReady=false;
+  for(let i=0;i<55;i++){
+    const c=await command('Runtime.evaluate',{expression:"Boolean(document.querySelector('.yumai-word-card') && document.querySelector('.yumai-floating'))",returnByValue:true});
+    if(c.result?.value){overlayReady=true;break;}
+    await sleep(180);
+  }
+  if(!overlayReady) throw new Error('Overlay component fixture did not render');
+  await sleep(200);
+  await capture('yumai-overlay-component-1100.png');
+  console.log('Overlay component screenshot saved');
+
   process.stdout.write('Preview screenshots captured: '+JSON.stringify(info)+'\n');
 } finally {
   if (connection) connection.close();
   chrome.kill('SIGTERM');
   server.kill('SIGTERM');
+  webServer.kill('SIGTERM');
 }
