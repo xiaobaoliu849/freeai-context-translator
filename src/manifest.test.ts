@@ -59,3 +59,7 @@ test('web_accessible_resources exposes only what the content script loads', () =
   assert.deepEqual([...resources].sort(), ['assets/yumai-mark.svg', 'content.css']);
   assert.ok(!resources.some((r) => r.includes('*')), 'no wildcard resources: they let any site fingerprint the extension');
 });
+
+test('store listing short description fits the 132-character limit', () => {
+  assert.ok((manifest.description as string).length <= 132, 'manifest description is too long for the store');
+});
