@@ -6,6 +6,14 @@ import {defineConfig} from 'vite';
 export default defineConfig(() => {
   return {
     plugins: [react(), tailwindcss()],
+    // The visual fixture is emitted only in CI, not in production deployments.
+    build: {
+      rollupOptions: {
+        input: process.env.CI === 'true'
+          ? { index: path.resolve(__dirname,'index.html'), overlay: path.resolve(__dirname,'preview-overlay.html') }
+          : path.resolve(__dirname,'index.html'),
+      },
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

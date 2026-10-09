@@ -79,6 +79,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: yumai-ui4-popup-screenshots
-          path: preview/yumai-popup-*
+          path: preview/yumai-*
           if-no-files-found: error
           retention-days: 14

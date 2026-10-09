@@ -1,0 +1,59 @@
+/* YUMAI UI 4.1 design tokens. All variables are scoped to the app. */
+.yumai-app {
+  --ym-primary: #4958ba;
+  --ym-primary-hover: #34469f;
+  --ym-primary-soft: #eef0fb;
+  --ym-accent-ink: #384698;
+  --ym-background: #f6f7f9;
+  --ym-surface: #ffffff;
+  --ym-surface-muted: #f7f8fb;
+  --ym-border: #e5e9f0;
+  --ym-text: #19253a;
+  --ym-text-muted: #65738a;
+  --ym-success: #28795f;
+  --ym-danger: #b4525f;
+  --ym-radius-control: 10px;
+  --ym-radius-panel: 16px;
+  --ym-shadow-panel: 0 2px 12px rgb(23 34 60 / 4%);
+  --ym-shadow-floating: 0 20px 55px rgb(23 34 60 / 18%);
+  --ym-font: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --ym-reading-size: 16px;
+  --ym-reading-line: 1.82;
+  --ym-caption-size: 12px;
+  font-family: var(--ym-font);
+  color: var(--ym-text);
+  background: var(--ym-background);
+}
+.yumai-app .yumai-header { background: var(--ym-surface); border-color: var(--ym-border); }
+.yumai-app .yumai-language-bar,
+.yumai-app .yumai-source-panel,
+.yumai-app .yumai-result-panel { border-color: var(--ym-border); box-shadow: var(--ym-shadow-panel); }
+.yumai-app .yumai-translate-button { background: var(--ym-primary); }
+.yumai-app .yumai-translate-button:hover { background: var(--ym-primary-hover); }
+.yumai-app .yumai-result-text { font-size: var(--ym-reading-size) !important; line-height: var(--ym-reading-line) !important; }
+.yumai-app .yumai-panel-caption { font-size: var(--ym-caption-size); color: var(--ym-text-muted); }
+.yumai-app .yumai-source-editor { font-family: var(--ym-font) !important; }
+.yumai-app .yumai-focus:focus-visible {
+  outline: 2px solid var(--ym-primary);
+  outline-offset: 2px;
+}
+.yumai-app .yumai-secondary-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: var(--ym-radius-control);
+  border: 1px solid var(--ym-border);
+  color: var(--ym-accent-ink);
+  background: var(--ym-surface);
+  font-size: 12px;
+  font-weight: 600;
+  transition: background-color 120ms;
+}
+.yumai-app .yumai-secondary-action:hover { background: var(--ym-primary-soft); }
+.yumai-app .yumai-secondary-action:disabled { opacity: .45; cursor: not-allowed; }
+@media (prefers-reduced-motion: reduce) {
+  .yumai-app .yumai-secondary-action { transition: none; }
+}

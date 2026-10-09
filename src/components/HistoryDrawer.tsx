@@ -45,6 +45,8 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [playPhase, setPlayPhase] = useState<'generating' | 'playing' | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const drawerRef = React.useRef<HTMLDivElement>(null);
+  const closeRef = React.useRef<HTMLButtonElement>(null);
 
   React.useEffect(() => {
     if (!isOpen) {
@@ -52,6 +54,13 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
       setPlayingId(null);
       setPlayPhase(null);
     }
+  }, [isOpen]);
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const before = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    closeRef.current?.focus();
+    return () => { if (before?.isConnected) before.focus(); };
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -145,14 +154,27 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex justify-end">
-      <div className="bg-white border-l border-slate-200 w-full max-w-lg h-full flex flex-col p-5 shadow-2xl text-slate-800 animate-in slide-in-from-right duration-200">
+      <div ref={drawerRef}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onClose(); return; }
+          if (e.key !== 'Tab') return;
+          const controls = drawerRef.current
+            ? (Array.from(drawerRef.current.querySelectorAll('button:not([disabled]), input:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])')) as HTMLElement[])
+              .filter(el => el.getClientRects().length > 0)
+            : [];
+          if (controls.length < 2) return;
+          if (e.shiftKey && document.activeElement === controls[0]) {e.preventDefault(); controls[controls.length-1].focus();}
+          if (!e.shiftKey && document.activeElement === controls[controls.length-1]) {e.preventDefault(); controls[0].focus();}
+        }}
+        className="yumai-history-drawer bg-white border-l border-slate-200 w-full max-w-lg h-full flex flex-col p-5 shadow-xl text-slate-800"
+        role="dialog" aria-modal="true" aria-label="翻译历史">
         {copyError && <p role="alert" className="text-xs text-rose-700 pb-2">{copyError}</p>}
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-100 relative">
           <div className="flex items-center gap-2">
             <Clock className="w-5 h-5 text-indigo-600" />
             <h3 className="font-extrabold text-base text-slate-900 tracking-tight">翻译历史</h3>
-            <span className="text-xs bg-gradient-to-r from-indigo-500 to-violet-500 text-white font-black px-2 py-0.5 rounded-full shadow-sm shadow-indigo-500/30">
+            <span className="text-xs bg-slate-100 text-slate-600 font-semibold px-2 py-0.5 rounded-full">
               {history.length}
             </span>
           </div>
@@ -169,9 +191,9 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
               </button>
             )}
             <button
+              ref={closeRef}
               onClick={onClose}
-              className="p-1.5 rounded-xl text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer border border-slate-200/80 shadow-2xs"
-              title="关闭"
+              className="p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer" title="关闭" aria-label="关闭翻译历史"
             >
               <X className="w-4 h-4" />
             </button>
@@ -188,7 +210,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="搜索原文或译文..."
-                className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200/90 rounded-xl text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 focus:border-indigo-400 focus:bg-white shadow-2xs transition-all"
+                className="w-full pl-9 pr-8 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:outline-2 focus:outline-indigo-500 focus:bg-white transition-colors" aria-label="搜索翻译历史"
               />
               {searchQuery && (
                 <button
@@ -215,19 +237,19 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
               return (
                 <div
                   key={item.id}
-                  className={`border transition-all rounded-2xl p-3.5 ${
+                  className={`yumai-history-item border transition-colors rounded-xl p-4 ${
                     isExpanded
-                      ? 'border-indigo-300 shadow-md shadow-indigo-100/60 bg-white'
-                      : 'border-slate-200/90 hover:border-indigo-300 hover:shadow-xs bg-slate-50/70 hover:bg-white'
+                      ? 'border-indigo-200 bg-white'
+                      : 'border-slate-200 hover:border-indigo-200 bg-white'
                   }`}
                 >
                   {/* Top Bar: Language & Timestamp & Expand button */}
                   <div className="flex items-center justify-between text-[11px] text-slate-400 mb-2">
-                    <span className="font-black uppercase tracking-wider text-white bg-gradient-to-r from-indigo-500 to-violet-500 px-2 py-0.5 rounded-md text-[10px] shadow-2xs">
+                    <span className="font-medium text-slate-600 bg-slate-100 px-2 py-1 rounded-md text-xs">
                       {item.sourceLang} → {item.targetLang}
                     </span>
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-[10px] text-slate-500 font-semibold">
+                      <span className="text-xs text-slate-500">
                         {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                       <button
@@ -244,20 +266,22 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
                   {/* Source & Translated Text Content */}
                   <div
                     onClick={() => toggleExpand(item.id)}
-                    className="cursor-pointer space-y-2"
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleExpand(item.id); } }}
+                    role="button" tabIndex={0} aria-expanded={isExpanded}
+                    className="cursor-pointer space-y-3 rounded-lg focus-visible:outline-2 focus-visible:outline-indigo-500"
                     title={isExpanded ? '点击收起' : '点击展开查看全部内容'}
                   >
                     {/* Source Text */}
                     <div className="relative group">
-                      <p className={`text-xs text-slate-700 font-medium leading-relaxed ${isExpanded ? 'whitespace-pre-wrap' : 'line-clamp-2'}`}>
+                      <p className={`text-sm text-slate-700 leading-relaxed ${isExpanded ? 'whitespace-pre-wrap' : 'line-clamp-2'}`}>
                         {item.sourceText}
                       </p>
                     </div>
 
                     {/* Translation */}
                     <div className="relative group">
-                      <div className="p-2.5 rounded-xl bg-gradient-to-br from-indigo-50/70 via-white to-violet-50/40 border border-indigo-100 shadow-2xs">
-                        <p className={`text-xs text-indigo-950 font-bold leading-relaxed ${isExpanded ? 'whitespace-pre-wrap' : 'line-clamp-2'}`}>
+                      <div className="p-3 rounded-xl bg-indigo-50/50 border border-indigo-100">
+                        <p className={`text-sm text-slate-800 font-medium leading-relaxed ${isExpanded ? 'whitespace-pre-wrap' : 'line-clamp-2'}`}>
                           {item.translation}
                         </p>
                       </div>
@@ -272,7 +296,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
                         onSelectHistory(item);
                         onClose();
                       }}
-                      className="text-[11px] text-indigo-700 bg-gradient-to-r from-indigo-50 to-violet-50 hover:from-indigo-100 hover:to-violet-100 border border-indigo-200/80 px-2.5 py-1 rounded-xl flex items-center gap-1 font-extrabold transition-all cursor-pointer shadow-2xs hover:scale-105 active:scale-95"
+                      className="yumai-secondary-action"
                       title="载入到翻译主界面"
                     >
                       <span>载入原文</span>
@@ -359,7 +383,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
             </button>
 
             <button
-              onClick={onClearHistory}
+              onClick={() => { if (window.confirm('确定清空全部翻译历史？此操作无法撤销。')) onClearHistory(); }}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-600 hover:text-white border border-rose-200 hover:border-rose-600 transition-all cursor-pointer shadow-2xs hover:scale-105 active:scale-95"
             >
               <Trash2 className="w-3.5 h-3.5" />

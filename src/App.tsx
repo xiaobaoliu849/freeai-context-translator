@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
+import { ReadingWorkspaceShell } from './components/ReadingWorkspaceShell';
 import { TranslatorMain } from './components/TranslatorMain';
 import { SettingsModal } from './components/SettingsModal';
 import { HistoryDrawer } from './components/HistoryDrawer';
@@ -108,6 +109,8 @@ export default function App({
 
   // Bumped when the user retranslates a history item (TranslatorMain reacts).
   const [retranslateSignal, setRetranslateSignal] = useState(0);
+  const [workspaceSelection, setWorkspaceSelection] = useState<{id:number; text:string} | null>(null);
+  const [resetSignal, setResetSignal] = useState(0);
 
   // Settings & History State with LocalStorage and chrome.storage
   const [settings, setSettings] = useState<AppSettings>(() => {
@@ -234,7 +237,7 @@ export default function App({
   };
 
   return (
-    <div className={`yumai-app ${isPopup ? 'yumai-popup h-screen overflow-hidden' : 'min-h-screen'} flex flex-col text-slate-900 selection:bg-indigo-100 selection:text-slate-900`}>
+    <div className={`yumai-app ${isFloating ? 'yumai-floating' : ''} ${isPopup ? 'yumai-popup h-screen overflow-hidden' : 'min-h-screen'} flex flex-col text-slate-900 selection:bg-indigo-100 selection:text-slate-900`}>
       {/* Header Bar */}
       <Header
         openSettings={() => setIsSettingsOpen(true)}
@@ -248,8 +251,9 @@ export default function App({
         onDragStart={onDragStart}
       />
 
-      {/* Main App Content View */}
-      <main className={isPopup ? 'flex-1 min-h-0 flex flex-col overflow-hidden' : 'flex-1 pb-8'}>
+      {/* Separate reading workspace for full tabs; the popup remains a focused tool. */}
+      <main className={isPopup ? 'flex-1 min-h-0 flex flex-col overflow-hidden' : 'flex-1 min-w-0'}>
+        {isPopup ? (
         <TranslatorMain
           sourceText={sourceText}
           setSourceText={setSourceText}
@@ -267,7 +271,42 @@ export default function App({
           selectionSignal={selectionSignal}
           selectionContext={selectionContext}
           isPopup={isPopup}
+          isFloating={isFloating}
+          workspaceSelection={workspaceSelection}
+          resetSignal={resetSignal}
         />
+        ) : (
+          <ReadingWorkspaceShell
+            sourceText={sourceText}
+            historyCount={history.length}
+            onNewDocument={() => { setSourceText(''); setSelectionContext(''); setWorkspaceSelection(null); setResetSignal(v => v + 1); }}
+            onOpenHistory={() => setIsHistoryOpen(true)}
+            onOpenSettings={() => setIsSettingsOpen(true)}
+            onTranslateSegment={(text) => setWorkspaceSelection(prev => ({id:(prev?.id || 0) + 1,text}))}
+          >
+        <TranslatorMain
+          sourceText={sourceText}
+          setSourceText={setSourceText}
+          sourceLang={sourceLang}
+          setSourceLang={setSourceLang}
+          targetLang={targetLang}
+          setTargetLang={setTargetLang}
+          onSwapLanguages={handleSwapLanguages}
+          languages={SUPPORTED_LANGUAGES}
+          settings={settings}
+          onSaveHistory={handleSaveHistoryItem}
+          openSettings={() => setIsSettingsOpen(true)}
+          openHistory={() => setIsHistoryOpen(true)}
+          retranslateSignal={retranslateSignal}
+          selectionSignal={selectionSignal}
+          selectionContext={selectionContext}
+          isPopup={isPopup}
+          isFloating={isFloating}
+          workspaceSelection={workspaceSelection}
+          resetSignal={resetSignal}
+        />
+          </ReadingWorkspaceShell>
+        )}
       </main>
 
       {/* Modals & Drawers */}

@@ -26,8 +26,12 @@ interface TranslatorMainProps {
   selectionSignal?: number;
   /** Limited surrounding text from the same page text node; never form-field data. */
   selectionContext?: string;
+  /** Chosen segment from the reading outline. */
+  workspaceSelection?: { id: number; text: string } | null;
+  resetSignal?: number;
   /** Compact app-shell layout used inside the 440x570 extension popup. */
   isPopup?: boolean;
+  isFloating?: boolean;
 }
 
 /** Small icon that reflects the current TTS state of a play button. */
@@ -64,7 +68,10 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
   retranslateSignal = 0,
   selectionSignal = 0,
   selectionContext = '',
+  workspaceSelection = null,
+  resetSignal = 0,
   isPopup = false,
+  isFloating = false,
 }) => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<TranslationResult | null>(null);
@@ -90,6 +97,8 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
   const [wordContext, setWordContext] = useState<string>('');
   const [activeSelection, setActiveSelection] = useState<string>('');
   const [readingOutlineOpen, setReadingOutlineOpen] = useState(false);
+  const [floatingEditorExpanded, setFloatingEditorExpanded] = useState(false);
+  const compactFloatingSource = isFloating && !selectedWord && !floatingEditorExpanded && Boolean(sourceText.trim());
   const wordReqIdRef = useRef(0);
   const skipSelectionRef = useRef(false);
   const selectionKind = classifySelection(sourceText);
@@ -135,9 +144,10 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
     if (userCustomVSplit) return vSplitPercent;
     const len = sourceText.trim().length;
     if (len === 0) return 38;
-    if (len <= 80) return 30; // Short text: give 70% space to result & dictionary
-    if (len <= 250) return 38;
-    return 45; // Long text: balanced 45:55
+    if (len <= 80) return 34; // Keep short content accessible while prioritizing output
+    if (len <= 250) return 40;
+    if (len <= 800) return 46;
+    return 50; // Long form: equal scrollable source / target
   }, [sourceText, userCustomVSplit, vSplitPercent]);
 
   useEffect(() => {
@@ -568,6 +578,33 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
     );
   };
 
+  // New document always clears the previous translation and interrupts stale work.
+  useEffect(() => {
+    if (!resetSignal) return;
+    streamAbortRef.current?.abort();
+    translateReqIdRef.current += 1;
+    wordReqIdRef.current += 1;
+    setLoading(false);
+    setResult(null);
+    setError(null);
+    setStreamingText('');
+    streamingTextRef.current = '';
+    setSelectedWord(null);
+    setWordExplanation(null);
+    setActiveSelection('');
+    setFloatingEditorExpanded(false);
+  }, [resetSignal]);
+
+  // Translate only the chosen reading segment, keeping the original document intact.
+  const handledWorkspaceSelectionRef = useRef(0);
+  useEffect(() => {
+    if (!workspaceSelection || workspaceSelection.id === handledWorkspaceSelectionRef.current) return;
+    handledWorkspaceSelectionRef.current = workspaceSelection.id;
+    clearWordSelection();
+    setActiveSelection(workspaceSelection.text);
+    handleTranslate(workspaceSelection.text);
+  }, [workspaceSelection?.id]);
+
   // Explicit selections choose a relevant view; history retranslation remains separate.
   const handledSelectionRef = useRef(0);
   useEffect(() => {
@@ -672,7 +709,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
   return (
     <div className={isPopup
       ? 'flex-1 min-h-0 flex flex-col gap-2 px-3 py-3'
-      : 'max-w-[1400px] mx-auto px-3 sm:px-6 py-5 flex flex-col gap-4'
+      : 'yumai-studio max-w-[1400px] mx-auto px-3 sm:px-6 py-5 flex flex-col gap-4'
     }>
       {copyError && <p role="alert" className="text-xs text-rose-700 px-2">{copyError}</p>}
       {/* 1. ELEGANT LANGUAGE SELECTOR TOOLBAR */}
@@ -875,6 +912,15 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
               <span>编辑原文</span>
             </button>
           </div>
+        ) : compactFloatingSource ? (
+          <section className="yumai-floating-snippet shrink-0 rounded-xl border border-slate-200 bg-white px-4 py-3" aria-label="已选中的网页文本">
+            <div className="mb-1.5 flex items-center justify-between gap-2">
+              <span className="yumai-panel-caption">已选中 · {selectionKind === 'passage' ? '长文本' : '句子'}</span>
+              <button type="button" className="yumai-secondary-action" onClick={() => setFloatingEditorExpanded(true)}
+                aria-label="展开原文编辑器"><PencilLine className="h-3.5 w-3.5"/> 编辑</button>
+            </div>
+            <p className="line-clamp-3 whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-700">{sourceText}</p>
+          </section>
         ) : (
         <div
           style={isPopup ? { flex: `0 0 calc(${effectiveVSplitPercent}% - 6px)` } : undefined}
@@ -982,14 +1028,25 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
 
         {/* Vertical drag handle in popup mode (hidden while a word is selected —
             the context strip has a fixed height so there is nothing to drag) */}
-        {isPopup && !selectedWord && (
+        {isPopup && !selectedWord && !compactFloatingSource && (
           <div
             onPointerDown={handleVSplitPointerDown}
             onPointerMove={handleVSplitPointerMove}
             onPointerUp={handleVSplitPointerUp}
             onPointerCancel={handleVSplitPointerUp}
             onDoubleClick={handleResetAdaptiveSplit}
-            className="h-3 flex items-center justify-center cursor-row-resize touch-none group select-none py-1 shrink-0"
+            onKeyDown={(e) => {
+              if (e.key === 'Home') { e.preventDefault(); handleResetAdaptiveSplit(); return; }
+              const delta = e.key === 'ArrowDown' ? 3 : e.key === 'ArrowUp' ? -3 : 0;
+              if (!delta) return;
+              e.preventDefault();
+              setVSplitPercent(Math.max(20, Math.min(75, effectiveVSplitPercent + delta)));
+              setUserCustomVSplit(true);
+              localStorage.setItem('freetranslate_vsplit_custom', 'true');
+            }}
+            role="separator" aria-label="原文和译文高度比例" aria-orientation="horizontal"
+            aria-valuenow={effectiveVSplitPercent} aria-valuemin={20} aria-valuemax={75} tabIndex={0}
+            className="h-3 flex items-center justify-center cursor-row-resize touch-none group select-none py-1 shrink-0 focus-visible:outline-2 focus-visible:outline-indigo-500"
             title={userCustomVSplit ? '拖动调整高度 (双击恢复智能自适应)' : '智能自适应高度 (拖动可手动调整)'}
           >
             <div className={`h-[3px] rounded-full transition-all ${
@@ -1005,7 +1062,16 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             onPointerMove={handleSplitPointerMove}
             onPointerUp={handleSplitPointerUp}
             onPointerCancel={handleSplitPointerUp}
-            className="hidden md:flex items-center justify-center cursor-col-resize touch-none group select-none"
+            onKeyDown={(e) => {
+              const delta = e.key === 'ArrowRight' ? 3 : e.key === 'ArrowLeft' ? -3 : 0;
+              if (e.key === 'Home') { e.preventDefault(); setSplitPercent(50); return; }
+              if (!delta) return;
+              e.preventDefault();
+              setSplitPercent(current => Math.max(20, Math.min(80, current + delta)));
+            }}
+            role="separator" aria-label="原文和译文宽度比例" aria-orientation="vertical"
+            aria-valuenow={splitPercent} aria-valuemin={20} aria-valuemax={80} tabIndex={0}
+            className="hidden md:flex items-center justify-center cursor-col-resize touch-none group select-none focus-visible:outline-2 focus-visible:outline-indigo-500"
             title="拖动调整左右面板宽度"
           >
             <div className={`w-[3px] h-16 rounded-full transition-all ${
@@ -1045,7 +1111,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                       <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
                       {result?.sourceText && result.sourceText !== sourceText ? '所选内容译文' : '翻译结果'}
                     </span>
-                    <span className="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md font-medium">生成中…</span>
+                    <span className="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md font-medium" role="status">生成中…</span>
                   </div>
                   <div className="h-px bg-slate-200" />
                 </div>
@@ -1101,7 +1167,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
               </div>
 
               {/* Translation Card Actions Footer */}
-              <div className="yumai-result-footer flex shrink-0 items-center justify-between text-xs text-slate-500">
+              <div className="yumai-result-footer flex shrink-0 items-center justify-between text-xs text-slate-500" aria-label="译文操作">
                 <div className="flex items-center gap-1.5 text-xs">
                   <span>引擎</span>
                   <span className="font-medium text-slate-600 text-xs">
