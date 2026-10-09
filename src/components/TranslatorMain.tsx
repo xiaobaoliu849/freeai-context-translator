@@ -846,6 +846,11 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             智能识别：{selectedWord ? '词语释义' : selectionKind === 'passage' ? '长文阅读' : selectionKind === 'term' ? '短语' : '句子翻译'}
           </span>
           <div className="flex items-center gap-2">
+            {isFloating && selectedWord && (
+              <button type="button" onClick={() => { clearWordSelection(); setFloatingEditorExpanded(true); }}
+                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-semibold text-slate-600 hover:bg-slate-50"
+                aria-label="编辑选中文本">编辑原文</button>
+            )}
             {selectedWord ? (
               <button type="button" onClick={() => { clearWordSelection(); if (!result?.translation || result.sourceText !== sourceText) handleTranslate(); }}
                 className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-semibold text-indigo-700 hover:bg-indigo-50">
@@ -895,7 +900,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
         {/* LEFT / TOP COLUMN: SOURCE INPUT BOX — in popup word-lookup mode the
             whole box collapses to a one-line context strip so the word view
             below gets almost all the vertical space. */}
-        {isPopup && selectedWord ? (
+        {isPopup && selectedWord ? (isFloating ? null : (
           <div className="shrink-0 flex items-center justify-between gap-2 px-3 py-2 bg-white border border-slate-200 rounded-xl select-none">
             <span
               className="flex-1 min-w-0 text-xs text-slate-600 truncate whitespace-nowrap font-medium"
@@ -912,7 +917,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
               <span>编辑原文</span>
             </button>
           </div>
-        ) : compactFloatingSource ? (
+        )) : compactFloatingSource ? (
           <section className="yumai-floating-snippet shrink-0 rounded-xl border border-slate-200 bg-white px-4 py-3" aria-label="已选中的网页文本">
             <div className="mb-1.5 flex items-center justify-between gap-2">
               <span className="yumai-panel-caption">已选中 · {selectionKind === 'passage' ? '长文本' : '句子'}</span>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useId } from 'react';
 import {
   Volume2,
   Loader2,
@@ -46,6 +46,7 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
   const [copyError, setCopyError] = useState<string | null>(null);
   const [examplesOpen, setExamplesOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const sectionId = useId();
   useEffect(() => {
     setExamplesOpen(false);
     setDetailsOpen(false);
@@ -102,86 +103,63 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
     }
   };
 
-  // Compact single-row header: word + pronunciation + badges + close. This is
-  // the ONLY fixed chrome the view has.
+  // Keep actions separate from metadata: long part-of-speech descriptions must
+  // wrap without pushing the close button into a second, mostly empty row.
   const renderHeader = () => {
     const posTag = explanation?.pos || explanation?.partOfSpeech;
     return (
-      <div className="px-4 py-3 flex items-center gap-2 flex-wrap shrink-0 border-b border-slate-100 bg-white select-none">
-        {displayWord && (
-          <h3 className="text-lg font-bold tracking-tight leading-tight text-slate-900 truncate">
-            {displayWord}
-          </h3>
+      <div className="yumai-word-header select-none">
+        <div className="yumai-word-title-row">
+          <div className="yumai-word-title">
+            {displayWord && <h3>{displayWord}</h3>}
+            <button
+              onClick={handlePlayWordAudio}
+              disabled={!displayWord && !sentence}
+              data-playing={Boolean(wordPhase)}
+              className="yumai-word-icon text-indigo-600 transition-colors cursor-pointer disabled:opacity-30"
+              title="播放单词发音" aria-label="播放单词发音"
+            >
+              {wordPhase === 'generating' ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : wordPhase === 'playing' ? (
+                <span className="ft-eq flex items-end gap-0.5 h-3.5 px-0.5">
+                  <span className="w-0.5 bg-indigo-600 rounded-full animate-bounce h-2.5" />
+                  <span className="w-0.5 bg-indigo-600 rounded-full animate-bounce h-3.5 delay-75" />
+                  <span className="w-0.5 bg-indigo-600 rounded-full animate-bounce h-2 delay-150" />
+                </span>
+              ) : <Volume2 className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+          <div className="yumai-word-actions">
+            <button
+              onClick={handleCopyWord}
+              disabled={!displayWord}
+              className="yumai-word-icon text-slate-500 hover:text-slate-800 transition-colors cursor-pointer disabled:opacity-30"
+              title="复制单词" aria-label="复制单词"
+            >
+              {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onClose(); }}
+              className="yumai-word-icon text-slate-500 hover:text-slate-700 transition-colors cursor-pointer"
+              title="返回整句翻译 (Esc)" aria-label="关闭词典，返回翻译"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+        {(explanation?.phonetic || posTag || explanation?.cefrLevel || explanation?.rootOrLemma) && (
+          <div className="yumai-word-meta">
+            {explanation?.phonetic && <span className="yumai-word-phonetic">
+              {explanation.phonetic.startsWith('/') ? explanation.phonetic : `/${explanation.phonetic}/`}
+            </span>}
+            {posTag && <span className="yumai-word-pos">{posTag}</span>}
+            {explanation?.cefrLevel && <span className="yumai-word-level" title="CEFR 词汇等级">{explanation.cefrLevel}</span>}
+            {explanation?.rootOrLemma && explanation.rootOrLemma.toLowerCase() !== displayWord.toLowerCase() && (
+              <span>原形：{explanation.rootOrLemma}</span>
+            )}
+          </div>
         )}
-
-        {/* Audio Pronunciation Button */}
-        <button
-          onClick={handlePlayWordAudio}
-          disabled={!displayWord && !sentence}
-          className={`p-2 rounded-lg transition-colors cursor-pointer disabled:opacity-30 ${
-            wordPhase
-              ? 'bg-indigo-100 text-indigo-700'
-              : 'text-indigo-600 hover:bg-indigo-50'
-          }`}
-          title="播放单词发音" aria-label="播放单词发音"
-        >
-          {wordPhase === 'generating' ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-          ) : wordPhase === 'playing' ? (
-            <span className="ft-eq flex items-end gap-0.5 h-3.5 px-0.5">
-              <span className="w-0.5 bg-indigo-600 rounded-full animate-bounce h-2.5" />
-              <span className="w-0.5 bg-indigo-600 rounded-full animate-bounce h-3.5 delay-75" />
-              <span className="w-0.5 bg-indigo-600 rounded-full animate-bounce h-2 delay-150" />
-            </span>
-          ) : (
-            <Volume2 className="w-3.5 h-3.5" />
-          )}
-        </button>
-
-        {/* Phonetic */}
-        {explanation?.phonetic && (
-          <span className="text-xs font-mono text-slate-500">
-            {explanation.phonetic.startsWith('/') ? explanation.phonetic : `/${explanation.phonetic}/`}
-          </span>
-        )}
-
-        {/* POS Tag */}
-        {posTag && (
-          <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600">
-            {posTag}
-          </span>
-        )}
-
-        {/* CEFR Tag */}
-        {explanation?.cefrLevel && (
-          <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600">
-            {explanation.cefrLevel}
-          </span>
-        )}
-
-        <div className="flex-1" />
-
-        {/* Copy Word */}
-        <button
-          onClick={handleCopyWord}
-          disabled={!displayWord}
-          className="p-2 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer disabled:opacity-30"
-          title="复制单词" aria-label="复制单词"
-        >
-          {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-        </button>
-
-        {/* Close (deselecting the word has the same effect) */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onClose();
-          }}
-          className="p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
-          title="返回整句翻译 (Esc)" aria-label="关闭词典，返回翻译"
-        >
-          <X className="w-4 h-4" />
-        </button>
       </div>
     );
   };
@@ -239,6 +217,7 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
   const synonyms = explanation.synonymsInContext || [];
   const antonyms = explanation.antonyms || [];
   const examplesList = explanation.examples || explanation.exampleSentences || [];
+  const contextWordIndex = sentence?.toLowerCase().indexOf(displayWord.toLowerCase()) ?? -1;
 
   return (
     <div className="yumai-word-card bg-white text-slate-800 w-full flex-1 min-h-0 flex flex-col overflow-hidden">
@@ -248,58 +227,52 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
       {/* Body: the in-context meaning IS the interface (same typography as the
           translation it temporarily replaces). Secondary info stays flat —
           labels + inline chips, no nested boxes. */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4 select-text">
-        {/* Original sentence with the word highlighted (desktop only — the popup
-            shows a dedicated context strip above instead) */}
-        {sentence && sentence.trim() !== displayWord.trim() && (
-          <p className="text-xs text-slate-500 italic leading-relaxed line-clamp-2">
-            “{sentence}”
-          </p>
-        )}
-
+      <div className="yumai-word-body select-text" tabIndex={0} role="region" aria-label="完整词语解释">
         {/* In-context meaning — the hero answer */}
-        <section className="bg-indigo-50/60 p-4 rounded-xl border border-indigo-100">
-          <div className="flex items-center gap-1.5 text-xs font-semibold mb-1.5 select-none text-indigo-700">
-            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-            <span>句中含义</span>
-          </div>
-          <p className="text-xl font-semibold text-slate-900 leading-snug">
+        <section className="yumai-word-meaning" aria-labelledby={`${sectionId}-meaning`}>
+          <h4 id={`${sectionId}-meaning`}>句中含义</h4>
+          <p>
             {explanation.contextualMeaning}
           </p>
         </section>
 
         {/* Context nuance */}
         {explanation.contextExplanation && (
-          <div className="text-sm text-slate-600 leading-[1.8]">
-            <span className="font-semibold text-slate-700 select-none inline-flex items-center gap-1 mr-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
-              语境辨析 ·
-            </span>
-            {explanation.contextExplanation}
-          </div>
+          <section className="yumai-word-section">
+            <h4>为什么是这个意思</h4>
+            <p>{explanation.contextExplanation}</p>
+          </section>
         )}
 
         {/* General dictionary definition */}
         {explanation.literalMeaning && (
-          <div className="text-xs text-slate-500 leading-relaxed">
-            <span className="font-bold text-slate-600 select-none inline-flex items-center gap-1 mr-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-              通用释义 ·
-            </span>
-            {explanation.literalMeaning}
-          </div>
+          <section className="yumai-word-section">
+            <h4>通用释义</h4>
+            <p>{explanation.literalMeaning}</p>
+          </section>
+        )}
+
+        {sentence && sentence.trim() !== displayWord.trim() && (
+          <details className="yumai-word-context">
+            <summary>查看原文语境</summary>
+            <p>{contextWordIndex >= 0 && displayWord ? <>
+              {sentence!.slice(0, contextWordIndex)}
+              <mark>{sentence!.slice(contextWordIndex, contextWordIndex + displayWord.length)}</mark>
+              {sentence!.slice(contextWordIndex + displayWord.length)}
+            </> : sentence}</p>
+          </details>
         )}
 
         {/* Additional vocabulary data is optional; the contextual meaning remains the hero. */}
         {(collocations.length > 0 || synonyms.length > 0 || antonyms.length > 0) && (
-          <button type="button" aria-expanded={detailsOpen}
+          <button type="button" aria-expanded={detailsOpen} aria-controls={`${sectionId}-vocabulary`}
             onClick={() => setDetailsOpen(v => !v)}
-            className="flex min-h-9 items-center gap-1.5 rounded-lg px-2 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50">
+            className="yumai-word-disclosure">
             <ChevronRight className={`w-3.5 h-3.5 transition-transform ${detailsOpen ? 'rotate-90' : ''}`} />
             {detailsOpen ? '收起词汇信息' : '展开搭配、近义词与反义词'}
           </button>
         )}
-        {detailsOpen && (<>
+        {detailsOpen && (<div id={`${sectionId}-vocabulary`} className="yumai-word-vocabulary">
         {/* Collocations — inline chips */}
         {collocations.length > 0 && (
           <div>
@@ -320,12 +293,12 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
           </div>
         )}
 
-        {/* Synonyms & antonyms — inline chips */}
-        {(synonyms.length > 0 || antonyms.length > 0) && (
+        {/* Opposite meanings have an explicit label rather than deletion styling. */}
+        {synonyms.length > 0 && (
           <div>
             <div className="text-xs font-semibold text-slate-600 mb-2 select-none flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
-              近义 / 反义
+              近义表达
             </div>
             <div className="flex flex-wrap gap-1.5">
               {synonyms.map((syn, idx) => (
@@ -336,32 +309,36 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
                   {syn}
                 </span>
               ))}
+            </div>
+          </div>
+        )}
+
+        {antonyms.length > 0 && (
+          <div>
+            <div className="text-xs font-semibold text-slate-600 mb-2">反义表达</div>
+            <div className="flex flex-wrap gap-1.5">
               {antonyms.map((ant, idx) => (
-                <span
-                  key={`a-${idx}`}
-                  className="px-2.5 py-1.5 rounded-lg text-xs bg-slate-50 text-slate-500 border border-slate-200 line-through select-text"
-                >
-                  {ant}
-                </span>
+                <span key={idx} className="px-2.5 py-1.5 rounded-lg text-xs bg-slate-50 text-slate-700 border border-slate-200 select-text">{ant}</span>
               ))}
             </div>
           </div>
         )}
 
-        </>)}
+        </div>)}
         {/* Examples — collapsed behind a single line by default */}
         {examplesList.length > 0 && (
           <div>
             <button
               onClick={() => setExamplesOpen((o) => !o)}
               aria-expanded={examplesOpen}
-              className="flex items-center gap-1.5 min-h-9 text-xs font-semibold text-slate-600 hover:text-indigo-600 transition-colors cursor-pointer select-none"
+              aria-controls={`${sectionId}-examples`}
+              className="yumai-word-disclosure"
             >
               <ChevronRight className={`w-3.5 h-3.5 text-indigo-500 transition-transform ${examplesOpen ? 'rotate-90' : ''}`} />
               <span>{examplesList.length} 条例句参考</span>
             </button>
             {examplesOpen && (
-              <div className="mt-2 space-y-2">
+              <div id={`${sectionId}-examples`} className="yumai-word-examples">
                 {examplesList.map((ex: any, idx: number) => {
                   const src = ex.source || ex.original;
                   const tgt = ex.target || ex.translation;
