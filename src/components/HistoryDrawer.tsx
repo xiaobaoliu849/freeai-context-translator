@@ -174,7 +174,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-100 relative">
           <div className="flex items-center gap-2">
-            <Clock className="w-5 h-5 text-indigo-600" />
+            <Clock className="w-5 h-5 text-brand-600" />
             <h3 className="font-extrabold text-base text-slate-900 tracking-tight">翻译历史</h3>
             <span className="text-xs bg-slate-100 text-slate-600 font-semibold px-2 py-0.5 rounded-full">
               {history.length}
@@ -185,10 +185,10 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
             {filteredHistory.length > 0 && (
               <button
                 onClick={toggleExpandAll}
-                className="text-xs font-bold text-slate-600 hover:text-indigo-600 flex items-center gap-1 px-2.5 py-1 rounded-xl hover:bg-indigo-50/70 transition-all cursor-pointer border border-slate-200/80 shadow-2xs"
+                className="text-xs font-bold text-slate-600 hover:text-brand-600 flex items-center gap-1 px-2.5 py-1 rounded-xl hover:bg-brand-50/70 transition-all cursor-pointer border border-slate-200/80 shadow-2xs"
                 title={expandedIds.size === filteredHistory.length ? '全部收起' : '全部展开'}
               >
-                <ChevronsUpDown className="w-3.5 h-3.5 text-indigo-500" />
+                <ChevronsUpDown className="w-3.5 h-3.5 text-brand-500" />
                 <span>{expandedIds.size === filteredHistory.length ? '全部收起' : '全部展开'}</span>
               </button>
             )}
@@ -212,7 +212,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="搜索原文或译文..."
-                className="w-full pl-9 pr-8 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:outline-2 focus:outline-indigo-500 focus:bg-white transition-colors" aria-label="搜索翻译历史"
+                className="w-full pl-9 pr-8 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:outline-2 focus:outline-brand-500 focus:bg-white transition-colors" aria-label="搜索翻译历史"
               />
               {searchQuery && (
                 <button
@@ -241,8 +241,8 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
                   key={item.id}
                   className={`yumai-history-item border transition-colors rounded-xl p-4 ${
                     isExpanded
-                      ? 'border-indigo-200 bg-white'
-                      : 'border-slate-200 hover:border-indigo-200 bg-white'
+                      ? 'border-brand-200 bg-white'
+                      : 'border-slate-200 hover:border-brand-200 bg-white'
                   }`}
                 >
                   {/* Top Bar: Language & Timestamp & Expand button */}
@@ -256,7 +256,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
                       </time>
                       <button
                         onClick={(e) => toggleExpand(item.id, e)}
-                        className="p-1 rounded-md text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors cursor-pointer flex items-center gap-0.5 text-[10px] font-bold"
+                        className="p-1 rounded-md text-slate-500 hover:text-brand-600 hover:bg-brand-50 transition-colors cursor-pointer flex items-center gap-0.5 text-[10px] font-bold"
                         title={isExpanded ? '收起详情' : '展开查看完整内容'}
                         aria-expanded={isExpanded}
                       >
@@ -271,7 +271,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
                     onClick={() => toggleExpand(item.id)}
                     onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleExpand(item.id); } }}
                     role="button" tabIndex={0} aria-expanded={isExpanded}
-                    className="cursor-pointer space-y-3 rounded-lg focus-visible:outline-2 focus-visible:outline-indigo-500"
+                    className="cursor-pointer space-y-3 rounded-lg focus-visible:outline-2 focus-visible:outline-brand-500"
                     title={isExpanded ? '点击收起' : '点击展开查看全部内容'}
                   >
                     {/* Source Text */}
@@ -283,7 +283,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
 
                     {/* Translation */}
                     <div className="relative group">
-                      <div className="p-3 rounded-xl bg-indigo-50/50 border border-indigo-100">
+                      <div className="p-3 rounded-xl bg-brand-50/50 border border-brand-100">
                         <p className={`text-sm text-slate-800 font-medium leading-relaxed ${isExpanded ? 'whitespace-pre-wrap' : 'line-clamp-2'}`}>
                           {item.translation}
                         </p>
@@ -303,7 +303,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
                       title="载入到翻译主界面"
                     >
                       <span>载入原文</span>
-                      <ArrowRight className="w-3 h-3 text-indigo-600" />
+                      <ArrowRight className="w-3 h-3 text-brand-600" />
                     </button>
 
                     {/* Tool Buttons */}
@@ -327,7 +327,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
                           onRetranslate(item);
                           onClose();
                         }}
-                        className="yumai-history-icon p-2 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 cursor-pointer transition-colors"
+                        className="yumai-history-icon p-2 rounded-lg text-slate-500 hover:text-brand-600 hover:bg-brand-50 cursor-pointer transition-colors"
                         title="重新翻译" aria-label="重新翻译"
                       >
                         <RefreshCw className="w-3.5 h-3.5" />
@@ -337,7 +337,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
                       <button
                         onClick={(e) => handleReplay(item, e)}
                         className={`rounded-lg cursor-pointer transition-colors ${
-                          playingId === item.id ? 'bg-indigo-100 text-indigo-600' : 'text-slate-500 hover:text-indigo-600 hover:bg-indigo-50'
+                          playingId === item.id ? 'bg-brand-100 text-brand-600' : 'text-slate-500 hover:text-brand-600 hover:bg-brand-50'
                         } yumai-history-icon p-2`}
                         title="朗读译文" aria-label="朗读译文"
                       >
@@ -378,7 +378,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
           <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
             <button
               onClick={handleExport}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-300 border border-slate-200 transition-all cursor-pointer shadow-2xs hover:scale-105 active:scale-95"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-brand-50 hover:text-brand-700 hover:border-brand-300 border border-slate-200 transition-all cursor-pointer shadow-2xs hover:scale-105 active:scale-95"
               title="导出历史记录 (JSON)"
             >
               <Download className="w-3.5 h-3.5" />

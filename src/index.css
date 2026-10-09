@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./styles/yumai-theme.css";
 @import "./yumai-ui.css";
 @import "./styles/yumai-clarity.css";
 
@@ -33,29 +34,27 @@
   }
 }
 
-/* Elegant thin scrollbar with a subtle brand-gradient thumb */
+/* Quiet thin scrollbar and navy selection, matching the YUMAI tokens. */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, rgba(129, 140, 248, 0.5), rgba(192, 132, 252, 0.5));
+  background: rgb(82 100 143 / 28%);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, rgba(99, 102, 241, 0.85), rgba(168, 85, 247, 0.85));
+  background: rgb(82 100 143 / 48%);
 }
-
-/* Brand-colored text selection & caret for a cohesive feel */
 ::selection {
-  background: rgba(99, 102, 241, 0.22);
-  color: #1e1b4b;
+  background: rgb(38 59 104 / 16%);
+  color: #172338;
 }
 textarea {
-  caret-color: #7c3aed;
+  caret-color: #263b68;
 }
 
 /* Ensure smooth text rendering without subpixel clipping */

@@ -21,15 +21,12 @@
   .yumai-app img { max-width: 100%; height: auto; }
 }
 /* YUMAI 4.0 visual system. Scoped to the app so host webpages are not affected. */
+/* Legacy aliases; values come from styles/yumai-tokens.css. */
 .yumai-app {
-  --ym-accent: #4958ba;
-  --ym-ink: #19253a;
-  --ym-muted: #65738a;
-  --ym-line: #e5e9f1;
-  --ym-background: #f6f7f9;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-  color: var(--ym-ink);
-  background-color: var(--ym-background);
+  --ym-accent: var(--ym-primary);
+  --ym-ink: var(--ym-text);
+  --ym-muted: var(--ym-text-muted);
+  --ym-line: var(--ym-border);
 }
 .yumai-app *, .yumai-app *::before, .yumai-app *::after {
   box-sizing: border-box;
@@ -55,7 +52,7 @@
   outline: 2px solid var(--ym-accent);
   outline-offset: 2px;
 }
-.yumai-app ::selection { background: #dee1ff; color: #17223c; }
+.yumai-app ::selection { background: var(--ym-brand-100); color: var(--ym-text); }
 .yumai-app ::-webkit-scrollbar { width: 5px; height: 5px; }
 .yumai-app ::-webkit-scrollbar-track { background: transparent; }
 .yumai-app ::-webkit-scrollbar-thumb { background: #cbd3e2; border-radius: 12px; }
@@ -74,7 +71,7 @@
   min-width: 0;
   font-size: 13px;
   font-weight: 600;
-  color: #263451;
+  color: var(--ym-text-2);
   background: transparent;
   border: 0;
   border-radius: 8px;
@@ -84,13 +81,13 @@
 .yumai-language-bar select:hover { background: #f3f5fa; }
 .yumai-language-bar .yumai-swap-button {
   background: #f1f3f8;
-  color: #58657b;
+  color: var(--ym-text-muted);
   border: 1px solid #e2e7f0;
   min-width: 34px;
   min-height: 34px;
   box-shadow: none;
 }
-.yumai-language-bar .yumai-swap-button:hover { background: #e9ecf6; color: #373ea6; transform: none; }
+.yumai-language-bar .yumai-swap-button:hover { background: #e9ecf6; color: var(--ym-primary); transform: none; }
 .yumai-language-bar .yumai-translate-button {
   min-height: 36px;
   padding: 0 14px;
@@ -100,7 +97,7 @@
   font-size: 13px;
   font-weight: 650;
 }
-.yumai-language-bar .yumai-translate-button:hover { background: #4046c4; transform: none; box-shadow: none; }
+.yumai-language-bar .yumai-translate-button:hover { background: var(--ym-primary-hover); transform: none; box-shadow: none; }
 .yumai-language-bar .yumai-translate-button[data-loading="true"] { background: #aa3c4b; }
 
 /* Distinct labels, no decorative gradient card within card. */
@@ -111,11 +108,11 @@
   box-shadow: 0 2px 9px rgba(23, 34, 60, .035);
 }
 .yumai-source-panel:focus-within {
-  border-color: #a3a8ed;
-  box-shadow: 0 0 0 3px rgba(78, 83, 215, .09);
+  border-color: var(--ym-brand-300);
+  box-shadow: 0 0 0 3px rgb(38 59 104 / 9%);
 }
 .yumai-panel-caption {
-  color: #69758a;
+  color: var(--ym-text-muted);
   font-size: 11px;
   font-weight: 650;
   line-height: 1.4;
@@ -123,16 +120,16 @@
 }
 .yumai-source-editor {
   background: transparent;
-  color: #23314b;
+  color: var(--ym-text-2);
   line-height: 1.78 !important;
   font-size: 14px !important;
   font-weight: 400;
   letter-spacing: 0 !important;
 }
-.yumai-source-editor::placeholder { color: #929bad; }
+.yumai-source-editor::placeholder { color: var(--ym-text-muted); }
 .yumai-panel-footer {
   background: #fff;
-  border-top: 1px solid #edf0f5;
+  border-top: 1px solid var(--ym-divider);
 }
 .yumai-panel-footer button {
   min-width: 32px;
@@ -157,17 +154,17 @@
   font-weight: 450 !important;
   line-height: 1.87 !important;
   letter-spacing: 0 !important;
-  color: #1d2a43;
+  color: var(--ym-text);
 }
 .yumai-result-panel .yumai-result-footer {
   background: #fff;
-  border-top: 1px solid #edf0f5;
+  border-top: 1px solid var(--ym-divider);
   padding-top: 9px;
   margin-top: 6px;
 }
 .yumai-result-footer button { min-width: 34px; min-height: 34px; }
-.yumai-context-chip { color: #5c6679; font-size: 12px; }
-.yumai-context-chip > svg { color: #6267db; }
+.yumai-context-chip { color: var(--ym-text-muted); font-size: 12px; }
+.yumai-context-chip > svg { color: var(--ym-brand-500); }
 .yumai-word-card .yumai-panel-caption { font-size: 12px; }
 .yumai-header .yumai-provider { background: #f6f7fa; }
 .yumai-header .yumai-provider:hover { background: #eef0f6; }
@@ -268,14 +265,10 @@
 .yumai-floating .yumai-source-editor { font-size: 14px !important; }
 
 /* Phase 7 visual acceptance refinements — crisp, neutral surfaces and less chrome. */
-.yumai-app .yumai-language-bar .yumai-translate-button,
-.yumai-app .yumai-workspace-new { background: #4958ba; }
-.yumai-app .yumai-language-bar .yumai-translate-button:hover,
-.yumai-app .yumai-workspace-new:hover { background: #34469f; }
 .yumai-app .yumai-source-panel,
 .yumai-app .yumai-result-panel { box-shadow: 0 2px 12px rgba(26,42,70,.045); }
-.yumai-app .yumai-result-panel .yumai-result-footer { border-top-color: #edf0f5; }
-.yumai-app .yumai-provider { color: #5c6880; }
+.yumai-app .yumai-result-panel .yumai-result-footer { border-top-color: var(--ym-divider); }
+.yumai-app .yumai-provider { color: var(--ym-text-muted); }
 .yumai-app .yumai-header { box-shadow: 0 1px 0 rgba(25,37,58,.015); }
 .yumai-app .yumai-settings-panel, .yumai-app .yumai-history-drawer { font-family: var(--ym-font); }
 .yumai-app .yumai-settings-body label { font-size: 12px; }
@@ -323,15 +316,15 @@
 .yumai-word-body { flex: 1 1 0; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-gutter: stable; padding: 16px 18px 22px; color: var(--ym-text); overflow-wrap: anywhere; }
 .yumai-word-body > * + * { margin-top: 18px; }
 .yumai-word-body:focus-visible { outline: 2px solid var(--ym-primary); outline-offset: -3px; }
-.yumai-word-meaning { padding: 14px 16px; border-radius: 12px; background: #f2f5fc; border: 1px solid #e6ecf7; }
+.yumai-word-meaning { padding: 14px 16px; border-radius: 12px; background: var(--ym-primary-tint); border: 1px solid var(--ym-brand-100); }
 .yumai-word-meaning h4, .yumai-word-section h4 { margin: 0 0 6px; font-size: 12px; font-weight: 650; line-height: 1.5; color: var(--ym-text-muted); }
 .yumai-word-meaning h4 { color: var(--ym-primary); }
 .yumai-word-meaning p { margin: 0; font-size: 17px; font-weight: 600; line-height: 1.65; color: var(--ym-text); }
-.yumai-word-section p, .yumai-word-context p { margin: 0; font-size: 14px; font-weight: 400; line-height: 1.8; color: #44546b; white-space: pre-wrap; }
+.yumai-word-section p, .yumai-word-context p { margin: 0; font-size: 14px; font-weight: 400; line-height: 1.8; color: var(--ym-text-2); white-space: pre-wrap; }
 .yumai-word-context { padding-block: 10px; border-block: 1px solid var(--ym-border); }
 .yumai-word-context summary { padding: 3px 0; font-size: 12px; font-weight: 600; color: var(--ym-text-muted); cursor: pointer; }
 .yumai-word-context[open] p { margin-top: 8px; }
-.yumai-word-context mark { padding: 1px 3px; border-radius: 3px; color: #263b73; background: #e9eefb; }
+.yumai-word-context mark { padding: 1px 3px; border-radius: 3px; color: var(--ym-brand-800); background: var(--ym-brand-100); }
 .yumai-app .yumai-word-disclosure { display: flex; align-items: center; gap: 6px; width: 100%; min-height: 36px; padding: 6px 0; font-size: 13px; font-weight: 600; line-height: 1.5; color: var(--ym-primary); text-align: left; cursor: pointer; }
 .yumai-word-disclosure:hover { color: var(--ym-primary-hover); }
 .yumai-word-vocabulary { display: grid; gap: 16px; }

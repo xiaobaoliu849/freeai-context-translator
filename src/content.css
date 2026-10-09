@@ -4,6 +4,7 @@
 @layer theme, base, components, utilities;
 @import "tailwindcss/theme" layer(theme);
 @import "tailwindcss/utilities" layer(utilities);
+@import "./styles/yumai-theme.css";
 @import "./yumai-ui.css";
 @import "./styles/yumai-clarity.css";
 

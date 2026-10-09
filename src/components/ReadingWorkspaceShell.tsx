@@ -35,7 +35,7 @@ export const ReadingWorkspaceShell: React.FC<ReadingWorkspaceShellProps> = ({
         <button type="button" onClick={onNewDocument} className="yumai-workspace-new flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-[13px] font-semibold text-white">
           <Plus className="h-4 w-4"/> 新建翻译
         </button>
-        <div className="mt-4 flex items-center gap-2 rounded-xl bg-indigo-50 px-3 py-3 text-[13px] font-semibold text-indigo-700" aria-current="page">
+        <div className="mt-4 flex items-center gap-2 rounded-xl bg-brand-50 px-3 py-3 text-[13px] font-semibold text-brand-700" aria-current="page">
           <BookOpen className="h-4 w-4"/> 智能阅读
         </div>
         <button type="button" onClick={onOpenHistory} className="flex items-center justify-between rounded-xl px-3 py-3 text-[13px] text-slate-600 hover:bg-slate-50">
@@ -46,7 +46,7 @@ export const ReadingWorkspaceShell: React.FC<ReadingWorkspaceShellProps> = ({
           <Settings2 className="h-4 w-4"/> 设置与模型
         </button>
         <div className="mt-auto rounded-xl border border-slate-100 bg-slate-50 px-3 py-3 text-xs leading-relaxed text-slate-500">
-          <Sparkles className="mb-2 h-4 w-4 text-indigo-500" />
+          <Sparkles className="mb-2 h-4 w-4 text-brand-500" />
           <p className="font-semibold text-slate-700">读懂文字，更懂语境。</p>
           <p className="mt-1">选中单词查询语义；选中句子只翻译当前内容。</p>
         </div>
@@ -56,7 +56,7 @@ export const ReadingWorkspaceShell: React.FC<ReadingWorkspaceShellProps> = ({
         <div className="yumai-workspace-intro mx-auto flex max-w-[1400px] items-center justify-between gap-3 px-3 pt-6 sm:px-6">
           <div>
             <div className="mb-1 flex items-center gap-2 text-xs font-medium text-slate-500">
-              <Languages className="h-4 w-4 text-indigo-500"/> 语境阅读工作台
+              <Languages className="h-4 w-4 text-brand-500"/> 语境阅读工作台
             </div>
             <h2 className="text-[22px] font-semibold tracking-tight text-slate-900">让阅读自然流动</h2>
           </div>
@@ -75,7 +75,7 @@ export const ReadingWorkspaceShell: React.FC<ReadingWorkspaceShellProps> = ({
             <span className="text-xs text-slate-500">{segments.length} 段</span>
           </div>
           <div className="rounded-xl bg-slate-50 px-3 py-3 text-xs text-slate-500">
-            <FileText className="mr-1 inline h-3.5 w-3.5 text-indigo-500"/>
+            <FileText className="mr-1 inline h-3.5 w-3.5 text-brand-500"/>
             {sourceText ? `${sourceText.length} 字符 · 约 ${wordCount} 词` : '输入文本后自动生成导航'}
           </div>
           {segments.length ? (
@@ -84,7 +84,7 @@ export const ReadingWorkspaceShell: React.FC<ReadingWorkspaceShellProps> = ({
                 <li key={s.start}>
                   <button type="button" onClick={() => onTranslateSegment(s.text)} title={s.text}
                     aria-label={`翻译第 ${i + 1} 段：${s.text.slice(0, 60)}`}
-                    className="yumai-outline-item flex w-full items-start gap-2.5 rounded-xl px-2.5 py-3 text-left text-xs leading-relaxed text-slate-600 hover:bg-indigo-50 hover:text-indigo-800 focus-visible:outline-2 focus-visible:outline-indigo-500">
+                    className="yumai-outline-item flex w-full items-start gap-2.5 rounded-xl px-2.5 py-3 text-left text-xs leading-relaxed text-slate-600 hover:bg-brand-50 hover:text-brand-800 focus-visible:outline-2 focus-visible:outline-brand-500">
                     <span aria-hidden="true" className="grid h-6 min-w-6 place-items-center rounded-lg bg-slate-100 text-[11px] font-semibold text-slate-600">{i+1}</span>
                     <span className="line-clamp-3">{s.text}</span>
                   </button>

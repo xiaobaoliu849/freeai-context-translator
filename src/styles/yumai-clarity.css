@@ -1,10 +1,4 @@
 /* Reading contrast and a simpler translation canvas, shared by all entries. */
-.yumai-app {
-  --ym-primary: #263b68;
-  --ym-primary-hover: #192b50;
-  --ym-accent: #263b68;
-  --ym-text-muted: #526175;
-}
 .yumai-app .yumai-panel-caption {
   color: #263449;
   font-size: 13px;
@@ -59,13 +53,6 @@
 /* ---------------------------------------------------------------------------
    Polish pass: one primary colour, focus that is never clipped, calm states.
    --------------------------------------------------------------------------- */
-.yumai-app {
-  --ym-primary-soft: #edf1f8;
-  --ym-focus-ring: rgb(38 59 104 / 38%);
-  --ym-danger-ink: #8f2335;
-  --ym-danger-soft: #fdf2f3;
-  --ym-danger-line: #f1c9cf;
-}
 .yumai-app textarea { caret-color: var(--ym-primary); }
 
 /* Primary actions share the translate button's ink instead of three blues. */

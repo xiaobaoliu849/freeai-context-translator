@@ -1,0 +1,15 @@
+/* Exposes the YUMAI navy ramp to Tailwind as `brand-*` utilities
+   (bg-brand-50, text-brand-700, …). Values live in yumai-tokens.css. */
+@theme inline {
+  --color-brand-50: var(--ym-brand-50);
+  --color-brand-100: var(--ym-brand-100);
+  --color-brand-200: var(--ym-brand-200);
+  --color-brand-300: var(--ym-brand-300);
+  --color-brand-400: var(--ym-brand-400);
+  --color-brand-500: var(--ym-brand-500);
+  --color-brand-600: var(--ym-brand-600);
+  --color-brand-700: var(--ym-brand-700);
+  --color-brand-800: var(--ym-brand-800);
+  --color-brand-900: var(--ym-brand-900);
+  --color-brand-950: var(--ym-brand-950);
+}

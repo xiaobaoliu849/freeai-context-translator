@@ -593,7 +593,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
     return (
       <span className="italic">
         “{sentence.slice(0, idx)}
-        <mark className="bg-gradient-to-r from-indigo-100 to-violet-100 text-indigo-700 font-bold rounded px-0.5 not-italic border-b-2 border-violet-300">
+        <mark className="bg-brand-100 text-brand-800 font-semibold rounded px-0.5 not-italic border-b-2 border-brand-300">
           {sentence.slice(idx, idx + w.length)}
         </mark>
         {sentence.slice(idx + w.length)}”
@@ -823,7 +823,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                   }
                 }}
                 className={`px-2 py-1 rounded-lg transition-colors cursor-pointer ${
-                  Math.abs(splitPercent - p.v) < 3 ? 'bg-white text-indigo-700 shadow-2xs font-extrabold' : 'hover:text-slate-900'
+                  Math.abs(splitPercent - p.v) < 3 ? 'bg-white text-brand-700 shadow-2xs font-extrabold' : 'hover:text-slate-900'
                 }`}
                 title={p.title}
                 aria-label={p.title}
@@ -897,19 +897,19 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             )}
             {selectedWord ? (
               <button type="button" onClick={() => { clearWordSelection(); if (!result?.translation || result.sourceText !== sourceText) handleTranslate(); }}
-                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-semibold text-indigo-700 hover:bg-indigo-50">
+                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-semibold text-brand-700 hover:bg-brand-50">
                 改看翻译
               </button>
             ) : selectionKind === 'term' ? (
               <button type="button" onClick={() => handleSelectWord(sourceText, selectionContext || sourceText)}
-                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-semibold text-indigo-700 hover:bg-indigo-50">
+                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-semibold text-brand-700 hover:bg-brand-50">
                 查看语境释义
               </button>
             ) : null}
             {selectionKind === 'passage' && (
               <button type="button" onClick={() => setReadingOutlineOpen(v => !v)}
                 aria-expanded={readingOutlineOpen}
-                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-semibold text-indigo-700 hover:bg-indigo-50">
+                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 font-semibold text-brand-700 hover:bg-brand-50">
                 {readingOutlineOpen ? '收起段落' : '段落导航'}
               </button>
             )}
@@ -923,7 +923,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             {readingSegments.map((segment, index) => (
               <button type="button" key={segment.start}
                 onClick={() => focusReadingSegment(segment.start, segment.end)}
-                title={segment.text} className="max-w-full truncate rounded-lg bg-slate-100 px-3 py-2 text-xs text-slate-700 hover:bg-indigo-50 hover:text-indigo-700">
+                title={segment.text} className="max-w-full truncate rounded-lg bg-slate-100 px-3 py-2 text-xs text-slate-700 hover:bg-brand-50 hover:text-brand-700">
                 {index + 1}. {segment.text.slice(0, 36)}{segment.text.length > 36 ? '…' : ''}
               </button>
             ))}
@@ -954,10 +954,10 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             </span>
             <button
               onClick={clearWordSelection}
-              className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-bold text-indigo-700 bg-indigo-100/70 hover:bg-indigo-200/80 transition-all cursor-pointer shrink-0 shadow-2xs hover:scale-105 active:scale-95"
+              className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-bold text-brand-700 bg-brand-100/70 hover:bg-brand-200/80 transition-all cursor-pointer shrink-0 shadow-2xs hover:scale-105 active:scale-95"
               title="返回编辑原文 / 整句翻译"
             >
-              <PencilLine className="w-3 h-3 text-indigo-600" />
+              <PencilLine className="w-3 h-3 text-brand-600" />
               <span>编辑原文</span>
             </button>
           </div>
@@ -1009,7 +1009,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             <div className="flex items-center gap-1.5">
               {activeSelection && (
                 <button type="button" onClick={() => handleTranslate(activeSelection)}
-                  className="rounded-lg bg-indigo-50 px-2 py-1 font-semibold text-indigo-700 hover:bg-indigo-100"
+                  className="rounded-lg bg-brand-50 px-2 py-1 font-semibold text-brand-700 hover:bg-brand-100"
                   title="仅翻译当前高亮选中的句子或段落">
                   翻译所选内容
                 </button>
@@ -1018,7 +1018,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                 <button
                   onClick={openSettings}
                   title="「打字实时翻译」已开启：输入停顿 500ms 后自动翻译。点击可在设置中关闭"
-                  className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-600 hover:bg-indigo-100 transition-colors cursor-pointer shrink-0"
+                  className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-brand-50 border border-brand-200 text-brand-600 hover:bg-brand-100 transition-colors cursor-pointer shrink-0"
                 >
                   <Zap className="w-3 h-3" />
                   <span className="text-[10px] font-bold leading-none">实时翻译</span>
@@ -1036,7 +1036,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                 onClick={() => handlePlayAudio(selectedWord || sourceText, sourceLang, 'source')}
                 disabled={!sourceText.trim() && !selectedWord}
                 className={`p-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
-                  playingTarget === 'source' ? 'bg-indigo-100 text-indigo-700 shadow-inner' : 'hover:bg-indigo-50 text-slate-500 hover:text-indigo-600'
+                  playingTarget === 'source' ? 'bg-brand-100 text-brand-700 shadow-inner' : 'hover:bg-brand-50 text-slate-500 hover:text-brand-600'
                 } disabled:opacity-30`}
                 title={selectedWord ? `播放 "${selectedWord}"` : "播放原文"} aria-label="朗读原文"
               >
@@ -1093,11 +1093,11 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             }}
             role="separator" aria-label="原文和译文高度比例" aria-orientation="horizontal"
             aria-valuenow={effectiveVSplitPercent} aria-valuemin={20} aria-valuemax={75} tabIndex={0}
-            className="h-3 flex items-center justify-center cursor-row-resize touch-none group select-none py-1 shrink-0 focus-visible:outline-2 focus-visible:outline-indigo-500"
+            className="h-3 flex items-center justify-center cursor-row-resize touch-none group select-none py-1 shrink-0 focus-visible:outline-2 focus-visible:outline-brand-500"
             title={userCustomVSplit ? '拖动调整高度 (双击恢复智能自适应)' : '智能自适应高度 (拖动可手动调整)'}
           >
             <div className={`h-[3px] rounded-full transition-all ${
-              vSplitDragging ? 'bg-indigo-500 w-16' : 'bg-slate-300 group-hover:bg-indigo-400 w-10'
+              vSplitDragging ? 'bg-brand-500 w-16' : 'bg-slate-300 group-hover:bg-brand-400 w-10'
             }`} />
           </div>
         )}
@@ -1118,11 +1118,11 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             }}
             role="separator" aria-label="原文和译文宽度比例" aria-orientation="vertical"
             aria-valuenow={splitPercent} aria-valuemin={20} aria-valuemax={80} tabIndex={0}
-            className="hidden md:flex items-center justify-center cursor-col-resize touch-none group select-none focus-visible:outline-2 focus-visible:outline-indigo-500"
+            className="hidden md:flex items-center justify-center cursor-col-resize touch-none group select-none focus-visible:outline-2 focus-visible:outline-brand-500"
             title="拖动调整左右面板宽度"
           >
             <div className={`w-[3px] h-16 rounded-full transition-all ${
-              splitDragging ? 'bg-gradient-to-b from-indigo-500 to-violet-500 h-24 shadow-sm shadow-indigo-500/40' : 'bg-slate-300 group-hover:bg-gradient-to-b group-hover:from-indigo-400 group-hover:to-violet-400'
+              splitDragging ? 'bg-brand-500 h-24' : 'bg-slate-300 group-hover:bg-brand-400'
             }`} />
           </div>
         )}
@@ -1157,7 +1157,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                     <span className="yumai-panel-caption flex items-center gap-1">
                       {result?.sourceText && result.sourceText !== sourceText ? '所选内容译文' : '译文'}
                     </span>
-                    <span className="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md font-medium" role="status">生成中…</span>
+                    <span className="text-xs bg-brand-50 text-brand-700 px-2 py-0.5 rounded-md font-medium" role="status">生成中…</span>
                   </div>
                 </div>
                 <div className={`yumai-result-text ${
@@ -1166,7 +1166,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                     : 'text-slate-900 text-base sm:text-lg font-medium leading-relaxed tracking-tight select-text min-h-[60px] whitespace-pre-wrap'
                 }`}>
                   {streamingText}
-                  <span className="inline-block w-[2px] h-[1.1em] bg-gradient-to-b from-indigo-500 to-violet-500 ml-0.5 align-text-bottom animate-pulse rounded-sm" />
+                  <span className="inline-block w-[2px] h-[1.1em] bg-brand-500 ml-0.5 align-text-bottom animate-pulse rounded-sm" />
                 </div>
               </div>
             ) : (
@@ -1223,8 +1223,8 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                     disabled={!result?.translation}
                     className={`p-2 rounded-xl transition-all cursor-pointer ${
                       playingTarget === 'target'
-                        ? 'bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-md shadow-indigo-500/30'
-                        : 'text-slate-500 hover:text-indigo-600 hover:bg-indigo-50'
+                        ? 'bg-brand-700 text-white'
+                        : 'text-slate-500 hover:text-brand-600 hover:bg-brand-50'
                     } disabled:opacity-30`}
                     title="朗读译文" aria-label="朗读译文"
                   >

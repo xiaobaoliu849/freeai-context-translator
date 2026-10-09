@@ -28,7 +28,7 @@ function OverlayFixture() {
         <p className="mb-2 text-xs uppercase tracking-wider text-slate-400">Article · Technology</p>
         <h1 className="mb-8 text-3xl font-semibold text-slate-900">Working together on the next generation of AI</h1>
         <p className="text-lg leading-loose text-slate-500">
-          We are excited to <mark className="rounded-md bg-indigo-100 px-1 text-indigo-800">collaborate</mark> with the team at Amazon
+          We are excited to <mark className="rounded-md bg-brand-100 px-1 text-brand-800">collaborate</mark> with the team at Amazon
           on a new generation of intelligent devices. The best experiences come from creative partnerships.
         </p>
       </main>

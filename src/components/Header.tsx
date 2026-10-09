@@ -43,7 +43,7 @@ export const Header: React.FC<HeaderProps> = ({
     }
   };
 
-  const iconButton = 'yumai-icon-button inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-700 hover:text-slate-900 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 transition-colors';
+  const iconButton = 'yumai-icon-button inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-700 hover:text-slate-900 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 transition-colors';
 
   return (
     <header className="yumai-header sticky top-0 z-30 shrink-0 border-b border-slate-200/75 bg-white">
@@ -61,7 +61,7 @@ export const Header: React.FC<HeaderProps> = ({
               className="h-9 w-9 shrink-0 rounded-xl object-cover"
             />
           ) : (
-            <span className="h-9 w-9 shrink-0 rounded-xl bg-indigo-600 text-white grid place-items-center text-base font-bold">语</span>
+            <span className="h-9 w-9 shrink-0 rounded-xl bg-brand-700 text-white grid place-items-center text-base font-bold">语</span>
           )}
           <div className="min-w-0 flex flex-col leading-tight">
             <div className="flex items-baseline gap-2">
@@ -78,7 +78,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             type="button"
             onClick={openSettings}
-            className="yumai-provider inline-flex max-w-[112px] items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-indigo-500 transition-colors"
+            className="yumai-provider inline-flex max-w-[112px] items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-brand-500 transition-colors"
             title="选择 AI 服务商与模型（并非连接状态）"
             aria-label={`当前选择的服务商：${providerName}；打开设置`}
           >
@@ -100,7 +100,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               type="button"
               onClick={onTogglePin}
-              className={`${iconButton} ${isPinned ? 'bg-indigo-50 text-indigo-700' : ''}`}
+              className={`${iconButton} ${isPinned ? 'bg-brand-50 text-brand-700' : ''}`}
               title={isPinned ? '取消固定窗口' : '固定窗口'}
               aria-label={isPinned ? '取消固定窗口' : '固定窗口'}
               aria-pressed={isPinned}
