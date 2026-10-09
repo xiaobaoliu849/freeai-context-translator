@@ -4,11 +4,9 @@
   "version": "1.0.0",
   "description": "读懂文字，更懂语境。AI 语境翻译、划词释义、自然朗读与多模型支持。",
   "permissions": [
-    "activeTab",
     "contextMenus",
     "storage",
     "scripting",
-    "tts",
     "declarativeNetRequest"
   ],
   "icons": {

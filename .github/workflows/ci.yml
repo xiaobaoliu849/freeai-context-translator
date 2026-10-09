@@ -54,6 +54,20 @@ jobs:
           test -s dist/content.css
           echo "extension artifacts OK"
 
+      - name: Package extension zip for the Chrome Web Store
+        run: |
+          set -euo pipefail
+          (cd dist && zip -qr ../yumai-extension.zip .)
+          unzip -l yumai-extension.zip | grep -q manifest.json
+
+      - name: Upload store-ready extension zip
+        uses: actions/upload-artifact@v6
+        with:
+          name: yumai-extension
+          path: yumai-extension.zip
+          if-no-files-found: error
+          retention-days: 30
+
       - name: "Sanity check: server bundle"
         run: |
           set -euo pipefail
