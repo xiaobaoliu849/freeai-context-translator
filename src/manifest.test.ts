@@ -46,3 +46,10 @@ test('permission justifications doc covers every declared permission', () => {
     assert.ok(doc.includes(`\`${perm}\``), `docs/CHROME_STORE_PERMISSIONS.md is missing "${perm}"`);
   }
 });
+
+test('privacy policy names every third-party endpoint the extension can send text to', () => {
+  const policy = fs.readFileSync(path.join(root, 'PRIVACY.md'), 'utf8');
+  for (const needle of ['translate.google.com', 'chrome.storage.local', 'Ollama', 'remote code']) {
+    assert.ok(policy.includes(needle), `PRIVACY.md should mention "${needle}"`);
+  }
+});

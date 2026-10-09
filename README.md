@@ -50,6 +50,10 @@ npm start            # 生产模式启动（NODE_ENV=production）
 3. "加载已解压的扩展程序"，选择 `dist/` 目录
 4. 首次加载后到 `chrome://extensions/shortcuts` 确认 `Alt+T` 快捷键绑定
 
+## 隐私
+
+见 [PRIVACY.md](PRIVACY.md)。设置、API Key 和历史只存在本机；文字只发送给你选择的服务商。
+
 ## 服务商配置
 
 在设置面板中为每个服务商配置 API Key / Base URL / 模型，支持"自动获取可用模型"（网页模式走服务器，扩展模式走 background bridge）。
