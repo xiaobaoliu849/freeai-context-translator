@@ -671,19 +671,19 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
 
   return (
     <div className={isPopup
-      ? 'flex-1 min-h-0 flex flex-col gap-2.5 px-3 py-2.5'
-      : 'max-w-[1400px] mx-auto px-3 sm:px-6 py-3 sm:py-5 flex flex-col gap-3 sm:gap-4'
+      ? 'flex-1 min-h-0 flex flex-col gap-2 px-3 py-3'
+      : 'max-w-[1400px] mx-auto px-3 sm:px-6 py-5 flex flex-col gap-4'
     }>
       {copyError && <p role="alert" className="text-xs text-rose-700 px-2">{copyError}</p>}
       {/* 1. ELEGANT LANGUAGE SELECTOR TOOLBAR */}
-      <div className="bg-white/90 backdrop-blur-sm border border-slate-200/90 rounded-2xl p-2 sm:p-2.5 shadow-sm shadow-slate-200/60 flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
+      <div className="yumai-language-bar flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 sm:px-3.5">
         {/* Source Language Select */}
-        <div className="flex items-center gap-1 flex-1 min-w-[120px]">
+        <div className="flex items-center gap-1 flex-1 min-w-0">
           {!isPopup && <span className="text-[11px] font-extrabold text-slate-400 pl-1 uppercase tracking-wider hidden sm:inline">From</span>}
           <select
             value={sourceLang}
             onChange={(e) => setSourceLang(e.target.value)}
-            className="bg-slate-50 hover:bg-indigo-50/70 text-slate-800 text-xs font-bold px-2 py-1.5 rounded-xl border border-slate-200 hover:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/25 focus:border-indigo-400 cursor-pointer w-full transition-all"
+            className="w-full rounded-lg text-slate-800 font-semibold cursor-pointer" aria-label="原文语言"
           >
             <option value="auto">自动识别 (Auto)</option>
             {languages.map((l) => (
@@ -697,19 +697,19 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
         {/* Swap Button */}
         <button
           onClick={onSwapLanguages}
-          className="p-1.5 text-white bg-gradient-to-br from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 rounded-xl transition-all cursor-pointer shadow-md shadow-indigo-500/30 hover:shadow-lg hover:shadow-indigo-500/40 hover:scale-110 active:scale-95 shrink-0"
+          className="yumai-swap-button p-2 rounded-lg transition-colors cursor-pointer shrink-0" aria-label="互换语言"
           title="互换语言"
         >
           <ArrowRightLeft className="w-3.5 h-3.5" />
         </button>
 
         {/* Target Language Select */}
-        <div className="flex items-center gap-1 flex-1 min-w-[120px]">
+        <div className="flex items-center gap-1 flex-1 min-w-0">
           {!isPopup && <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider hidden sm:inline">To</span>}
           <select
             value={targetLang}
             onChange={(e) => setTargetLang(e.target.value)}
-            className="bg-slate-50 hover:bg-violet-50/70 text-slate-800 text-xs font-bold px-2 py-1.5 rounded-xl border border-slate-200 hover:border-violet-300 focus:outline-none focus:ring-2 focus:ring-violet-500/25 focus:border-violet-400 cursor-pointer w-full transition-all"
+            className="w-full rounded-lg text-slate-800 font-semibold cursor-pointer" aria-label="译文语言"
           >
             {languages.map((l) => (
               <option key={l.code} value={l.code}>
@@ -745,11 +745,9 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
         <button
           onClick={() => (loading ? handleStop() : handleTranslate())}
           disabled={!sourceText.trim()}
-          className={`flex items-center justify-center gap-1.5 text-white text-xs font-extrabold px-3.5 py-1.5 rounded-xl transition-all hover:scale-[1.04] active:scale-95 disabled:opacity-40 disabled:hover:scale-100 disabled:shadow-none cursor-pointer shrink-0 ${
-            loading
-              ? 'bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 shadow-md shadow-rose-500/30'
-              : 'bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 hover:from-indigo-700 hover:via-violet-700 hover:to-fuchsia-700 shadow-md shadow-indigo-500/40 hover:shadow-lg hover:shadow-violet-500/40'
-          }`}
+          className="yumai-translate-button inline-flex shrink-0 items-center justify-center gap-1.5 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          data-loading={loading}
+          aria-label={loading ? '停止翻译' : '翻译文本'}
           title={loading ? '停止生成' : 'Ctrl/Cmd+Enter 翻译，Enter 换行'}
         >
           {loading ? (
@@ -759,7 +757,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             </>
           ) : (
             <>
-              <Sparkles className="w-3.5 h-3.5 text-fuchsia-200 shrink-0" />
+              <Sparkles className="w-3.5 h-3.5 text-white shrink-0" />
               <span>翻译</span>
             </>
           )}
@@ -805,7 +803,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
 
       {/* Auto-detected content intent with an explicit manual override. */}
       {sourceText.trim() && (
-        <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs" aria-live="polite">
+        <div className="yumai-context-chip flex flex-wrap items-center justify-between gap-2 px-1" aria-live="polite">
           <span className="text-slate-500">
             <Sparkles className="w-3.5 h-3.5 inline text-indigo-500 mr-1" />
             智能识别：{selectedWord ? '词语释义' : selectionKind === 'passage' ? '长文阅读' : selectionKind === 'term' ? '短语' : '句子翻译'}
@@ -861,7 +859,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             whole box collapses to a one-line context strip so the word view
             below gets almost all the vertical space. */}
         {isPopup && selectedWord ? (
-          <div className="shrink-0 flex items-center justify-between gap-2 pl-3 pr-1.5 py-1.5 bg-gradient-to-r from-indigo-50/80 via-white to-violet-50/60 border border-indigo-200/90 rounded-xl shadow-2xs select-none">
+          <div className="shrink-0 flex items-center justify-between gap-2 px-3 py-2 bg-white border border-slate-200 rounded-xl select-none">
             <span
               className="flex-1 min-w-0 text-xs text-slate-600 truncate whitespace-nowrap font-medium"
               title={(sourceText || result?.sourceText || '').replace(/\s+/g, ' ').trim()}
@@ -880,11 +878,16 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
         ) : (
         <div
           style={isPopup ? { flex: `0 0 calc(${effectiveVSplitPercent}% - 6px)` } : undefined}
-          className={`bg-white border border-slate-200/90 rounded-2xl shadow-sm shadow-slate-200/50 hover:shadow-md hover:shadow-indigo-100 overflow-hidden flex flex-col justify-between focus-within:border-indigo-400 focus-within:ring-4 focus-within:ring-indigo-500/15 focus-within:shadow-lg focus-within:shadow-indigo-500/10 transition-all ${
-            isPopup ? 'min-h-[85px]' : 'min-h-[240px] sm:min-h-[300px]'
+          className={`yumai-source-panel overflow-hidden flex flex-col justify-between transition-colors ${
+            isPopup ? 'min-h-[105px]' : 'min-h-[240px] sm:min-h-[300px]'
           }`}
         >
+          <div className="flex shrink-0 items-center justify-between px-4 pt-3 pb-1">
+            <span className="yumai-panel-caption">原文</span>
+            {!isPopup && <span className="text-xs text-slate-400">选中词语可查看语境释义</span>}
+          </div>
           <textarea
+            aria-label="原文输入区"
             ref={textareaRef}
             value={sourceText}
             onChange={(e) => {
@@ -901,13 +904,13 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             placeholder="输入或粘贴文本，选中单词可查看语境释义...（Ctrl+Enter 翻译）"
             className={`${
               isPopup
-                ? 'flex-1 min-h-0 p-3 sm:p-3.5 resize-none overflow-y-auto text-sm'
-                : 'w-full p-3.5 sm:p-4 flex-1 min-h-[180px] sm:min-h-[220px] resize-y text-sm sm:text-base'
-            } text-slate-800 font-normal focus:outline-none placeholder:text-slate-400 bg-transparent leading-relaxed`}
+                ? 'flex-1 min-h-0 px-4 pb-3 resize-none overflow-y-auto text-sm'
+                : 'w-full px-4 pb-4 flex-1 min-h-[180px] sm:min-h-[220px] resize-y text-sm sm:text-base'
+            } yumai-source-editor text-slate-800 font-normal focus:outline-none placeholder:text-slate-400 bg-transparent leading-relaxed`}
           />
 
           {/* Input Box Actions Toolbar */}
-          <div className="flex items-center justify-between px-3.5 py-2 border-t border-slate-100 bg-gradient-to-r from-slate-50/80 to-indigo-50/40 text-slate-500 text-xs">
+          <div className="yumai-panel-footer flex shrink-0 items-center justify-between px-3 py-1.5 text-slate-500 text-xs">
             <div className="flex items-center gap-1.5">
               {activeSelection && (
                 <button type="button" onClick={() => handleTranslate(activeSelection)}
@@ -986,11 +989,11 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             onPointerUp={handleVSplitPointerUp}
             onPointerCancel={handleVSplitPointerUp}
             onDoubleClick={handleResetAdaptiveSplit}
-            className="h-2.5 flex items-center justify-center cursor-row-resize touch-none group select-none py-0.5 shrink-0"
+            className="h-3 flex items-center justify-center cursor-row-resize touch-none group select-none py-1 shrink-0"
             title={userCustomVSplit ? '拖动调整高度 (双击恢复智能自适应)' : '智能自适应高度 (拖动可手动调整)'}
           >
             <div className={`h-[3px] rounded-full transition-all ${
-              vSplitDragging ? 'bg-gradient-to-r from-indigo-500 to-violet-500 w-16 shadow-sm shadow-indigo-500/40' : 'bg-slate-300 group-hover:bg-gradient-to-r group-hover:from-indigo-400 group-hover:to-violet-400 w-10'
+              vSplitDragging ? 'bg-indigo-500 w-16' : 'bg-slate-300 group-hover:bg-indigo-400 w-10'
             }`} />
           </div>
         )}
@@ -1014,14 +1017,10 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
         {/* RIGHT / BOTTOM COLUMN: TRANSLATION RESULT BOX / DICTIONARY MODE */}
         <div
           style={isPopup ? { flex: '1 1 0%' } : undefined}
-          className={`border border-slate-200 rounded-2xl shadow-sm relative flex flex-col justify-between transition-all ${
-            selectedWord
-              ? 'bg-white'
-              : 'bg-white'
-          } ${
+          className={`yumai-result-panel relative flex min-h-0 flex-col justify-between transition-colors ${
             isPopup
-              ? (selectedWord ? 'min-h-[110px] overflow-hidden p-0' : 'min-h-[110px] overflow-y-auto p-3.5 sm:p-4')
-              : (selectedWord ? 'min-h-[240px] sm:min-h-[300px] overflow-hidden p-0' : 'p-3.5 sm:p-4 min-h-[240px] sm:min-h-[300px]')
+              ? (selectedWord ? 'min-h-[110px] overflow-hidden p-0' : 'min-h-[110px] overflow-hidden p-3.5')
+              : (selectedWord ? 'min-h-[240px] sm:min-h-[300px] overflow-hidden p-0' : 'p-4 min-h-[240px] sm:min-h-[300px]')
           }`}
         >
           {selectedWord ? (
@@ -1039,18 +1038,18 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
           ) : loading ? (
             streamingText ? (
               /* Typewriter view while the SSE stream is live */
-              <div className="space-y-2">
-                <div className="text-[11px] font-semibold">
+              <div className="yumai-result-scroll space-y-3">
+                <div className="text-xs font-semibold">
                   <div className="flex items-center justify-between pb-1.5">
-                    <span className="uppercase tracking-wider font-extrabold flex items-center gap-1 bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">
-                      <Sparkles className="w-3 h-3 text-violet-500" />
+                    <span className="yumai-panel-caption flex items-center gap-1">
+                      <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
                       {result?.sourceText && result.sourceText !== sourceText ? '所选内容译文' : '翻译结果'}
                     </span>
                     <span className="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md font-medium">生成中…</span>
                   </div>
                   <div className="h-px bg-slate-200" />
                 </div>
-                <div className={`${
+                <div className={`yumai-result-text ${
                   isPopup
                     ? 'text-slate-900 text-[15px] font-normal leading-relaxed tracking-normal select-text min-h-[60px] whitespace-pre-wrap pt-0.5'
                     : 'text-slate-900 text-base sm:text-lg font-medium leading-relaxed tracking-tight select-text min-h-[60px] whitespace-pre-wrap'
@@ -1067,12 +1066,12 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             )
           ) : (
             <>
-              <div className="space-y-2">
+              <div className="yumai-result-scroll space-y-3">
                 {/* Output Header */}
-                <div className="text-[11px] font-semibold">
+                <div className="text-xs font-semibold">
                   <div className="flex items-center justify-between pb-1.5">
-                    <span className="uppercase tracking-wider font-extrabold flex items-center gap-1 bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">
-                      <Sparkles className="w-3 h-3 text-violet-500" />
+                    <span className="yumai-panel-caption flex items-center gap-1">
+                      <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
                       {result?.sourceText && result.sourceText !== sourceText ? '所选内容译文' : '翻译结果'}
                     </span>
                     {result?.detectedLang && (
@@ -1086,7 +1085,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
 
                 {/* Full Sentence Translation - selectable and copyable without hijacking */}
                 <div
-                  className={`${
+                  className={`yumai-result-text ${
                     isPopup
                       ? 'text-slate-900 text-[15px] font-medium leading-relaxed tracking-normal select-text min-h-[60px] whitespace-pre-wrap pt-0.5'
                       : 'text-slate-900 text-base sm:text-lg font-semibold leading-relaxed tracking-tight select-text min-h-[60px] whitespace-pre-wrap'
@@ -1102,8 +1101,8 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
               </div>
 
               {/* Translation Card Actions Footer */}
-              <div className="flex items-center justify-between pt-2.5 mt-2 border-t border-indigo-100/80 text-xs text-slate-400">
-                <div className="flex items-center gap-1.5 text-[10px]">
+              <div className="yumai-result-footer flex shrink-0 items-center justify-between text-xs text-slate-500">
+                <div className="flex items-center gap-1.5 text-xs">
                   <span>引擎</span>
                   <span className="font-medium text-slate-600 text-xs">
                     {settings.defaultProvider}

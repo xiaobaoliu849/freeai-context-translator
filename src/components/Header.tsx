@@ -1,5 +1,5 @@
 import React from 'react';
-import { Settings, History, ChevronRight, ExternalLink, Pin, X } from 'lucide-react';
+import { Settings, History, ChevronDown, ExternalLink, Pin, X } from 'lucide-react';
 import { AppSettings } from '../types';
 
 interface HeaderProps {
@@ -25,13 +25,13 @@ export const Header: React.FC<HeaderProps> = ({
   onClose,
   onDragStart,
 }) => {
-  const providerName = settings?.defaultProvider ? settings.defaultProvider.toUpperCase() : 'GEMINI';
+  const providerName = (settings?.defaultProvider || 'gemini').toUpperCase();
   const logoUrl = typeof chrome !== 'undefined' && chrome.runtime?.getURL
     ? chrome.runtime.getURL('assets/yumai-mark.svg')
     : '/assets/yumai-mark.svg';
   const [logoError, setLogoError] = React.useState(false);
 
-  const handleOpenFullTab = () => {
+  const openFullTab = () => {
     if (typeof chrome !== 'undefined' && chrome.tabs?.create) {
       chrome.tabs.create({ url: chrome.runtime.getURL('popup.html') });
     } else {
@@ -39,108 +39,78 @@ export const Header: React.FC<HeaderProps> = ({
     }
   };
 
+  const iconButton = 'yumai-icon-button inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 transition-colors';
+
   return (
-    <header className="bg-white/90 backdrop-blur-md sticky top-0 z-30 select-none">
-      <div className="max-w-[1400px] mx-auto px-3 sm:px-6 py-2 flex items-center justify-between gap-2">
-        {/* Left: Brand Logo */}
-        <div className={isFloating ? "flex items-center gap-2 cursor-move" : "flex items-center gap-2"} onPointerDown={isFloating ? onDragStart : undefined} title={isFloating ? "按住品牌区域移动悬浮窗" : undefined}>
+    <header className="yumai-header sticky top-0 z-30 shrink-0 border-b border-slate-200/75 bg-white">
+      <div className="mx-auto max-w-[1400px] h-[60px] px-4 sm:px-6 flex items-center justify-between gap-3">
+        <div
+          className={`flex min-w-0 items-center gap-2.5 ${isFloating ? 'cursor-move' : ''}`}
+          onPointerDown={isFloating ? onDragStart : undefined}
+          title={isFloating ? '按住品牌区域移动窗口' : undefined}
+        >
           {!logoError ? (
-            <div className="rounded-lg shadow-sm shrink-0 overflow-hidden">
-              <img
-                src={logoUrl}
-                alt="语脉图标"
-                onError={() => setLogoError(true)}
-                className="w-7 h-7 rounded-lg object-cover block"
-              />
-            </div>
+            <img
+              src={logoUrl}
+              alt="语脉图标"
+              onError={() => setLogoError(true)}
+              className="h-9 w-9 shrink-0 rounded-xl object-cover"
+            />
           ) : (
-            <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-500 text-white flex items-center justify-center font-black text-[11px] shadow-md shadow-indigo-500/30 shrink-0">
-              语
-            </div>
+            <span className="h-9 w-9 shrink-0 rounded-xl bg-indigo-600 text-white grid place-items-center text-base font-bold">语</span>
           )}
-          <div className="flex items-center gap-1.5">
-            <h1 className="font-extrabold text-slate-900 text-xs sm:text-sm tracking-tight leading-none">
-              语脉
-            </h1>
-            <span className="hidden sm:inline text-[10px] font-semibold text-slate-400 tracking-wide">YUMAI</span>
+          <div className="min-w-0 flex flex-col leading-tight">
+            <div className="flex items-baseline gap-2">
+              <h1 className="truncate font-bold text-[17px] tracking-tight text-slate-900">语脉</h1>
+              <span className="text-[10px] font-semibold tracking-[0.12em] text-slate-400">YUMAI</span>
+            </div>
+            {!isPopup && !isFloating && (
+              <span className="text-[11px] text-slate-500">读懂文字，更懂语境</span>
+            )}
           </div>
         </div>
 
-        {/* Right: Controls & Actions */}
-        <div className="flex items-center gap-1 sm:gap-1.5">
-          {/* Active AI Engine Pill */}
+        <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
           <button
+            type="button"
             onClick={openSettings}
-            className="flex items-center gap-1 px-2 py-1 rounded-xl bg-gradient-to-r from-indigo-50 to-violet-50 hover:from-indigo-100 hover:to-violet-100 border border-indigo-200/80 text-indigo-700 text-xs font-semibold transition-all cursor-pointer whitespace-nowrap shadow-2xs"
-            title="选择或配置 AI 服务商与模型" aria-label={`当前 AI 服务商：${providerName}，点击配置`}
+            className="yumai-provider inline-flex max-w-[112px] items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-indigo-500 transition-colors"
+            title="选择 AI 服务商与模型（并非连接状态）"
+            aria-label={`当前选择的服务商：${providerName}；打开设置`}
           >
-            <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
-            <span className="font-bold text-[10px] sm:text-[11px] bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">{providerName}</span>
-            <ChevronRight className="w-3 h-3 text-indigo-400 shrink-0" />
+            <span className="truncate">{providerName}</span>
+            <ChevronDown className="w-3.5 h-3.5 shrink-0" />
           </button>
-
-          {/* Open Full Tab Button (available in popup and desktop) */}
           {!isFloating && (
-            <button
-              onClick={handleOpenFullTab}
-              className="group p-1.5 rounded-xl text-slate-600 hover:text-indigo-600 hover:bg-indigo-50/70 hover:border-indigo-300 transition-all cursor-pointer border border-slate-200/85 bg-white/90 shadow-2xs hover:shadow-xs"
-              title="在新标签页中打开大屏全屏视图" aria-label="在新标签页打开"
-            >
-              <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-indigo-600 transition-colors shrink-0" />
+            <button type="button" onClick={openFullTab} className={iconButton} title="在独立标签页打开" aria-label="在独立标签页打开">
+              <ExternalLink className="h-[17px] w-[17px]" />
             </button>
           )}
-
-          {/* History Button */}
-          <button
-            onClick={openHistory}
-            className="group p-1.5 sm:px-2 rounded-xl text-xs font-semibold text-slate-700 hover:text-indigo-600 hover:bg-indigo-50/70 hover:border-indigo-300 transition-all cursor-pointer border border-slate-200/85 bg-white/90 shadow-2xs hover:shadow-xs flex items-center justify-center gap-1"
-            title="历史翻译记录" aria-label="历史翻译记录"
-          >
-            <History className="w-3.5 h-3.5 text-slate-500 group-hover:text-indigo-600 transition-colors shrink-0" />
-            {!isPopup && !isFloating && <span className="hidden sm:inline">历史</span>}
+          <button type="button" onClick={openHistory} className={iconButton} title="翻译历史" aria-label="查看翻译历史">
+            <History className="h-[18px] w-[18px]" />
           </button>
-
-          {/* Settings Button */}
-          <button
-            onClick={openSettings}
-            className="group p-1.5 sm:px-2 rounded-xl text-xs font-semibold text-slate-700 hover:text-indigo-600 hover:bg-indigo-50/70 hover:border-indigo-300 transition-all cursor-pointer border border-slate-200/85 bg-white/90 shadow-2xs hover:shadow-xs flex items-center justify-center gap-1"
-            title="设置 API Key 与偏好" aria-label="设置"
-          >
-            <Settings className="w-3.5 h-3.5 text-slate-500 group-hover:text-indigo-600 transition-colors shrink-0" />
-            {!isPopup && !isFloating && <span className="hidden sm:inline">设置</span>}
+          <button type="button" onClick={openSettings} className={iconButton} title="设置" aria-label="打开设置">
+            <Settings className="h-[18px] w-[18px]" />
           </button>
-
-          {/* Floating window only: Pin & Close */}
-          {isFloating && (
-            <>
-              {onTogglePin && (
-                <button
-                  onClick={onTogglePin}
-                  className={`p-1.5 rounded-xl transition-all cursor-pointer border flex items-center justify-center ${
-                    isPinned
-                      ? 'bg-gradient-to-r from-indigo-500 to-violet-600 text-white border-transparent font-bold shadow-sm shadow-indigo-500/35'
-                      : 'border-slate-200/85 bg-white/90 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50/70 hover:border-indigo-300 shadow-2xs'
-                  }`}
-                  title={isPinned ? '已固定（点击取消固定）' : '固定窗口（点击页面空白处不关闭）'} aria-label={isPinned ? '取消固定窗口' : '固定窗口'}
-                >
-                  <Pin className={`w-3.5 h-3.5 ${isPinned ? 'fill-white rotate-45' : ''}`} />
-                </button>
-              )}
-              {onClose && (
-                <button
-                  onClick={onClose}
-                  className="p-1.5 rounded-xl border border-slate-200/85 bg-white/90 text-slate-400 hover:text-rose-600 hover:bg-rose-50 hover:border-rose-300 transition-all cursor-pointer flex items-center justify-center shadow-2xs hover:shadow-xs"
-                  title="关闭 (Esc)" aria-label="关闭悬浮窗"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </>
+          {isFloating && onTogglePin && (
+            <button
+              type="button"
+              onClick={onTogglePin}
+              className={`${iconButton} ${isPinned ? 'bg-indigo-50 text-indigo-700' : ''}`}
+              title={isPinned ? '取消固定窗口' : '固定窗口'}
+              aria-label={isPinned ? '取消固定窗口' : '固定窗口'}
+              aria-pressed={isPinned}
+            >
+              <Pin className={`h-[17px] w-[17px] ${isPinned ? 'fill-current rotate-45' : ''}`} />
+            </button>
+          )}
+          {isFloating && onClose && (
+            <button type="button" onClick={onClose} className={iconButton} title="关闭 (Esc)" aria-label="关闭窗口">
+              <X className="h-[18px] w-[18px]" />
+            </button>
           )}
         </div>
       </div>
-      {/* Gradient accent hairline — gives the whole popup its brand color pop */}
-      <div className="h-[2px] bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-400 opacity-90" />
     </header>
   );
 };
