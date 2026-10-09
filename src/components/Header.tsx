@@ -37,9 +37,9 @@ export const Header: React.FC<HeaderProps> = ({
 
   const openFullTab = () => {
     if (typeof chrome !== 'undefined' && chrome.tabs?.create) {
-      chrome.tabs.create({ url: chrome.runtime.getURL('popup.html') });
+      chrome.tabs.create({ url: chrome.runtime.getURL('workspace.html') });
     } else {
-      window.open(window.location.href, '_blank');
+      window.open(new URL('./', window.location.href).href, '_blank');
     }
   };
 
