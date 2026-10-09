@@ -183,6 +183,37 @@ try {
   await evaluate("document.activeElement?.blur(); document.querySelector('textarea').scrollTop = 0; document.querySelector('.yumai-result-scroll').scrollTop = 0");
   await capture('yumai-popup-clarity-long-text.png');
   console.log('PASS: popup empty/result states, text contrast, contextual actions, and keyboard translation.');
+  // Error state: provider rejects the key. The banner must be announced, keep
+  // the raw message, and offer retry + settings as real buttons.
+  await evaluate(`(() => {
+    window.__fetchBeforeError = window.fetch;
+    const unauthorized = () => Promise.resolve(new Response(JSON.stringify({ error: { code: 401, message: 'API key not valid (401)' } }), { status: 401, headers: { 'Content-Type': 'application/json' } }));
+    window.fetch = (input, init) => {
+      const url = typeof input === 'string' ? input : input.url;
+      if (url.includes('/api/translate')) return Promise.resolve(new Response('Unavailable fixture', { status: 503 }));
+      if (/^https?:/.test(url)) return unauthorized();
+      return window.__fetchBeforeError(input, init);
+    };
+    document.querySelector('.yumai-translate-button').click();
+  })()`);
+  await waitFor("document.querySelector('.yumai-error-banner[role=\"alert\"] .yumai-error-detail')?.textContent.length");
+  const errorState = await evaluate(`(() => {
+    const banner = document.querySelector('.yumai-error-banner');
+    const buttons = [...banner.querySelectorAll('button')].map(b => b.textContent.trim() || b.getAttribute('aria-label'));
+    const r = banner.getBoundingClientRect();
+    return { buttons, right: r.right, width: innerWidth, title: banner.querySelector('.yumai-error-title').textContent,
+      titleColor: getComputedStyle(banner.querySelector('.yumai-error-title')).color, background: getComputedStyle(banner).backgroundColor };
+  })()`);
+  assert.ok(errorState.buttons.includes('重试'), 'Error banner offers retry: ' + JSON.stringify(errorState));
+  assert.ok(errorState.buttons.includes('打开设置'), 'Key errors point to settings: ' + JSON.stringify(errorState));
+  assert.ok(errorState.buttons.includes('关闭错误提示'));
+  assert.ok(errorState.right <= errorState.width, 'Error banner overflows the popup');
+  assert.ok(contrast(errorState.titleColor, errorState.background) >= 4.5, 'Error text contrast is too low');
+  await evaluate('document.activeElement?.blur()');
+  await capture('yumai-popup-clarity-error.png');
+  await evaluate("document.querySelector('button[aria-label=\"关闭错误提示\"]').click(); window.fetch = window.__fetchBeforeError");
+  await waitFor("!document.querySelector('.yumai-error-banner')");
+  console.log('PASS: actionable, announced error state with retry, settings and dismiss.');
   const interactionFailures = [];
   // A clipboard permission prompt can settle after the user replaces the source.
   await evaluate(`(() => {
