@@ -155,7 +155,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
   });
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex justify-end">
+    <div className="yumai-dialog-backdrop fixed inset-0 z-50 flex justify-end">
       <div ref={drawerRef}
         onKeyDown={(e) => {
           if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onClose(); return; }
@@ -168,15 +168,15 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
           if (e.shiftKey && document.activeElement === controls[0]) {e.preventDefault(); controls[controls.length-1].focus();}
           if (!e.shiftKey && document.activeElement === controls[controls.length-1]) {e.preventDefault(); controls[0].focus();}
         }}
-        className="yumai-history-drawer bg-white border-l border-slate-200 w-full max-w-lg h-full flex flex-col p-5 shadow-xl text-slate-800"
+        className="yumai-history-drawer w-full max-w-lg h-full flex flex-col text-slate-800"
         role="dialog" aria-modal="true" aria-label="翻译历史">
-        {copyError && <p role="alert" className="text-xs text-rose-700 pb-2">{copyError}</p>}
+        {copyError && <p role="alert" className="text-xs text-rose-700 px-5 pt-3">{copyError}</p>}
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-100 relative">
-          <div className="flex items-center gap-2">
-            <Clock className="w-5 h-5 text-brand-600" />
-            <h3 className="font-extrabold text-base text-slate-900 tracking-tight">翻译历史</h3>
-            <span className="text-xs bg-slate-100 text-slate-600 font-semibold px-2 py-0.5 rounded-full">
+        <div className="yumai-history-head flex items-center justify-between relative">
+          <div className="flex items-center gap-2.5">
+            <span className="yumai-history-mark" aria-hidden="true"><Clock className="w-4 h-4" /></span>
+            <h3 className="text-slate-900">翻译历史</h3>
+            <span className="yumai-history-count">
               {history.length}
             </span>
           </div>
@@ -185,17 +185,17 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
             {filteredHistory.length > 0 && (
               <button
                 onClick={toggleExpandAll}
-                className="text-xs font-bold text-slate-600 hover:text-brand-600 flex items-center gap-1 px-2.5 py-1 rounded-xl hover:bg-brand-50/70 transition-all cursor-pointer border border-slate-200/80 shadow-2xs"
+                className="yumai-chip-button"
                 title={expandedIds.size === filteredHistory.length ? '全部收起' : '全部展开'}
               >
-                <ChevronsUpDown className="w-3.5 h-3.5 text-brand-500" />
+                <ChevronsUpDown className="w-3.5 h-3.5" aria-hidden="true" />
                 <span>{expandedIds.size === filteredHistory.length ? '全部收起' : '全部展开'}</span>
               </button>
             )}
             <button
               ref={closeRef}
               onClick={onClose}
-              className="p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer" title="关闭" aria-label="关闭翻译历史"
+              className="yumai-dialog-close" title="关闭" aria-label="关闭翻译历史"
             >
               <X className="w-4 h-4" />
             </button>
@@ -204,7 +204,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
 
         {/* Search Bar */}
         {history.length > 0 && (
-          <div className="pt-3">
+          <div className="yumai-history-search">
             <div className="relative flex items-center">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 pointer-events-none" />
               <input
@@ -212,7 +212,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="搜索原文或译文..."
-                className="w-full pl-9 pr-8 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:outline-2 focus:outline-brand-500 focus:bg-white transition-colors" aria-label="搜索翻译历史"
+                className="w-full pl-9 pr-8 text-slate-800" aria-label="搜索翻译历史"
               />
               {searchQuery && (
                 <button
@@ -227,10 +227,10 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
         )}
 
         {/* History List */}
-        <div className="flex-1 overflow-y-auto py-4 space-y-3">
+        <div className="yumai-history-list flex-1 overflow-y-auto space-y-3">
           {filteredHistory.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-slate-500 text-xs py-16 gap-2" role="status">
-              <FileText className="w-8 h-8 text-slate-400 stroke-1" aria-hidden="true" />
+              <span className="yumai-history-empty-icon" aria-hidden="true"><FileText className="w-5 h-5" /></span>
               <span>{searchQuery ? '未找到匹配的翻译记录' : '暂无历史记录，完成的翻译会自动保存在这里'}</span>
             </div>
           ) : (
@@ -239,15 +239,11 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
               return (
                 <div
                   key={item.id}
-                  className={`yumai-history-item border transition-colors rounded-xl p-4 ${
-                    isExpanded
-                      ? 'border-brand-200 bg-white'
-                      : 'border-slate-200 hover:border-brand-200 bg-white'
-                  }`}
+                  className="yumai-history-item" data-expanded={isExpanded}
                 >
                   {/* Top Bar: Language & Timestamp & Expand button */}
                   <div className="flex items-center justify-between text-[11px] text-slate-500 mb-2">
-                    <span className="font-medium text-slate-600 bg-slate-100 px-2 py-1 rounded-md text-xs">
+                    <span className="yumai-history-langs">
                       {formatLanguagePair(item.sourceLang, item.targetLang, SUPPORTED_LANGUAGES)}
                     </span>
                     <div className="flex items-center gap-2">
@@ -256,7 +252,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
                       </time>
                       <button
                         onClick={(e) => toggleExpand(item.id, e)}
-                        className="p-1 rounded-md text-slate-500 hover:text-brand-600 hover:bg-brand-50 transition-colors cursor-pointer flex items-center gap-0.5 text-[10px] font-bold"
+                        className="yumai-history-toggle"
                         title={isExpanded ? '收起详情' : '展开查看完整内容'}
                         aria-expanded={isExpanded}
                       >
@@ -276,15 +272,15 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
                   >
                     {/* Source Text */}
                     <div className="relative group">
-                      <p className={`text-sm text-slate-700 leading-relaxed ${isExpanded ? 'whitespace-pre-wrap' : 'line-clamp-2'}`}>
+                      <p className={`yumai-history-source ${isExpanded ? 'whitespace-pre-wrap' : 'line-clamp-2'}`}>
                         {item.sourceText}
                       </p>
                     </div>
 
                     {/* Translation */}
                     <div className="relative group">
-                      <div className="p-3 rounded-xl bg-brand-50/50 border border-brand-100">
-                        <p className={`text-sm text-slate-800 font-medium leading-relaxed ${isExpanded ? 'whitespace-pre-wrap' : 'line-clamp-2'}`}>
+                      <div className="yumai-history-translation">
+                        <p className={`${isExpanded ? 'whitespace-pre-wrap' : 'line-clamp-2'}`}>
                           {item.translation}
                         </p>
                       </div>
@@ -292,7 +288,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
                   </div>
 
                   {/* Actions Footer */}
-                  <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between flex-wrap gap-2">
+                  <div className="yumai-history-actions flex items-center justify-between flex-wrap gap-2">
                     {/* Load to Editor Action */}
                     <button
                       onClick={() => {
@@ -303,7 +299,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
                       title="载入到翻译主界面"
                     >
                       <span>载入原文</span>
-                      <ArrowRight className="w-3 h-3 text-brand-600" />
+                      <ArrowRight className="w-3 h-3" aria-hidden="true" />
                     </button>
 
                     {/* Tool Buttons */}
@@ -312,7 +308,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
                       {isExpanded && (
                         <button
                           onClick={(e) => handleCopy(item.sourceText, item.id, 'source', e)}
-                          className="px-2 py-1 rounded-lg text-[10px] font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-200/60 cursor-pointer flex items-center gap-1 transition-colors"
+                          className="yumai-history-toggle"
                           title="复制原文"
                         >
                           {copiedSourceId === item.id ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
@@ -327,7 +323,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
                           onRetranslate(item);
                           onClose();
                         }}
-                        className="yumai-history-icon p-2 rounded-lg text-slate-500 hover:text-brand-600 hover:bg-brand-50 cursor-pointer transition-colors"
+                        className="yumai-history-icon p-2 cursor-pointer"
                         title="重新翻译" aria-label="重新翻译"
                       >
                         <RefreshCw className="w-3.5 h-3.5" />
@@ -336,9 +332,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
                       {/* Audio Speak */}
                       <button
                         onClick={(e) => handleReplay(item, e)}
-                        className={`rounded-lg cursor-pointer transition-colors ${
-                          playingId === item.id ? 'bg-brand-100 text-brand-600' : 'text-slate-500 hover:text-brand-600 hover:bg-brand-50'
-                        } yumai-history-icon p-2`}
+                        className="yumai-history-icon p-2 cursor-pointer" data-active={playingId === item.id}
                         title="朗读译文" aria-label="朗读译文"
                       >
                         {playingId === item.id ? (
@@ -360,7 +354,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
                       {/* Copy Translation */}
                       <button
                         onClick={(e) => handleCopy(item.translation, item.id, 'trans', e)}
-                        className="yumai-history-icon p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-200/60 cursor-pointer transition-colors flex items-center gap-1 text-[10px]"
+                        className="yumai-history-icon p-2 cursor-pointer flex items-center gap-1"
                         title="复制译文" aria-label={copiedTransId === item.id ? '已复制译文' : '复制译文'}
                       >
                         {copiedTransId === item.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
@@ -375,10 +369,10 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
 
         {/* Bottom Bar: Export & Clear */}
         {history.length > 0 && (
-          <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+          <div className="yumai-history-foot flex items-center justify-between">
             <button
               onClick={handleExport}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-brand-50 hover:text-brand-700 hover:border-brand-300 border border-slate-200 transition-all cursor-pointer shadow-2xs hover:scale-105 active:scale-95"
+              className="yumai-button-secondary"
               title="导出历史记录 (JSON)"
             >
               <Download className="w-3.5 h-3.5" />
@@ -387,7 +381,7 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
 
             <button
               onClick={() => { if (window.confirm('确定清空全部翻译历史？此操作无法撤销。')) onClearHistory(); }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-600 hover:text-white border border-rose-200 hover:border-rose-600 transition-all cursor-pointer shadow-2xs hover:scale-105 active:scale-95"
+              className="yumai-button-danger"
             >
               <Trash2 className="w-3.5 h-3.5" />
               <span>清空历史</span>

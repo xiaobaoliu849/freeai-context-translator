@@ -413,7 +413,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+    <div className="yumai-dialog-backdrop fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
         ref={dialogRef}
         role="dialog"
@@ -442,34 +442,31 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             }
           }
         }}
-        className="yumai-settings-panel bg-white border border-slate-200 rounded-2xl w-full max-w-2xl shadow-xl overflow-hidden flex flex-col max-h-[92vh] text-slate-800"
+        className="yumai-settings-panel w-full max-w-2xl overflow-hidden flex flex-col max-h-[92vh] text-slate-800"
       >
-        {/* Gradient hairline pop */}
-        <div className="h-[1px] bg-slate-100" />
-
         {/* Modal Header */}
-        <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-brand-50 text-brand-700 shrink-0">
+        <div className="yumai-settings-head flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="yumai-settings-mark shrink-0" aria-hidden="true">
               <Cpu className="w-4 h-4" />
             </div>
             <div>
-              <h2 id="yumai-settings-title" className="text-sm sm:text-base font-extrabold text-slate-900 leading-tight tracking-tight">语脉 · 设置</h2>
-              <p className="text-xs text-slate-500 font-medium">先连接 AI 服务，再按需调整翻译体验</p>
+              <h2 id="yumai-settings-title" className="text-slate-900 leading-tight">语脉 · 设置</h2>
+              <p>先连接 AI 服务，再按需调整翻译体验</p>
             </div>
           </div>
           <button
             ref={closeButtonRef}
             onClick={onClose}
             aria-label="关闭设置"
-            className="p-1.5 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-200/60 transition-colors cursor-pointer border border-slate-200/60 shadow-2xs"
+            className="yumai-dialog-close"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Navigation Tabs (Strictly Single Line) */}
-        <div className="yumai-settings-tabs flex border-b border-slate-100 bg-white px-5 gap-3 sm:gap-5 text-xs font-semibold overflow-x-auto no-scrollbar" role="tablist" aria-label="设置分类">
+        <div className="yumai-settings-tabs flex shrink-0 overflow-x-auto no-scrollbar" role="tablist" aria-label="设置分类">
           {[
             { id: 'providers', label: '快速开始', icon: Sparkles },
             { id: 'general', label: '翻译偏好', icon: Sliders },
@@ -486,13 +483,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 aria-controls="yumai-settings-section"
                 aria-selected={isActive}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`py-2.5 flex items-center gap-1.5 transition-all border-b-2 whitespace-nowrap shrink-0 cursor-pointer ${
-                  isActive
-                    ? 'border-brand-600 font-semibold text-brand-700'
-                    : 'text-slate-500 border-transparent hover:text-slate-800'
-                }`}
+                className="flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
               >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-brand-600' : ''}`} />
+                <Icon className="w-3.5 h-3.5" aria-hidden="true" />
                 <span>
                   {tab.label}
                 </span>
@@ -505,10 +498,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         <div id="yumai-settings-section" role="tabpanel" aria-labelledby={`yumai-tab-${activeTab}`} className="yumai-settings-body p-5 overflow-y-auto space-y-4 text-sm text-slate-600 flex-1">
           {activeTab === 'providers' && (
             <div className="space-y-3.5 max-w-xl mx-auto py-1">
-              <div className="rounded-xl border border-brand-100 bg-brand-50/40 px-3 py-2.5">
-                <p className="font-semibold text-slate-800 text-sm mb-1">三步开始使用</p>
-                <p className="text-xs leading-relaxed text-slate-600">1. 选择服务商　→　2. 填写 API Key（如需要）　→　3. 选择模型并保存</p>
-                <p className="text-xs text-slate-500 mt-1">“校验可用性”只检查模型列表，实际调用是否成功请以翻译结果为准。</p>
+              <div className="yumai-settings-intro">
+                <p className="font-semibold text-slate-900 text-sm">三步开始使用</p>
+                <ol className="yumai-settings-steps">
+                  <li><b aria-hidden="true">1</b>选择服务商</li>
+                  <li><b aria-hidden="true">2</b>填写 API Key（如需要）</li>
+                  <li><b aria-hidden="true">3</b>选择模型并保存</li>
+                </ol>
+                <p className="text-xs text-slate-600 mt-2">“校验可用性”只检查模型列表，实际调用是否成功请以翻译结果为准。</p>
               </div>
               {/* 1. Provider Select Dropdown */}
               <div>
@@ -529,7 +526,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
 
               {/* 2. Form Fields for Selected Provider */}
-              <div className="bg-slate-50/80 border border-slate-200/90 rounded-2xl p-3.5 space-y-3.5 shadow-2xs">
+              <div className="yumai-settings-card p-4 space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
                   <div className="flex items-center gap-1.5">
                     <Sparkles className="w-3.5 h-3.5 text-brand-600" />
@@ -1089,19 +1086,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="yumai-settings-footer px-5 py-3 border-t border-slate-100 bg-white flex items-center justify-between gap-3">
+        <div className="yumai-settings-footer flex items-center justify-between gap-3">
           <span className="text-xs text-slate-500 font-medium max-w-[240px] leading-relaxed">设置在扩展中会自动同步；API Key 保存在本地浏览器，未额外加密</span>
           <div className="flex items-center gap-2">
             <button
               onClick={onClose}
-              className="px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-colors cursor-pointer"
+              className="yumai-button-secondary"
             >
               关闭
             </button>
             <button
               id="save-settings-btn"
               onClick={handleSave}
-              className="yumai-primary-action px-5 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="yumai-primary-action text-white flex items-center gap-1.5 cursor-pointer"
             >
               {savedSuccess ? (
                 <>
