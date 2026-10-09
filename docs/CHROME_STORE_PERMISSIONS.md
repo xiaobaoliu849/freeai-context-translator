@@ -25,6 +25,10 @@ YUMAI translates and explains text the user selects on any web page, using the A
 
 No remote code. All JavaScript ships inside the package.
 
+## 隐私政策 URL
+
+https://github.com/xiaobaoliu849/freeai-context-translator/blob/main/PRIVACY.md
+
 ## 数据使用 / Data usage
 
 - 收集：用户主动选中或输入、要求翻译的文字（"网站内容"）。
