@@ -7,6 +7,7 @@
 @import "./styles/yumai-theme.css";
 @import "./yumai-ui.css";
 @import "./styles/yumai-clarity.css";
+@import "./styles/yumai-refine.css";
 
 .freetranslate-host-reset {
   all: initial;
@@ -22,15 +23,15 @@
   width: 26px;
   height: 26px;
   padding: 0;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  background: #263b68;
   color: white;
-  border: none;
+  border: 2px solid #ffffff;
   border-radius: 50%;
   font-size: 12px;
   font-weight: 700;
   line-height: 1;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+  box-shadow: 0 1px 2px rgba(13, 23, 47, 0.2), 0 6px 16px -4px rgba(38, 59, 104, 0.45);
   transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
   user-select: none;
   pointer-events: auto;
@@ -39,8 +40,8 @@
 }
 
 .freetranslate-float-btn:hover {
-  transform: translateY(-2px) scale(1.12);
-  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.6);
+  transform: translateY(-1px) scale(1.06);
+  box-shadow: 0 2px 4px rgba(13, 23, 47, 0.22), 0 10px 22px -6px rgba(38, 59, 104, 0.5);
 }
 
 @keyframes freetranslate-float-in {
@@ -63,11 +64,11 @@
   height: 720px;
   max-height: calc(100vh - 24px);
   min-height: min(360px, calc(100vh - 24px));
-  background: #f6f7fb;
+  background: #f4f6f9;
   padding: 0;
-  border: 1px solid #e2e7f0;
+  border: 1px solid #dfe5ee;
   border-radius: 18px;
-  box-shadow: 0 22px 58px -14px rgba(20, 34, 60, 0.23);
+  box-shadow: 0 2px 6px rgba(16, 28, 52, 0.06), 0 24px 56px -16px rgba(16, 28, 52, 0.28);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -82,14 +83,15 @@
 .freetranslate-resize-hint {
   flex: 0 0 24px;
   padding: 3px 16px;
-  color: #65738a;
-  background: #f6f7f9;
+  color: #526175;
+  background: #f4f6f9;
+  border-top: 1px solid #e3e8ef;
   font: 11px/18px system-ui, sans-serif;
   text-align: right;
   user-select: none;
 }
 
-/* Elegant thin scrollbar with a subtle brand-gradient thumb inside content modal */
+/* Thin neutral scrollbar inside the content modal */
 .freetranslate-modal-card ::-webkit-scrollbar {
   width: 5px;
   height: 5px;
@@ -283,7 +285,7 @@
   font-weight: 600;
   border: none;
   cursor: pointer;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  background: #3d5590;
   color: white;
   transition: opacity 0.15s;
 }

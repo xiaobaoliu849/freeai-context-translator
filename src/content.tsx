@@ -298,15 +298,15 @@ function showFloatBtn(text: string, x: number, y: number, mode: 'click' | 'hover
     margin: 0;
     left: ${Math.min(x + 8, window.innerWidth - 64)}px;
     top: ${Math.max(8, y - 44)}px;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    background: #263b68;
     color: white;
-    border: none;
+    border: 2px solid #ffffff;
     border-radius: 50%;
     font-size: 12px;
     font-weight: 700;
     line-height: 1;
     cursor: pointer;
-    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4);
+    box-shadow: 0 1px 2px rgba(13, 23, 47, 0.2), 0 6px 16px -4px rgba(38, 59, 104, 0.45);
     transition: transform 0.15s ease, box-shadow 0.15s ease;
     user-select: none;
     pointer-events: auto;
