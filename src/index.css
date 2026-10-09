@@ -2,6 +2,7 @@
 @import "./styles/yumai-theme.css";
 @import "./yumai-ui.css";
 @import "./styles/yumai-clarity.css";
+@import "./styles/yumai-refine.css";
 
 /* Equalizer bars shown on play buttons while audio is playing */
 .ft-eq {

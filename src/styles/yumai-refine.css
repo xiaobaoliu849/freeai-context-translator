@@ -1,0 +1,721 @@
+/* ---------------------------------------------------------------------------
+   语脉 YUMAI · UI 5 light refinement.
+   Loaded last (web, popup and the Shadow DOM overlay). Calm layered surfaces,
+   one navy accent, a 4px rhythm and a CJK-friendly reading scale. Everything is
+   scoped to .yumai-app; values come from yumai-tokens.css.
+   --------------------------------------------------------------------------- */
+
+.yumai-app {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "kern", "palt" 0;
+}
+
+/* Shared motion for interactive surfaces. */
+.yumai-app :is(button, select, summary, input, textarea, .yumai-history-item, .yumai-outline-item, .yumai-source-panel) {
+  transition-property: background-color, border-color, color, box-shadow, opacity;
+  transition-duration: var(--ym-duration-fast);
+  transition-timing-function: var(--ym-ease);
+}
+
+/* ===== Header ============================================================ */
+.yumai-app .yumai-header {
+  border-bottom: 1px solid var(--ym-border);
+  box-shadow: none;
+}
+.yumai-app .yumai-header h1 { font-size: 16px; font-weight: 650; letter-spacing: .01em; color: var(--ym-text); }
+.yumai-app .yumai-header h1 + span { font-size: 10px; font-weight: 600; letter-spacing: .16em; color: var(--ym-text-faint); }
+.yumai-app .yumai-header .flex-col > span { color: var(--ym-text-muted); font-size: 11.5px; letter-spacing: .02em; }
+.yumai-app .yumai-header img { border-radius: 9px; box-shadow: var(--ym-shadow-xs); }
+.yumai-app .yumai-header .yumai-provider,
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-header .yumai-provider {
+  height: 28px;
+  padding-inline: 10px 8px;
+  border: 1px solid var(--ym-border);
+  border-radius: 999px;
+  background: var(--ym-surface-muted);
+  color: var(--ym-text-2);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: .05em;
+}
+.yumai-app .yumai-header .yumai-provider:hover { background: var(--ym-surface-sunken); border-color: var(--ym-border-strong); }
+.yumai-app .yumai-header .yumai-icon-button {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--ym-radius-control);
+  color: var(--ym-text-muted);
+}
+.yumai-app .yumai-header .yumai-icon-button:hover { background: var(--ym-surface-sunken); color: var(--ym-text); }
+.yumai-app .yumai-header .yumai-icon-button[aria-pressed="true"] { background: var(--ym-primary-soft); color: var(--ym-primary); }
+
+/* ===== Form controls (selects get one quiet chevron) ===================== */
+.yumai-app select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23526175' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 12px 12px;
+  padding-right: 30px !important;
+}
+
+/* ===== Language toolbar ================================================== */
+.yumai-app .yumai-language-bar {
+  gap: 8px;
+  border: 1px solid var(--ym-border);
+  border-radius: var(--ym-radius-panel);
+  background: var(--ym-surface);
+  box-shadow: var(--ym-shadow-panel);
+}
+.yumai-app .yumai-language-bar select,
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-language-bar select {
+  height: 38px;
+  padding: 0 30px 0 12px;
+  border: 1px solid transparent;
+  border-radius: var(--ym-radius-control);
+  background-color: var(--ym-surface-muted);
+  color: var(--ym-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+.yumai-app .yumai-language-bar select:hover,
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-language-bar select:hover { background-color: var(--ym-surface-sunken); border-color: var(--ym-border); }
+.yumai-app .yumai-language-bar .yumai-swap-button,
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-language-bar .yumai-swap-button {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+  border: 1px solid var(--ym-border);
+  border-radius: 999px;
+  background: var(--ym-surface);
+  color: var(--ym-text-muted);
+  box-shadow: var(--ym-shadow-xs);
+}
+.yumai-app .yumai-language-bar .yumai-swap-button:hover { color: var(--ym-primary); border-color: var(--ym-border-strong); background: var(--ym-primary-tint); }
+.yumai-app .yumai-language-bar .yumai-translate-button {
+  height: 38px;
+  min-height: 38px;
+  padding: 0 18px;
+  border-radius: var(--ym-radius-control);
+  background: var(--ym-primary);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: .08em;
+  box-shadow: 0 1px 2px rgb(13 23 47 / 18%), inset 0 1px 0 rgb(255 255 255 / 8%);
+}
+.yumai-app .yumai-language-bar .yumai-translate-button:hover { background: var(--ym-primary-hover); }
+.yumai-app .yumai-language-bar .yumai-translate-button:active { box-shadow: inset 0 1px 2px rgb(13 23 47 / 25%); }
+.yumai-app .yumai-language-bar .yumai-translate-button:disabled { background: var(--ym-surface-sunken); color: var(--ym-text-muted); box-shadow: none; }
+.yumai-app .yumai-language-bar .yumai-translate-button[data-loading="true"] { background: #a13747; letter-spacing: .02em; }
+.yumai-lang-label {
+  flex-shrink: 0;
+  padding-left: 4px;
+  color: var(--ym-text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Popup: the toolbar is a flat row above one editing card. */
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-language-bar {
+  min-height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* ===== Panels: source vs translation ===================================== */
+.yumai-app .yumai-panel-caption {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ym-text-2);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: .04em;
+}
+.yumai-app .yumai-result-caption { color: var(--ym-primary); }
+.yumai-app .yumai-result-caption::before {
+  content: "";
+  width: 3px;
+  height: 12px;
+  border-radius: 2px;
+  background: var(--ym-primary);
+  opacity: .85;
+}
+.yumai-app .yumai-detected-lang {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--ym-surface-sunken);
+  color: var(--ym-text-muted);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+.yumai-app .yumai-status-pill {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--ym-primary-soft);
+  color: var(--ym-primary);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.yumai-app .yumai-source-editor {
+  color: var(--ym-text);
+  letter-spacing: .005em !important;
+}
+.yumai-app .yumai-result-text { color: var(--ym-text); letter-spacing: .01em !important; }
+.yumai-app .yumai-result-panel { background: var(--ym-reading-paper); }
+.yumai-app .yumai-panel-footer,
+.yumai-app .yumai-result-panel .yumai-result-footer { background: transparent; }
+.yumai-app .yumai-result-panel .yumai-result-footer { border-top: 1px solid var(--ym-divider); }
+.yumai-app .yumai-shortcut { color: var(--ym-text-muted); font-size: 11.5px; }
+.yumai-app .yumai-shortcut kbd {
+  padding: 1px 6px;
+  border: 1px solid var(--ym-border-strong);
+  border-bottom-width: 1px;
+  border-radius: 5px;
+  background: var(--ym-surface);
+  box-shadow: 0 1px 0 var(--ym-border-strong);
+  font-family: var(--ym-font-mono);
+  font-size: 10.5px;
+  color: var(--ym-text-2);
+}
+.yumai-char-count { color: var(--ym-text-muted); font-size: 11.5px; font-weight: 500; font-variant-numeric: tabular-nums; }
+
+/* Small tool buttons in the source footer. */
+.yumai-app .yumai-tool-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  color: var(--ym-text-muted);
+  cursor: pointer;
+}
+.yumai-app .yumai-tool-button:hover { background: var(--ym-surface-sunken); color: var(--ym-text); }
+.yumai-app .yumai-tool-button--danger:hover { background: var(--ym-danger-soft); color: var(--ym-danger-ink); }
+.yumai-app .yumai-tool-button[data-active="true"] { background: var(--ym-primary-soft); color: var(--ym-primary); }
+.yumai-app .yumai-tool-button:disabled { opacity: .35; cursor: not-allowed; }
+
+/* Labelled translation actions: quiet outlined buttons. */
+.yumai-app .yumai-result-footer .yumai-result-action,
+.yumai-app.yumai-popup .yumai-result-footer .yumai-result-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: auto;
+  height: 32px;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--ym-border);
+  border-radius: 8px;
+  background: var(--ym-surface);
+  color: var(--ym-text-2);
+  font-size: 12px;
+  font-weight: 550;
+  cursor: pointer;
+}
+.yumai-app .yumai-result-footer .yumai-result-action:hover { border-color: var(--ym-border-strong); background: var(--ym-surface-muted); color: var(--ym-text); }
+.yumai-app .yumai-result-footer .yumai-result-action[data-active="true"] { border-color: var(--ym-primary); background: var(--ym-primary); color: #fff; }
+.yumai-app .yumai-result-footer .yumai-result-action:disabled { opacity: .35; cursor: not-allowed; }
+.yumai-app .yumai-result-footer .yumai-result-action svg { width: 15px; height: 15px; }
+.yumai-app .yumai-result-footer > div:first-child { color: var(--ym-text-muted); font-size: 12px; }
+
+/* Chip buttons (mode switches, "翻译所选内容"). */
+.yumai-app .yumai-chip-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--ym-border);
+  border-radius: 999px;
+  background: var(--ym-surface);
+  color: var(--ym-text-2);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.yumai-app .yumai-chip-button:hover { border-color: var(--ym-border-strong); background: var(--ym-surface-muted); }
+.yumai-app .yumai-chip-button--accent { color: var(--ym-primary); border-color: var(--ym-brand-200); background: var(--ym-primary-tint); }
+.yumai-app .yumai-chip-button--accent:hover { background: var(--ym-primary-soft); border-color: var(--ym-brand-300); }
+.yumai-app .yumai-live-badge {
+  display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px;
+  border: 1px solid var(--ym-brand-200); border-radius: 999px; background: var(--ym-primary-tint);
+  color: var(--ym-primary); font-size: 11px; font-weight: 600; cursor: pointer;
+}
+.yumai-app .yumai-context-chip { color: var(--ym-text-muted); font-size: 12px; }
+.yumai-app .yumai-context-chip > span { display: inline-flex; align-items: center; gap: 6px; font-weight: 500; }
+.yumai-app .yumai-context-chip > span::before {
+  content: ""; width: 6px; height: 6px; border-radius: 999px; background: var(--ym-brand-400);
+}
+.yumai-app .yumai-word-context-strip {
+  border: 1px solid var(--ym-border);
+  border-radius: var(--ym-radius-card);
+  background: var(--ym-surface);
+  box-shadow: var(--ym-shadow-xs);
+}
+.yumai-app .yumai-inline-outline {
+  padding: 12px;
+  border: 1px solid var(--ym-border);
+  border-radius: var(--ym-radius-card);
+  background: var(--ym-surface);
+  box-shadow: var(--ym-shadow-panel);
+}
+.yumai-app .yumai-segment-chip {
+  padding: 6px 10px;
+  border: 1px solid var(--ym-border);
+  border-radius: 8px;
+  background: var(--ym-surface-muted);
+  color: var(--ym-text-2);
+  font-size: 12px;
+  cursor: pointer;
+}
+.yumai-app .yumai-segment-chip:hover { border-color: var(--ym-brand-200); background: var(--ym-primary-tint); color: var(--ym-primary); }
+
+/* Streaming caret and split grips. */
+.yumai-stream-caret {
+  display: inline-block; width: 2px; height: 1.1em; margin-left: 2px; border-radius: 1px;
+  vertical-align: text-bottom; background: var(--ym-brand-500);
+  animation: yumai-caret 1s steps(2, start) infinite;
+}
+@keyframes yumai-caret { to { visibility: hidden; } }
+.yumai-split-grip { border-radius: 999px; background: var(--ym-border-strong); transition: background-color var(--ym-duration) var(--ym-ease), width var(--ym-duration) var(--ym-ease), height var(--ym-duration) var(--ym-ease); }
+.yumai-split-grip--h { width: 36px; height: 4px; }
+.yumai-split-grip--v { width: 4px; height: 56px; }
+.group:hover > .yumai-split-grip { background: var(--ym-brand-300); }
+.yumai-split-grip[data-dragging="true"] { background: var(--ym-brand-500); }
+.yumai-split-grip--h[data-dragging="true"] { width: 56px; }
+.yumai-split-grip--v[data-dragging="true"] { height: 88px; }
+
+/* Empty / loading states. */
+.yumai-app .yumai-empty-result { gap: 6px; }
+.yumai-app .yumai-empty-icon {
+  display: grid; place-items: center; width: 44px; height: 44px; margin-bottom: 6px;
+  border: 1px solid var(--ym-brand-100); border-radius: 14px;
+  background: var(--ym-primary-tint); color: var(--ym-brand-600);
+}
+.yumai-app .yumai-empty-result .yumai-empty-icon svg { width: 22px; height: 22px; margin: 0; color: inherit; stroke-width: 1.6; }
+.yumai-app .yumai-empty-result p { color: var(--ym-text-2); font-size: 14px; font-weight: 600; letter-spacing: .02em; }
+.yumai-app .yumai-empty-result span:not(.yumai-empty-icon) { color: var(--ym-text-muted); font-size: 12.5px; }
+.yumai-app .yumai-loading-state span { color: var(--ym-text-2); }
+
+/* ===== Popup composition ================================================= */
+.yumai-app.yumai-popup:not(.yumai-floating) { background: var(--ym-background); }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-header > div { height: 52px; padding-inline: 14px; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-header img { width: 28px; height: 28px; border-radius: 8px; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-header h1 { font-size: 16px; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-translation-workspace:not(.yumai-dictionary-active) {
+  border: 1px solid var(--ym-border);
+  border-radius: var(--ym-radius-panel);
+  background: var(--ym-surface);
+  box-shadow: var(--ym-shadow-panel);
+}
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-translation-workspace > [role="separator"] {
+  height: 11px;
+  border-block: 0;
+  border-top: 1px solid var(--ym-divider);
+  background: var(--ym-reading-paper);
+}
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-translation-workspace > [role="separator"]:focus-visible { outline-offset: -2px; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-source-heading { padding: 12px 16px 4px; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-source-editor { font-size: 15px !important; line-height: 1.7 !important; color: var(--ym-text); }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-panel-footer { padding: 4px 10px 6px 16px; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-result-panel { padding: 8px 16px 12px; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-result-text { font-size: 16px !important; line-height: 1.8 !important; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-result-footer { padding-top: 10px; margin-top: 6px; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-translation-workspace:not(.yumai-dictionary-active) > .yumai-source-panel:focus-within { background: var(--ym-surface); }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-dictionary-active .yumai-result-panel {
+  border: 1px solid var(--ym-border); border-radius: var(--ym-radius-panel); box-shadow: var(--ym-shadow-panel); background: var(--ym-surface);
+}
+
+/* ===== Full-tab reading workspace ======================================== */
+.yumai-workspace { background: var(--ym-background) !important; }
+.yumai-app .yumai-workspace-nav {
+  width: 204px;
+  gap: 4px;
+  padding: 20px 14px 16px;
+  border-right: 1px solid var(--ym-border);
+  background: var(--ym-surface);
+}
+.yumai-app .yumai-workspace-nav > p:first-child { padding: 0 10px 8px; color: var(--ym-text-faint); font-size: 11.5px; font-weight: 600; letter-spacing: .12em; }
+.yumai-app .yumai-workspace-new {
+  height: 42px;
+  margin-bottom: 14px;
+  padding: 0 12px;
+  border-radius: 11px;
+  font-size: 13.5px;
+  letter-spacing: .04em;
+  box-shadow: 0 1px 2px rgb(13 23 47 / 18%), 0 4px 12px -4px rgb(38 59 104 / 40%), inset 0 1px 0 rgb(255 255 255 / 8%);
+}
+.yumai-app .yumai-nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 40px;
+  margin: 0;
+  padding: 0 10px 0 12px;
+  border-radius: 10px;
+  color: var(--ym-text-2);
+  font-size: 13.5px;
+  font-weight: 500;
+  text-align: left;
+}
+.yumai-app .yumai-nav-item > span:first-child { display: inline-flex; align-items: center; gap: 10px; }
+.yumai-app .yumai-nav-item svg { width: 16px; height: 16px; color: var(--ym-text-muted); }
+.yumai-app button.yumai-nav-item:hover { background: var(--ym-surface-muted); color: var(--ym-text); }
+.yumai-app .yumai-nav-item[aria-current="page"] { background: var(--ym-primary-tint); color: var(--ym-primary); font-weight: 600; }
+.yumai-app .yumai-nav-item[aria-current="page"] svg { color: var(--ym-primary); }
+.yumai-app .yumai-nav-item[aria-current="page"]::before {
+  content: ""; position: absolute; left: -14px; top: 10px; bottom: 10px; width: 3px; border-radius: 0 3px 3px 0; background: var(--ym-primary);
+}
+.yumai-app .yumai-nav-count {
+  min-width: 22px; padding: 1px 7px; border-radius: 999px; background: var(--ym-surface-sunken);
+  color: var(--ym-text-muted); font-size: 11px; font-weight: 600; text-align: center; font-variant-numeric: tabular-nums;
+}
+.yumai-app .yumai-nav-tip {
+  margin-top: auto;
+  padding: 14px;
+  border: 1px solid var(--ym-border);
+  border-radius: var(--ym-radius-card);
+  background: linear-gradient(180deg, var(--ym-primary-tint), var(--ym-surface) 75%);
+  color: var(--ym-text-muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.yumai-app .yumai-nav-tip p:first-of-type { color: var(--ym-text); font-size: 13px; font-weight: 600; }
+
+.yumai-app .yumai-workspace-intro { padding-top: 28px; padding-bottom: 2px; }
+.yumai-app .yumai-workspace-eyebrow { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; color: var(--ym-text-muted); font-size: 12px; font-weight: 500; letter-spacing: .06em; }
+.yumai-app .yumai-workspace-eyebrow svg { width: 15px; height: 15px; color: var(--ym-brand-500); }
+.yumai-app .yumai-workspace-title { color: var(--ym-text); font-size: 24px; font-weight: 650; line-height: 1.3; letter-spacing: .01em; }
+.yumai-app .yumai-workspace-subtitle { margin-top: 4px; color: var(--ym-text-muted); font-size: 13px; line-height: 1.6; }
+.yumai-app .yumai-workspace .yumai-studio { padding-top: 18px; gap: 14px; }
+.yumai-app .yumai-workspace .yumai-language-bar { min-height: 58px; padding: 9px 10px 9px 14px; gap: 10px; }
+.yumai-app .yumai-workspace .yumai-language-bar select { background-color: var(--ym-surface); border-color: var(--ym-border); }
+.yumai-app .yumai-workspace .yumai-language-bar select:hover { background-color: var(--ym-surface-muted); border-color: var(--ym-border-strong); }
+.yumai-app .yumai-workspace .yumai-lang-field { gap: 8px; }
+.yumai-app .yumai-workspace .yumai-layout-menu summary {
+  display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 12px;
+  border: 1px solid var(--ym-border); border-radius: var(--ym-radius-control);
+  color: var(--ym-text-2); font-size: 12.5px; font-weight: 550; list-style: none;
+}
+.yumai-app .yumai-layout-menu summary::-webkit-details-marker { display: none; }
+.yumai-app .yumai-layout-menu summary::before {
+  content: ""; width: 14px; height: 10px; border: 1.5px solid currentColor; border-radius: 3px;
+  background: linear-gradient(currentColor, currentColor) center / 1.5px 100% no-repeat; opacity: .8;
+}
+.yumai-app .yumai-layout-menu summary:hover { background: var(--ym-surface-muted); border-color: var(--ym-border-strong); }
+.yumai-app .yumai-layout-menu[open] summary { background: var(--ym-primary-tint); border-color: var(--ym-brand-200); color: var(--ym-primary); }
+.yumai-app .yumai-layout-options {
+  gap: 2px; padding: 4px; border: 1px solid var(--ym-border); border-radius: 11px;
+  background: var(--ym-surface-sunken); box-shadow: var(--ym-shadow-raised);
+}
+.yumai-app .yumai-layout-option {
+  min-width: 48px; height: 30px; padding: 0 10px; border-radius: 8px;
+  color: var(--ym-text-muted); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; cursor: pointer;
+}
+.yumai-app .yumai-layout-option:hover { color: var(--ym-text); }
+.yumai-app .yumai-layout-option[aria-pressed="true"] { background: var(--ym-surface); color: var(--ym-primary); box-shadow: var(--ym-shadow-xs); }
+
+.yumai-app .yumai-workspace .yumai-context-chip { padding: 0 4px; }
+.yumai-app .yumai-workspace .yumai-source-panel,
+.yumai-app .yumai-workspace .yumai-result-panel {
+  border: 1px solid var(--ym-border);
+  border-radius: var(--ym-radius-panel);
+  box-shadow: var(--ym-shadow-panel);
+}
+.yumai-app .yumai-workspace .yumai-source-panel { background: var(--ym-surface); }
+.yumai-app .yumai-workspace .yumai-result-panel { padding: 16px 22px 14px; background: var(--ym-reading-paper); }
+.yumai-app .yumai-workspace .yumai-source-heading { padding: 16px 22px 6px; }
+.yumai-app .yumai-workspace .yumai-source-editor { padding-inline: 22px; font-size: 16px !important; line-height: 1.85 !important; }
+.yumai-app .yumai-workspace .yumai-result-text { font-size: 17px !important; line-height: 1.9 !important; letter-spacing: .02em !important; }
+.yumai-app .yumai-workspace .yumai-panel-footer { padding: 8px 14px 10px 22px; border-top: 1px solid var(--ym-divider); }
+.yumai-app .yumai-workspace .yumai-source-panel:focus-within {
+  outline: none;
+  border-color: var(--ym-brand-300);
+  box-shadow: var(--ym-focus-halo), var(--ym-shadow-panel);
+}
+.yumai-app .yumai-workspace .yumai-result-footer { padding-top: 12px; }
+.yumai-app .yumai-workspace .yumai-empty-result { padding-top: 64px; }
+
+.yumai-app .yumai-workspace-outline {
+  width: 248px;
+  gap: 14px;
+  padding: 24px 16px;
+  border-left: 1px solid var(--ym-border);
+  background: var(--ym-surface);
+}
+.yumai-app .yumai-outline-heading { color: var(--ym-text); font-size: 14px; font-weight: 650; letter-spacing: .02em; }
+.yumai-app .yumai-outline-stats {
+  display: flex; align-items: center; gap: 6px; padding: 10px 12px;
+  border: 1px solid var(--ym-border); border-radius: 10px; background: var(--ym-surface-muted);
+  color: var(--ym-text-muted); font-size: 12px; font-variant-numeric: tabular-nums;
+}
+.yumai-app .yumai-outline-stats svg { flex-shrink: 0; color: var(--ym-brand-500); }
+.yumai-app .yumai-workspace-outline .yumai-outline-item {
+  gap: 10px; padding: 10px 10px; border: 1px solid transparent; border-radius: 10px;
+  color: var(--ym-text-2); font-size: 12.5px; line-height: 1.65;
+}
+.yumai-app .yumai-workspace-outline .yumai-outline-item:hover { border-color: var(--ym-border); background: var(--ym-surface-muted); color: var(--ym-text); }
+.yumai-app .yumai-outline-index {
+  display: grid; place-items: center; flex-shrink: 0; width: 22px; height: 22px; margin-top: 1px;
+  border: 1px solid var(--ym-border); border-radius: 7px; background: var(--ym-surface);
+  color: var(--ym-text-muted); font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.yumai-app .yumai-outline-item:hover .yumai-outline-index { border-color: var(--ym-brand-200); background: var(--ym-primary-tint); color: var(--ym-primary); }
+.yumai-app .yumai-outline-note { color: var(--ym-text-muted); font-size: 12px; line-height: 1.7; }
+
+/* ===== Settings dialog =================================================== */
+.yumai-app .yumai-dialog-backdrop { background: rgb(15 23 42 / 38%); backdrop-filter: blur(3px); }
+.yumai-app .yumai-settings-panel {
+  border: 1px solid var(--ym-border);
+  border-radius: var(--ym-radius-dialog);
+  background: var(--ym-surface);
+  box-shadow: var(--ym-shadow-floating);
+  animation: yumai-dialog-in var(--ym-duration) var(--ym-ease);
+}
+@keyframes yumai-dialog-in { from { opacity: 0; transform: translateY(6px) scale(.985); } }
+.yumai-app .yumai-settings-head { padding: 18px 20px 14px; border-bottom: 0; background: var(--ym-surface); }
+.yumai-app .yumai-settings-head h2 { font-size: 16px; font-weight: 650; letter-spacing: .01em; }
+.yumai-app .yumai-settings-head p { margin-top: 2px; color: var(--ym-text-muted); font-size: 12.5px; font-weight: 400; }
+.yumai-app .yumai-settings-mark {
+  display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid var(--ym-brand-100);
+  border-radius: 11px; background: var(--ym-primary-tint); color: var(--ym-primary);
+}
+.yumai-app .yumai-dialog-close {
+  display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 9px;
+  color: var(--ym-text-muted); cursor: pointer;
+}
+.yumai-app .yumai-dialog-close:hover { background: var(--ym-surface-sunken); color: var(--ym-text); }
+/* Segmented tab control. */
+.yumai-app .yumai-settings-tabs {
+  gap: 2px;
+  margin: 0 20px 4px;
+  padding: 3px;
+  border: 1px solid var(--ym-border);
+  border-radius: 11px;
+  background: var(--ym-surface-sunken);
+}
+.yumai-app .yumai-settings-tabs button,
+.yumai-app .yumai-settings-tabs button[aria-selected] {
+  flex: 1 1 0;
+  justify-content: center;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  color: var(--ym-text-muted);
+  font-size: 12.5px;
+  font-weight: 550;
+}
+.yumai-app .yumai-settings-tabs button:hover { color: var(--ym-text); }
+.yumai-app .yumai-settings-tabs button[aria-selected="true"] { background: var(--ym-surface); color: var(--ym-primary); font-weight: 650; box-shadow: var(--ym-shadow-xs), 0 0 0 1px var(--ym-border); }
+.yumai-app .yumai-settings-tabs button[aria-selected="true"] svg { color: var(--ym-primary); }
+.yumai-app .yumai-settings-tabs button:focus-visible { outline-offset: -2px; }
+.yumai-app .yumai-settings-body { padding: 16px 20px 20px; color: var(--ym-text-2); }
+.yumai-app .yumai-settings-body label { color: var(--ym-text-2); font-size: 12.5px; font-weight: 600; }
+.yumai-app .yumai-settings-body :is(input[type="text"], input[type="password"], input[type="number"], input:not([type]), select) {
+  min-height: 38px;
+  border: 1px solid var(--ym-border-strong);
+  border-radius: var(--ym-radius-control);
+  background-color: var(--ym-surface);
+  color: var(--ym-text);
+  font-size: 13px;
+  box-shadow: var(--ym-shadow-xs);
+}
+.yumai-app .yumai-settings-body :is(input, select):hover:not(:disabled) { border-color: var(--ym-brand-300); }
+.yumai-app .yumai-settings-body :is(input, select):focus { border-color: var(--ym-brand-500); box-shadow: var(--ym-focus-halo); outline: none; }
+.yumai-app .yumai-settings-body :is(input, select):disabled { background-color: var(--ym-surface-sunken); color: var(--ym-text-muted); }
+.yumai-app .yumai-settings-body input[type="range"],
+.yumai-app .yumai-settings-body input[type="checkbox"] { min-height: 0; box-shadow: none; }
+.yumai-app .yumai-settings-intro {
+  padding: 14px 16px;
+  border: 1px solid var(--ym-brand-100);
+  border-radius: var(--ym-radius-card);
+  background: var(--ym-primary-tint);
+}
+.yumai-app .yumai-settings-steps { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 8px; padding: 0; list-style: none; }
+.yumai-app .yumai-settings-steps li { display: inline-flex; align-items: center; gap: 6px; color: var(--ym-text-2); font-size: 12.5px; font-weight: 500; }
+.yumai-app .yumai-settings-steps li + li::before { content: ""; width: 14px; height: 1px; margin-right: 4px; background: var(--ym-brand-300); }
+.yumai-app .yumai-settings-steps b {
+  display: grid; place-items: center; width: 18px; height: 18px; border-radius: 999px;
+  background: var(--ym-primary); color: #fff; font-size: 10.5px; font-weight: 650;
+}
+.yumai-app .yumai-settings-card {
+  border: 1px solid var(--ym-border);
+  border-radius: var(--ym-radius-card);
+  background: var(--ym-surface-muted);
+  box-shadow: none;
+}
+.yumai-app .yumai-settings-footer { padding: 14px 20px; border-top: 1px solid var(--ym-divider); background: var(--ym-surface-muted); }
+.yumai-app .yumai-settings-footer > span { color: var(--ym-text-muted); font-weight: 400; }
+.yumai-app .yumai-button-secondary {
+  height: 38px; padding: 0 16px; border: 1px solid var(--ym-border-strong); border-radius: var(--ym-radius-control);
+  background: var(--ym-surface); color: var(--ym-text-2); font-size: 13px; font-weight: 550; box-shadow: var(--ym-shadow-xs); cursor: pointer;
+}
+.yumai-app .yumai-button-secondary:hover { background: var(--ym-surface-muted); color: var(--ym-text); }
+.yumai-app .yumai-settings-footer .yumai-primary-action {
+  height: 38px; padding: 0 18px; border-radius: var(--ym-radius-control); font-size: 13px; font-weight: 650;
+  box-shadow: 0 1px 2px rgb(13 23 47 / 18%), inset 0 1px 0 rgb(255 255 255 / 8%);
+}
+
+/* ===== History drawer ==================================================== */
+.yumai-app .yumai-history-drawer {
+  padding: 0;
+  border-left: 1px solid var(--ym-border);
+  background: var(--ym-background);
+  box-shadow: var(--ym-shadow-floating);
+  animation: yumai-drawer-in var(--ym-duration) var(--ym-ease);
+}
+@keyframes yumai-drawer-in { from { opacity: .6; transform: translateX(16px); } }
+.yumai-app .yumai-history-head { padding: 16px 20px 14px; border-bottom: 1px solid var(--ym-border); background: var(--ym-surface); }
+.yumai-app .yumai-history-head h3 { font-size: 16px; font-weight: 650; letter-spacing: .01em; }
+.yumai-app .yumai-history-mark {
+  display: grid; place-items: center; width: 32px; height: 32px; border: 1px solid var(--ym-brand-100);
+  border-radius: 10px; background: var(--ym-primary-tint); color: var(--ym-primary);
+}
+.yumai-app .yumai-history-count { padding: 1px 8px; border-radius: 999px; background: var(--ym-surface-sunken); color: var(--ym-text-muted); font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.yumai-app .yumai-history-search { padding: 14px 20px 0; }
+.yumai-app .yumai-history-search input {
+  height: 40px; padding-top: 0; padding-bottom: 0; border: 1px solid var(--ym-border-strong); border-radius: 10px;
+  background: var(--ym-surface); box-shadow: var(--ym-shadow-xs); font-size: 13.5px;
+}
+.yumai-app .yumai-history-search input::placeholder { color: var(--ym-text-muted); }
+.yumai-app .yumai-history-search input:focus { outline: none; border-color: var(--ym-brand-500); box-shadow: var(--ym-focus-halo); }
+.yumai-app .yumai-history-list { padding: 14px 20px; }
+.yumai-app .yumai-history-item {
+  padding: 14px 16px 10px;
+  border: 1px solid var(--ym-border);
+  border-radius: var(--ym-radius-card);
+  background: var(--ym-surface);
+  box-shadow: var(--ym-shadow-xs);
+}
+.yumai-app .yumai-history-item:hover { border-color: var(--ym-border-strong); background: var(--ym-surface); box-shadow: var(--ym-shadow-raised); }
+.yumai-app .yumai-history-langs {
+  display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 6px;
+  background: var(--ym-surface-sunken); color: var(--ym-text-2); font-size: 11.5px; font-weight: 600;
+}
+.yumai-app .yumai-history-source { color: var(--ym-text-2); font-size: 13.5px; line-height: 1.75; }
+.yumai-app .yumai-history-translation {
+  padding: 2px 0 2px 12px;
+  border-left: 3px solid var(--ym-brand-200);
+  border-radius: 0;
+  background: transparent;
+}
+.yumai-app .yumai-history-translation p { color: var(--ym-text); font-size: 14px; font-weight: 500; line-height: 1.8; }
+.yumai-app .yumai-history-actions { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--ym-divider); }
+.yumai-app .yumai-history-icon { border-radius: 8px; color: var(--ym-text-muted); }
+.yumai-app .yumai-history-icon:hover { background: var(--ym-surface-sunken); color: var(--ym-text); }
+.yumai-app .yumai-history-foot { padding: 12px 20px; border-top: 1px solid var(--ym-border); background: var(--ym-surface); }
+.yumai-app .yumai-button-danger {
+  display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px;
+  border: 1px solid var(--ym-danger-line); border-radius: var(--ym-radius-control);
+  background: var(--ym-surface); color: var(--ym-danger-ink); font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.yumai-app .yumai-button-danger:hover { background: var(--ym-danger-soft); }
+.yumai-app .yumai-history-foot .yumai-button-secondary { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; font-size: 12.5px; }
+.yumai-app .yumai-history-empty-icon {
+  display: grid; place-items: center; width: 48px; height: 48px; border: 1px solid var(--ym-border);
+  border-radius: 14px; background: var(--ym-surface); color: var(--ym-text-muted);
+}
+
+/* ===== In-page floating card (Shadow DOM) ================================ */
+.yumai-app.yumai-floating { background: var(--ym-background); }
+.yumai-floating .yumai-header > div { height: 52px; padding-inline: 12px 10px; }
+.yumai-floating .yumai-language-bar { padding: 4px 6px 4px 8px; border-radius: var(--ym-radius-card); }
+.yumai-floating .yumai-language-bar select { height: 34px; }
+.yumai-floating .yumai-language-bar .yumai-translate-button { height: 34px; min-height: 34px; padding: 0 14px; }
+.yumai-floating .yumai-result-panel { border-radius: var(--ym-radius-panel); }
+.yumai-floating .yumai-floating-snippet {
+  border: 1px solid var(--ym-border);
+  border-left: 3px solid var(--ym-brand-300);
+  border-radius: var(--ym-radius-card);
+  box-shadow: var(--ym-shadow-xs);
+}
+
+/* Dictionary card. */
+.yumai-app .yumai-word-card { background: var(--ym-surface); }
+.yumai-app .yumai-word-header { padding: 16px 18px 12px; border-bottom: 1px solid var(--ym-divider); background: var(--ym-surface); }
+.yumai-app .yumai-word-title h3 { font-size: 24px; font-weight: 700; letter-spacing: -.015em; color: var(--ym-text); }
+.yumai-app .yumai-word-meta { color: var(--ym-text-muted); }
+.yumai-app .yumai-word-phonetic { font-family: var(--ym-font-mono); color: var(--ym-text-2); }
+.yumai-app .yumai-word-level { padding: 1px 7px; border: 1px solid var(--ym-brand-100); border-radius: 999px; background: var(--ym-primary-tint); color: var(--ym-primary); }
+.yumai-app .yumai-word-icon { color: var(--ym-text-muted); }
+.yumai-app .yumai-word-icon:hover { background: var(--ym-surface-sunken); color: var(--ym-text); }
+.yumai-app .yumai-word-title .yumai-word-icon { color: var(--ym-brand-600); }
+.yumai-app .yumai-word-body { padding: 16px 18px 22px; }
+.yumai-app .yumai-word-meaning {
+  padding: 14px 16px 15px;
+  border: 1px solid var(--ym-brand-100);
+  border-left: 3px solid var(--ym-primary);
+  border-radius: 4px var(--ym-radius-card) var(--ym-radius-card) 4px;
+  background: var(--ym-primary-tint);
+}
+.yumai-app .yumai-word-meaning h4 { color: var(--ym-primary); letter-spacing: .04em; }
+.yumai-app .yumai-word-meaning p { line-height: 1.7; color: var(--ym-text); }
+.yumai-app .yumai-word-section h4 { color: var(--ym-text-muted); letter-spacing: .04em; }
+.yumai-app .yumai-word-section p, .yumai-app .yumai-word-context p { color: var(--ym-text-2); line-height: 1.85; }
+.yumai-app .yumai-word-context { border-color: var(--ym-divider); }
+.yumai-app .yumai-word-context summary { color: var(--ym-text-2); }
+.yumai-app .yumai-word-disclosure { color: var(--ym-primary); }
+.yumai-app .yumai-word-disclosure + .yumai-word-disclosure,
+.yumai-app .yumai-word-vocabulary + div .yumai-word-disclosure { border-top: 1px solid var(--ym-divider); }
+
+/* ===== Focus & reduced motion ============================================ */
+.yumai-app :is(button, select, summary, [role="separator"], [role="tab"]):focus-visible {
+  outline: 2px solid var(--ym-primary);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .yumai-app :is(button, select, summary, input, textarea, .yumai-history-item, .yumai-outline-item, .yumai-source-panel, .yumai-split-grip) { transition: none; }
+  .yumai-app .yumai-settings-panel,
+  .yumai-app .yumai-history-drawer { animation: none; }
+  .yumai-stream-caret { animation: none; }
+}
+
+/* History: small labelled actions and active audio state. */
+.yumai-app .yumai-history-toggle {
+  display: inline-flex; align-items: center; gap: 3px; height: 26px; padding: 0 8px; border-radius: 7px;
+  color: var(--ym-text-muted); font-size: 11.5px; font-weight: 600; cursor: pointer;
+}
+.yumai-app .yumai-history-toggle:hover { background: var(--ym-surface-sunken); color: var(--ym-text); }
+.yumai-app .yumai-history-icon[data-active="true"] { background: var(--ym-primary-soft); color: var(--ym-primary); }
+.yumai-app .yumai-history-item[data-expanded="true"] { border-color: var(--ym-brand-200); }
+
+/* Iteration 2 — popup selects read as fields on the canvas; calmer focus;
+   the workspace fits a 900px-tall window; narrow overlay keeps the provider. */
+.yumai-app.yumai-popup .yumai-language-bar select,
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-language-bar select {
+  border-color: var(--ym-border);
+  background-color: var(--ym-surface);
+  box-shadow: var(--ym-shadow-xs);
+}
+.yumai-app.yumai-popup .yumai-language-bar select:hover,
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-language-bar select:hover { border-color: var(--ym-border-strong); background-color: var(--ym-surface); }
+.yumai-app.yumai-floating .yumai-language-bar select { box-shadow: none; background-color: var(--ym-surface-muted); border-color: transparent; }
+.yumai-app .yumai-workspace .yumai-source-panel:focus-within {
+  border-color: var(--ym-brand-400);
+  box-shadow: 0 0 0 3px rgb(38 59 104 / 9%), var(--ym-shadow-panel);
+}
+.yumai-app .yumai-workspace .yumai-source-panel,
+.yumai-app .yumai-workspace .yumai-result-panel { min-height: max(340px, calc(100vh - 350px)); }
+@media (max-width: 400px) {
+  .yumai-floating .yumai-header .yumai-provider { max-width: 80px; padding-inline: 8px 6px; letter-spacing: .02em; }
+}
+
+/* Full-tab header spans the window so the brand lines up with the side nav. */
+.yumai-app:not(.yumai-popup) .yumai-header > div { max-width: none; padding-inline: 24px; }
