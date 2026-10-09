@@ -31,16 +31,16 @@ export const ReadingWorkspaceShell: React.FC<ReadingWorkspaceShellProps> = ({
   return (
     <div className="yumai-workspace flex min-h-[calc(100vh-60px)] bg-[#f6f7f9]">
       <nav aria-label="阅读工作台导航" className="yumai-workspace-nav hidden lg:flex w-[178px] shrink-0 flex-col gap-2 border-r border-slate-200 bg-white p-4">
-        <p className="px-3 pt-3 pb-2 text-[11px] font-semibold tracking-wider text-slate-400">工作空间</p>
+        <p className="px-3 pt-3 pb-2 text-[11px] font-semibold tracking-wider text-slate-500">工作空间</p>
         <button type="button" onClick={onNewDocument} className="yumai-workspace-new flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-[13px] font-semibold text-white">
           <Plus className="h-4 w-4"/> 新建翻译
         </button>
-        <div className="mt-4 flex items-center gap-2 rounded-xl bg-indigo-50 px-3 py-3 text-[13px] font-semibold text-indigo-700">
+        <div className="mt-4 flex items-center gap-2 rounded-xl bg-indigo-50 px-3 py-3 text-[13px] font-semibold text-indigo-700" aria-current="page">
           <BookOpen className="h-4 w-4"/> 智能阅读
         </div>
         <button type="button" onClick={onOpenHistory} className="flex items-center justify-between rounded-xl px-3 py-3 text-[13px] text-slate-600 hover:bg-slate-50">
           <span className="flex items-center gap-2"><Clock3 className="h-4 w-4"/> 翻译历史</span>
-          <span className="text-xs text-slate-400">{historyCount}</span>
+          <span className="text-xs text-slate-500" aria-label={`${historyCount} 条记录`}>{historyCount}</span>
         </button>
         <button type="button" onClick={onOpenSettings} className="flex items-center gap-2 rounded-xl px-3 py-3 text-[13px] text-slate-600 hover:bg-slate-50">
           <Settings2 className="h-4 w-4"/> 设置与模型
@@ -72,7 +72,7 @@ export const ReadingWorkspaceShell: React.FC<ReadingWorkspaceShellProps> = ({
         <aside className="yumai-workspace-outline hidden xl:flex w-[228px] shrink-0 flex-col gap-3 border-l border-slate-200 bg-white px-4 py-6" aria-label="原文段落导航">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-slate-800">文章导航</h3>
-            <span className="text-xs text-slate-400">{segments.length} 段</span>
+            <span className="text-xs text-slate-500">{segments.length} 段</span>
           </div>
           <div className="rounded-xl bg-slate-50 px-3 py-3 text-xs text-slate-500">
             <FileText className="mr-1 inline h-3.5 w-3.5 text-indigo-500"/>
@@ -83,17 +83,18 @@ export const ReadingWorkspaceShell: React.FC<ReadingWorkspaceShellProps> = ({
               {segments.map((s,i) => (
                 <li key={s.start}>
                   <button type="button" onClick={() => onTranslateSegment(s.text)} title={s.text}
+                    aria-label={`翻译第 ${i + 1} 段：${s.text.slice(0, 60)}`}
                     className="yumai-outline-item flex w-full items-start gap-2.5 rounded-xl px-2.5 py-3 text-left text-xs leading-relaxed text-slate-600 hover:bg-indigo-50 hover:text-indigo-800 focus-visible:outline-2 focus-visible:outline-indigo-500">
-                    <span className="grid h-6 min-w-6 place-items-center rounded-lg bg-slate-100 text-[11px] font-semibold text-slate-500">{i+1}</span>
+                    <span aria-hidden="true" className="grid h-6 min-w-6 place-items-center rounded-lg bg-slate-100 text-[11px] font-semibold text-slate-600">{i+1}</span>
                     <span className="line-clamp-3">{s.text}</span>
                   </button>
                 </li>
               ))}
             </ol>
           ) : (
-            <p className="pt-3 text-xs leading-relaxed text-slate-400">在原文区粘贴文章，段落将显示在这里。点击一段可单独翻译，而不替换整篇原文。</p>
+            <p className="pt-3 text-xs leading-relaxed text-slate-500">在原文区粘贴文章，段落将显示在这里。点击一段可单独翻译，而不替换整篇原文。</p>
           )}
-          {segments.length > 0 && <p className="text-xs leading-relaxed text-slate-400">导航仅分析原文结构，不会伪造双语段落对应关系。</p>}
+          {segments.length > 0 && <p className="text-xs leading-relaxed text-slate-500">导航仅分析原文结构，不会伪造双语段落对应关系。</p>}
         </aside>
       )}
     </div>

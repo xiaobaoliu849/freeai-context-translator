@@ -462,7 +462,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             ref={closeButtonRef}
             onClick={onClose}
             aria-label="关闭设置"
-            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors cursor-pointer border border-slate-200/60 shadow-2xs"
+            className="p-1.5 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-200/60 transition-colors cursor-pointer border border-slate-200/60 shadow-2xs"
           >
             <X className="w-4 h-4" />
           </button>
@@ -784,7 +784,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <div className="flex items-center justify-between py-2 border-b border-slate-100">
                 <div>
                   <p className="font-semibold text-slate-800">打字实时翻译</p>
-                  <p className="text-[11px] text-slate-400">输入停顿 500ms 后自动翻译</p>
+                  <p className="text-[11px] text-slate-500">输入停顿 500ms 后自动翻译</p>
                 </div>
                 <input
                   type="checkbox"
@@ -808,7 +808,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <option value="select">选中即翻译（直接弹出卡片）</option>
                   <option value="off">关闭划词图标（仅通过右键菜单或 Alt+T 翻译）</option>
                 </select>
-                <p className="text-[11px] text-slate-400 mt-1">
+                <p className="text-[11px] text-slate-500 mt-1">
                   划词后显示小图标、直接翻译或完全关闭浮标（避免选词干扰）。
                 </p>
               </div>
@@ -816,7 +816,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <div className="flex items-center justify-between py-2 border-b border-slate-100">
                 <div>
                   <p className="font-semibold text-slate-800">输入框内划词翻译</p>
-                  <p className="text-[11px] text-slate-400">允许在输入框内划词翻译</p>
+                  <p className="text-[11px] text-slate-500">允许在输入框内划词翻译</p>
                 </div>
                 <input
                   type="checkbox"
@@ -969,7 +969,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       }}
                       className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-indigo-500 font-mono"
                     />
-                    <p className="text-[10px] text-slate-400 mt-1">
+                    <p className="text-[10px] text-slate-500 mt-1">
                       与【模型服务商】同步，无需重复填写。
                     </p>
                   </div>
@@ -1081,7 +1081,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   Esc
                 </kbd>
               </div>
-              <p className="text-[11px] text-slate-400 leading-relaxed">
+              <p className="text-[11px] text-slate-500 leading-relaxed">
                 Alt+T 需在 <code className="font-mono text-indigo-600">chrome://extensions/shortcuts</code> 中绑定；首次安装后请重新加载扩展。
               </p>
             </div>
@@ -1101,7 +1101,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <button
               id="save-settings-btn"
               onClick={handleSave}
-              className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-[#4958ba] hover:bg-[#34469f] flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="yumai-primary-action px-5 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center gap-1.5 transition-colors cursor-pointer"
             >
               {savedSuccess ? (
                 <>
