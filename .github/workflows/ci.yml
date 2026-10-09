@@ -12,10 +12,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -26,7 +26,7 @@ jobs:
       - name: Typecheck (tsc --noEmit)
         run: npm run lint
 
-      - name: Test adaptive UI selection heuristics
+      - name: Unit tests (utils, services, config)
         run: npm run test:ui
 
       - name: Build web app + server
@@ -75,7 +75,7 @@ jobs:
 
       - name: Upload UI 4.0 visual preview
         if: github.event_name == 'pull_request'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: yumai-ui4-popup-screenshots
           path: preview/yumai-*
@@ -83,10 +83,15 @@ jobs:
           retention-days: 14
 
       - name: Check popup readability and real floating dictionary in Shadow DOM
-        run: node scripts/check-floating-layout.mjs
+        run: |
+          google-chrome --version
+          node scripts/check-floating-layout.mjs
 
+      # Upload on failure too: the failure screenshot and page text are the
+      # fastest way to see why a browser check broke on the runner.
       - name: Upload floating dictionary regression screenshots
-        uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v6
         with:
           name: yumai-floating-layout
           path: |

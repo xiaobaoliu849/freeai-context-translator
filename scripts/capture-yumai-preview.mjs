@@ -4,7 +4,9 @@
  * No API requests, keys or personal data are used in the sample.
  */
 import { spawn } from 'node:child_process';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const ROOT = new URL('../', import.meta.url);
 const SAMPLE = 'Excited to collaborate with the team at Amazon to bring the power of Android and Google Play to more people. Our goal is to make technology useful and accessible for everyone.';
@@ -36,11 +38,14 @@ const server = spawn('python3', ['-m', 'http.server', '4173', '--bind', '127.0.0
 const webServer = spawn('python3', ['-m', 'http.server', '4174', '--bind', '127.0.0.1', '--directory', 'dist-web'], {
   cwd: ROOT, stdio: 'ignore',
 });
-const chrome = spawn('google-chrome', [
+// A fresh profile per run: a reused one restores the previous run's draft
+// text from localStorage and breaks the length assertions below.
+const profile = await mkdtemp(join(tmpdir(), 'yumai-ui4-preview-'));
+const chrome = spawn(process.env.CHROME_PATH || 'google-chrome', [
   '--headless=new', '--no-sandbox', '--disable-gpu', '--hide-scrollbars',
   '--disable-dev-shm-usage', '--disable-extensions',
   '--remote-debugging-port=9222',
-  '--user-data-dir=/tmp/yumai-ui4-preview-chrome',
+  `--user-data-dir=${profile}`,
   '--window-size=560,595', 'about:blank',
 ], { cwd: ROOT, stdio: 'ignore' });
 
