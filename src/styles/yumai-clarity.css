@@ -55,3 +55,96 @@
   .yumai-empty-result { padding-block: 10px; }
   .yumai-empty-result svg { display: none; }
 }
+
+/* ---------------------------------------------------------------------------
+   Polish pass: one primary colour, focus that is never clipped, calm states.
+   --------------------------------------------------------------------------- */
+.yumai-app {
+  --ym-primary-soft: #edf1f8;
+  --ym-focus-ring: rgb(38 59 104 / 38%);
+  --ym-danger-ink: #8f2335;
+  --ym-danger-soft: #fdf2f3;
+  --ym-danger-line: #f1c9cf;
+}
+.yumai-app textarea { caret-color: var(--ym-primary); }
+
+/* Primary actions share the translate button's ink instead of three blues. */
+.yumai-app .yumai-workspace-new,
+.yumai-app .yumai-primary-action { background: var(--ym-primary); }
+.yumai-app .yumai-workspace-new:hover,
+.yumai-app .yumai-primary-action:hover { background: var(--ym-primary-hover); }
+.yumai-app .yumai-primary-action:focus-visible,
+.yumai-app .yumai-workspace-new:focus-visible { outline: 2px solid var(--ym-primary); outline-offset: 2px; }
+
+/* The editor sits inside overflow:hidden panels, so its own outline was cut to
+   a stray line under the "原文" heading. Outline the whole panel instead
+   (outlines paint above the white footer, unlike an inset shadow). */
+.yumai-app .yumai-source-editor:focus,
+.yumai-app .yumai-source-editor:focus-visible { outline: none; }
+.yumai-app .yumai-source-panel:focus-within {
+  box-shadow: none;
+  outline: 2px solid var(--ym-focus-ring);
+  outline-offset: -2px;
+}
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-translation-workspace:not(.yumai-dictionary-active) > .yumai-source-panel:focus-within {
+  background: #fcfdff;
+  outline: 2px solid var(--ym-focus-ring);
+  outline-offset: -2px;
+}
+
+/* Shortcut hint reads as a key, not as stray text. */
+.yumai-shortcut kbd {
+  display: inline-block;
+  padding: 0 5px;
+  border: 1px solid #d5dce6;
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: #f7f8fa;
+  font: inherit;
+  font-size: 10.5px;
+  line-height: 1.6;
+  color: #3b4a60;
+}
+
+/* Loading: quiet, centred, announced to screen readers. */
+.yumai-loading-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; padding: 32px 12px; text-align: center; color: var(--ym-primary);
+}
+.yumai-loading-state span { color: #263449; font-size: 14px; font-weight: 500; }
+.yumai-loading-state small { color: #526175; font-size: 12px; }
+
+/* Error: flat, readable, with the next step as a real button. */
+.yumai-error-banner {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+  flex-shrink: 0; max-width: 100%; padding: 10px 10px 10px 12px;
+  border: 1px solid var(--ym-danger-line); border-left: 3px solid #c2414f; border-radius: 8px;
+  background: var(--ym-danger-soft); color: var(--ym-danger-ink);
+}
+.yumai-error-body { min-width: 0; flex: 1; }
+.yumai-error-title { font-size: 13px; font-weight: 600; line-height: 1.5; }
+.yumai-error-detail {
+  margin-top: 2px; font-size: 12px; line-height: 1.5; color: #7a3440;
+  overflow-wrap: anywhere; user-select: text;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.yumai-error-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.yumai-app .yumai-error-button {
+  display: inline-flex; align-items: center; gap: 4px; min-height: 30px; padding: 4px 9px;
+  border: 1px solid var(--ym-danger-line); border-radius: 6px; background: #fff;
+  font-size: 12px; font-weight: 600; color: var(--ym-danger-ink); cursor: pointer; white-space: nowrap;
+}
+.yumai-app .yumai-error-button:hover { background: #fbe5e8; }
+.yumai-app .yumai-error-dismiss {
+  display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px;
+  border-radius: 6px; color: #9b3a48; cursor: pointer;
+}
+.yumai-app .yumai-error-dismiss:hover { background: #fbe5e8; }
+.yumai-app :is(.yumai-error-button, .yumai-error-dismiss):focus-visible { outline: 2px solid #c2414f; outline-offset: 1px; }
+@media (max-width: 460px) {
+  .yumai-error-banner { flex-wrap: wrap; }
+  .yumai-error-actions { width: 100%; justify-content: flex-end; }
+}
+
+/* History: icon buttons meet the 32px target from the roadmap. */
+.yumai-app .yumai-history-icon { min-width: 32px; min-height: 32px; display: inline-flex; align-items: center; justify-content: center; }

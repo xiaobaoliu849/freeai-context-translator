@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Volume2, Loader2, Copy, Check, Eraser, RefreshCw, Settings, History, Sparkles, X, ArrowRightLeft, Zap, PencilLine, Languages } from 'lucide-react';
 import { AppSettings, TranslationResult, WordExplanation } from '../types';
 import { audioPlayer } from '../utils/audio';
@@ -6,6 +6,7 @@ import { consumeSSE, extractPartialTranslation } from '../services/streaming';
 import { bridgeTranslate, bridgeExplain, isExtensionContext } from '../services/bridge';
 import { classifySelection, getReadingSegments, normalizeSelectedTerm } from '../utils/selectionMode';
 import { WordContextCard } from './WordContextCard';
+import { describeTranslationError, detectPlatform, getLanguageName, getTranslateShortcutLabel } from '../utils/uiText';
 
 interface TranslatorMainProps {
   sourceText: string;
@@ -239,6 +240,8 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
   const translateReqIdRef = useRef(0);
 
   const activeProvider = settings.defaultProvider || 'gemini';
+  const shortcutLabel = useMemo(() => getTranslateShortcutLabel(detectPlatform()), []);
+  const errorInfo = useMemo(() => (error ? describeTranslationError(error, activeProvider) : null), [error, activeProvider]);
   const activeConfig = settings.providerConfigs?.[activeProvider] || {
     apiKey: activeProvider === 'gemini' ? settings.geminiApiKey : '',
     baseUrl: '',
@@ -840,7 +843,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
           className="yumai-translate-button inline-flex shrink-0 items-center justify-center gap-1.5 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           data-loading={loading}
           aria-label={loading ? '停止翻译' : '翻译文本'}
-          title={loading ? '停止生成' : 'Ctrl/Cmd+Enter 翻译，Enter 换行'}
+          title={loading ? '停止生成' : `${shortcutLabel} 翻译，Enter 换行`}
         >
           {loading ? (
             <>
@@ -855,38 +858,26 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
         </button>
       </div>
 
-      {/* ERROR MESSAGE ALERT */}
-      {error && (
-        <div className="bg-gradient-to-r from-rose-50 via-rose-50/70 to-pink-50 border border-rose-200 text-rose-800 text-xs rounded-2xl p-2.5 sm:p-3 flex items-start justify-between gap-2.5 animate-in fade-in slide-in-from-top-1 shadow-sm shadow-rose-200/40 max-w-full overflow-hidden shrink-0">
-          <div className="flex items-start gap-2 min-w-0 flex-1 overflow-hidden">
-            <span className="font-extrabold bg-gradient-to-r from-rose-500 to-pink-500 text-white rounded-md px-1.5 py-0.5 text-[10px] uppercase tracking-wider shrink-0 mt-0.5 shadow-2xs">
-              错误
-            </span>
-            <p className="leading-snug font-medium text-[11px] break-all flex-1 select-text text-rose-900">
-              {error}
-            </p>
+      {/* ERROR MESSAGE ALERT — raw message stays visible; the hint says what to do next. */}
+      {error && errorInfo && (
+        <div className="yumai-error-banner" role="alert">
+          <div className="yumai-error-body">
+            <p className="yumai-error-title">翻译失败 · {errorInfo.hint}</p>
+            <p className="yumai-error-detail">{error}</p>
           </div>
-          <div className="flex items-center gap-1.5 shrink-0 ml-1">
-            {(error.includes('API Key') ||
-              error.includes('Settings') ||
-              error.includes('401') ||
-              error.includes('402') ||
-              error.includes('404') ||
-              error.includes('Payment') ||
-              error.includes('quota') ||
-              error.includes('billing')) && (
-              <button
-                onClick={openSettings}
-                className="bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 text-white font-extrabold px-2.5 py-1 rounded-xl text-[11px] cursor-pointer shadow-sm shadow-rose-500/30 hover:scale-105 active:scale-95 transition-all whitespace-nowrap"
-              >
-                ⚙️ 设置 Key / 模型
+          <div className="yumai-error-actions">
+            {sourceText.trim() && (
+              <button type="button" className="yumai-error-button" onClick={() => handleTranslate(activeSelection || undefined)}>
+                <RefreshCw className="w-3.5 h-3.5" aria-hidden="true" /> 重试
               </button>
             )}
-            <button
-              onClick={() => setError(null)}
-              className="p-1 hover:bg-rose-100/80 rounded-lg text-rose-500 hover:text-rose-800 transition-colors cursor-pointer"
-            >
-              <X className="w-3.5 h-3.5" />
+            {errorInfo.suggestSettings && (
+              <button type="button" className="yumai-error-button" onClick={openSettings}>
+                <Settings className="w-3.5 h-3.5" aria-hidden="true" /> 打开设置
+              </button>
+            )}
+            <button type="button" onClick={() => setError(null)} className="yumai-error-dismiss" aria-label="关闭错误提示" title="关闭">
+              <X className="w-3.5 h-3.5" aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -988,7 +979,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
         >
           <div className="yumai-source-heading flex shrink-0 items-center justify-between px-4 pt-3 pb-1">
             <span className="yumai-panel-caption">原文</span>
-            <span className="yumai-shortcut">Ctrl + Enter 翻译</span>
+            <span className="yumai-shortcut"><kbd>{shortcutLabel}</kbd> 翻译</span>
           </div>
           <textarea
             aria-label="原文输入区"
@@ -1179,9 +1170,10 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-8 text-slate-400 gap-2">
-                <RefreshCw className="w-6 h-6 animate-spin text-indigo-600" />
-                <span className="text-xs font-bold text-slate-500">AI 正在翻译与解析语境...</span>
+              <div className="yumai-loading-state" role="status" aria-live="polite">
+                <RefreshCw className="w-5 h-5 animate-spin" aria-hidden="true" />
+                <span>正在翻译…</span>
+                <small>可随时点击“停止”取消</small>
               </div>
             )
           ) : (
@@ -1195,7 +1187,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                     </span>
                     {result?.detectedLang && (
                       <span className="text-xs text-slate-500">
-                        识别为 {languages.find(language => language.code === result.detectedLang)?.name || result.detectedLang}
+                        识别为 {getLanguageName(result.detectedLang, languages)}
                       </span>
                     )}
                   </div>
@@ -1213,7 +1205,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                     <div className="yumai-empty-result select-none">
                       <Languages aria-hidden="true" />
                       <p>译文将在这里显示</p>
-                      <span>{sourceText.trim() ? '点击“翻译”，或按 Ctrl + Enter。' : '先在原文区输入文本，再点击“翻译”。'}</span>
+                      <span>{sourceText.trim() ? `点击“翻译”，或按 ${shortcutLabel}。` : '先在原文区输入文本，再点击“翻译”。'}</span>
                     </div>
                   )}
                 </div>

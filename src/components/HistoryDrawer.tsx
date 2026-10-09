@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import { HistoryItem, AppSettings } from '../types';
 import { audioPlayer } from '../utils/audio';
+import { SUPPORTED_LANGUAGES } from '../config';
+import { formatHistoryTime, formatLanguagePair } from '../utils/uiText';
 
 interface HistoryDrawerProps {
   isOpen: boolean;
@@ -227,8 +229,8 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
         {/* History List */}
         <div className="flex-1 overflow-y-auto py-4 space-y-3">
           {filteredHistory.length === 0 ? (
-            <div className="flex flex-col items-center justify-center text-slate-400 text-xs py-16 gap-2">
-              <FileText className="w-8 h-8 text-slate-300 stroke-1" />
+            <div className="flex flex-col items-center justify-center text-slate-500 text-xs py-16 gap-2" role="status">
+              <FileText className="w-8 h-8 text-slate-400 stroke-1" aria-hidden="true" />
               <span>{searchQuery ? '未找到匹配的翻译记录' : '暂无历史记录，完成的翻译会自动保存在这里'}</span>
             </div>
           ) : (
@@ -244,18 +246,19 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
                   }`}
                 >
                   {/* Top Bar: Language & Timestamp & Expand button */}
-                  <div className="flex items-center justify-between text-[11px] text-slate-400 mb-2">
+                  <div className="flex items-center justify-between text-[11px] text-slate-500 mb-2">
                     <span className="font-medium text-slate-600 bg-slate-100 px-2 py-1 rounded-md text-xs">
-                      {item.sourceLang} → {item.targetLang}
+                      {formatLanguagePair(item.sourceLang, item.targetLang, SUPPORTED_LANGUAGES)}
                     </span>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-slate-500">
-                        {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
+                      <time className="text-xs text-slate-500" dateTime={new Date(item.timestamp).toISOString()} title={new Date(item.timestamp).toLocaleString()}>
+                        {formatHistoryTime(item.timestamp)}
+                      </time>
                       <button
                         onClick={(e) => toggleExpand(item.id, e)}
                         className="p-1 rounded-md text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors cursor-pointer flex items-center gap-0.5 text-[10px] font-bold"
                         title={isExpanded ? '收起详情' : '展开查看完整内容'}
+                        aria-expanded={isExpanded}
                       >
                         <span>{isExpanded ? '收起' : '展开'}</span>
                         {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
@@ -324,8 +327,8 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
                           onRetranslate(item);
                           onClose();
                         }}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 cursor-pointer transition-colors"
-                        title="重新翻译"
+                        className="yumai-history-icon p-2 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 cursor-pointer transition-colors"
+                        title="重新翻译" aria-label="重新翻译"
                       >
                         <RefreshCw className="w-3.5 h-3.5" />
                       </button>
@@ -333,10 +336,10 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
                       {/* Audio Speak */}
                       <button
                         onClick={(e) => handleReplay(item, e)}
-                        className={`p-1.5 rounded-lg cursor-pointer transition-colors ${
-                          playingId === item.id ? 'bg-indigo-100 text-indigo-600' : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50'
-                        }`}
-                        title="朗读译文"
+                        className={`rounded-lg cursor-pointer transition-colors ${
+                          playingId === item.id ? 'bg-indigo-100 text-indigo-600' : 'text-slate-500 hover:text-indigo-600 hover:bg-indigo-50'
+                        } yumai-history-icon p-2`}
+                        title="朗读译文" aria-label="朗读译文"
                       >
                         {playingId === item.id ? (
                           playPhase === 'generating' ? (
@@ -357,8 +360,8 @@ export const HistoryDrawer: React.FC<HistoryDrawerProps> = ({
                       {/* Copy Translation */}
                       <button
                         onClick={(e) => handleCopy(item.translation, item.id, 'trans', e)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 cursor-pointer transition-colors flex items-center gap-1 text-[10px]"
-                        title="复制译文"
+                        className="yumai-history-icon p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-200/60 cursor-pointer transition-colors flex items-center gap-1 text-[10px]"
+                        title="复制译文" aria-label={copiedTransId === item.id ? '已复制译文' : '复制译文'}
                       >
                         {copiedTransId === item.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                       </button>
