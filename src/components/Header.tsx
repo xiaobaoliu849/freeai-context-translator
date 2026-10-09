@@ -43,7 +43,7 @@ export const Header: React.FC<HeaderProps> = ({
     }
   };
 
-  const iconButton = 'yumai-icon-button inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 transition-colors';
+  const iconButton = 'yumai-icon-button inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-700 hover:text-slate-900 hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 transition-colors';
 
   return (
     <header className="yumai-header sticky top-0 z-30 shrink-0 border-b border-slate-200/75 bg-white">

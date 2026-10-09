@@ -16,6 +16,7 @@ export async function translateTextClient(params: {
   apiKey?: string;
   baseUrl?: string;
   model?: string;
+  signal?: AbortSignal;
 }) {
   const {
     text,
@@ -25,6 +26,7 @@ export async function translateTextClient(params: {
     apiKey = "",
     baseUrl = "",
     model = "",
+    signal,
   } = params;
 
   // In the extension, route through the background bridge: the apiKey is NOT
@@ -37,7 +39,7 @@ export async function translateTextClient(params: {
       provider,
       model,
       baseUrl,
-    });
+    }, undefined, signal);
     return {
       translation: data.translation || "Translation unavailable.",
       detectedLang: data.detectedLang || "Auto",
@@ -53,6 +55,7 @@ export async function translateTextClient(params: {
     prompt: buildTranslatePrompt(text, sourceLang, targetLang),
     systemInstruction: TRANSLATE_SYSTEM_PROMPT,
     jsonOutput: true,
+    signal,
   });
 
   const parsed = parseLLMJson(raw);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Volume2, Loader2, Copy, Check, Eraser, RefreshCw, Settings, History, Sparkles, X, ArrowRightLeft, Zap, PencilLine } from 'lucide-react';
+import { Volume2, Loader2, Copy, Check, Eraser, RefreshCw, Settings, History, Sparkles, X, ArrowRightLeft, Zap, PencilLine, Languages } from 'lucide-react';
 import { AppSettings, TranslationResult, WordExplanation } from '../types';
 import { audioPlayer } from '../utils/audio';
 import { consumeSSE, extractPartialTranslation } from '../services/streaming';
@@ -79,6 +79,8 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
   const [copied, setCopied] = useState(false);
   const [copiedArea, setCopiedArea] = useState<'source' | 'target' | null>(null);
   const [copyError, setCopyError] = useState<string | null>(null);
+  const copyReqIdRef = useRef(0);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Tracks which side (source/target) is currently speaking, so only the
   // matching button highlights instead of both flashing together.
   const [playingTarget, setPlayingTarget] = useState<'source' | 'target' | null>(null);
@@ -94,6 +96,15 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
 
   // Selected word context state & cache
   const [selectedWord, setSelectedWord] = useState<string | null>(null);
+  useEffect(() => {
+    setCopied(false);
+    setCopiedArea(null);
+    setCopyError(null);
+    return () => {
+      copyReqIdRef.current += 1;
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    };
+  }, [sourceText, result?.id, result?.translation, selectedWord]);
   const [wordContext, setWordContext] = useState<string>('');
   const [activeSelection, setActiveSelection] = useState<string>('');
   const [readingOutlineOpen, setReadingOutlineOpen] = useState(false);
@@ -251,6 +262,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
         baseUrl: activeConfig.baseUrl,
       },
       (delta) => {
+        if (signal.aborted) return;
         raw += delta;
         const partial = extractPartialTranslation(raw);
         if (partial) {
@@ -287,6 +299,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
 
     while (true) {
       const { done, value } = await reader.read();
+      signal.throwIfAborted();
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
       const { events, rest } = consumeSSE(buffer);
@@ -356,6 +369,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body,
+            signal: controller.signal,
           });
           if (res.ok) {
             data = await res.json();
@@ -363,8 +377,12 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             throw new Error('Server API unavailable, falling back to client');
           }
         } catch (_e2) {
+          if (requestId !== translateReqIdRef.current) throw _e2;
+          controller.signal.throwIfAborted();
           // 3. Final fallback: client-side LLM call
           const { translateTextClient } = await import('../services/aiProvider');
+          if (requestId !== translateReqIdRef.current) return;
+          controller.signal.throwIfAborted();
           data = await translateTextClient({
             text,
             sourceLang,
@@ -373,12 +391,14 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             apiKey: apiKeyToUse,
             baseUrl: activeConfig.baseUrl,
             model: activeConfig.model || settings.apiModel,
+            signal: controller.signal,
           });
         }
       }
 
       // Ignore stale responses from superseded requests
       if (requestId !== translateReqIdRef.current) return;
+      controller.signal.throwIfAborted();
 
       const translationObj: TranslationResult = {
         id: Date.now().toString(),
@@ -578,12 +598,11 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
     );
   };
 
-  // New document always clears the previous translation and interrupts stale work.
-  useEffect(() => {
-    if (!resetSignal) return;
-    streamAbortRef.current?.abort();
+  const resetTranslationView = () => {
     translateReqIdRef.current += 1;
     wordReqIdRef.current += 1;
+    streamAbortRef.current?.abort();
+    streamAbortRef.current = null;
     setLoading(false);
     setResult(null);
     setError(null);
@@ -591,9 +610,23 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
     streamingTextRef.current = '';
     setSelectedWord(null);
     setWordExplanation(null);
+    setExplainingWord(false);
+    setWordContext('');
     setActiveSelection('');
+    setReadingOutlineOpen(false);
     setFloatingEditorExpanded(false);
+  };
+
+  // New document and Clear both interrupt work before removing its result.
+  useEffect(() => {
+    if (resetSignal) resetTranslationView();
   }, [resetSignal]);
+
+  useEffect(() => () => {
+    translateReqIdRef.current += 1;
+    wordReqIdRef.current += 1;
+    streamAbortRef.current?.abort();
+  }, []);
 
   // Translate only the chosen reading segment, keeping the original document intact.
   const handledWorkspaceSelectionRef = useRef(0);
@@ -683,18 +716,22 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
   };
 
   const handleCopy = async (text: string, area: 'source' | 'target') => {
+    const requestId = ++copyReqIdRef.current;
+    if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
     setCopied(false);
     setCopiedArea(null);
     setCopyError(null);
     try {
       await navigator.clipboard.writeText(text);
+      if (requestId !== copyReqIdRef.current) return;
       setCopied(true);
       setCopiedArea(area);
-      setTimeout(() => {
+      copyTimerRef.current = setTimeout(() => {
         setCopied(false);
         setCopiedArea(null);
       }, 1500);
     } catch {
+      if (requestId !== copyReqIdRef.current) return;
       setCopyError('复制失败，请检查浏览器剪贴板权限后重试');
     }
   };
@@ -708,8 +745,8 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
 
   return (
     <div className={isPopup
-      ? 'flex-1 min-h-0 flex flex-col gap-2 px-3 py-3'
-      : 'yumai-studio max-w-[1400px] mx-auto px-3 sm:px-6 py-5 flex flex-col gap-4'
+      ? 'yumai-translator flex-1 min-h-0 flex flex-col gap-2 px-3 py-3'
+      : 'yumai-translator yumai-studio max-w-[1400px] mx-auto px-3 sm:px-6 py-5 flex flex-col gap-4'
     }>
       {copyError && <p role="alert" className="text-xs text-rose-700 px-2">{copyError}</p>}
       {/* 1. ELEGANT LANGUAGE SELECTOR TOOLBAR */}
@@ -722,7 +759,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             onChange={(e) => setSourceLang(e.target.value)}
             className="w-full rounded-lg text-slate-800 font-semibold cursor-pointer" aria-label="原文语言"
           >
-            <option value="auto">自动识别 (Auto)</option>
+            <option value="auto">自动识别</option>
             {languages.map((l) => (
               <option key={l.code} value={l.code}>
                 {l.name}
@@ -758,7 +795,15 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
 
         {/* Layout Width Ratio Switcher (Desktop only) — presets snap the drag divider */}
         {!isPopup && (
-          <div className="hidden md:flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200 text-[10px] font-bold text-slate-600 shrink-0">
+          <details className="yumai-layout-menu hidden md:block shrink-0" onKeyDown={(event) => {
+            if (event.key !== 'Escape') return;
+            event.preventDefault();
+            event.stopPropagation();
+            event.currentTarget.open = false;
+            event.currentTarget.querySelector('summary')?.focus();
+          }}>
+            <summary>布局</summary>
+            <div className="yumai-layout-options">
             {[
               { label: '5:5', v: 50, title: '左右等宽 (5:5)' },
               { label: '6:4', v: 60, title: '原文加宽 (6:4)' },
@@ -766,22 +811,32 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             ].map((p) => (
               <button
                 key={p.label}
-                onClick={() => setSplitPercent(p.v)}
+                onClick={(event) => {
+                  setSplitPercent(p.v);
+                  const menu = event.currentTarget.closest('details');
+                  if (menu) {
+                    menu.open = false;
+                    menu.querySelector('summary')?.focus();
+                  }
+                }}
                 className={`px-2 py-1 rounded-lg transition-colors cursor-pointer ${
                   Math.abs(splitPercent - p.v) < 3 ? 'bg-white text-indigo-700 shadow-2xs font-extrabold' : 'hover:text-slate-900'
                 }`}
                 title={p.title}
+                aria-label={p.title}
+                aria-pressed={Math.abs(splitPercent - p.v) < 3}
               >
                 {p.label}
               </button>
             ))}
-          </div>
+            </div>
+          </details>
         )}
 
         {/* Translate / Stop Button */}
         <button
           onClick={() => (loading ? handleStop() : handleTranslate())}
-          disabled={!sourceText.trim()}
+          disabled={!loading && !sourceText.trim()}
           className="yumai-translate-button inline-flex shrink-0 items-center justify-center gap-1.5 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           data-loading={loading}
           aria-label={loading ? '停止翻译' : '翻译文本'}
@@ -794,7 +849,6 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             </>
           ) : (
             <>
-              <Sparkles className="w-3.5 h-3.5 text-white shrink-0" />
               <span>翻译</span>
             </>
           )}
@@ -839,11 +893,10 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
       )}
 
       {/* Auto-detected content intent with an explicit manual override. */}
-      {sourceText.trim() && (
+      {sourceText.trim() && (selectedWord || selectionKind === 'term' || selectionKind === 'passage') && (
         <div className="yumai-context-chip flex flex-wrap items-center justify-between gap-2 px-1" aria-live="polite">
           <span className="text-slate-500">
-            <Sparkles className="w-3.5 h-3.5 inline text-indigo-500 mr-1" />
-            智能识别：{selectedWord ? '词语释义' : selectionKind === 'passage' ? '长文阅读' : selectionKind === 'term' ? '短语' : '句子翻译'}
+            {selectedWord ? '词语释义' : selectionKind === 'passage' ? '长文阅读' : '词语 / 短语'}
           </span>
           <div className="flex items-center gap-2">
             {isFloating && selectedWord && (
@@ -892,8 +945,8 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
         ref={workspaceRef}
         className={
           isPopup
-            ? 'flex-1 min-h-0 flex flex-col gap-1.5'
-            : `grid grid-cols-1 gap-y-3 sm:gap-y-4 md:[grid-template-columns:minmax(0,var(--split))_12px_minmax(0,1fr)] ${splitDragging || vSplitDragging ? 'select-none' : ''}`
+            ? `yumai-translation-workspace ${selectedWord ? 'yumai-dictionary-active' : ''} flex-1 min-h-0 flex flex-col gap-1.5`
+            : `yumai-translation-workspace grid grid-cols-1 gap-y-3 sm:gap-y-4 md:[grid-template-columns:minmax(0,var(--split))_12px_minmax(0,1fr)] ${splitDragging || vSplitDragging ? 'select-none' : ''}`
         }
         style={{ '--split': `${splitPercent}%` } as React.CSSProperties}
       >
@@ -933,9 +986,9 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             isPopup ? 'min-h-[105px]' : 'min-h-[240px] sm:min-h-[300px]'
           }`}
         >
-          <div className="flex shrink-0 items-center justify-between px-4 pt-3 pb-1">
+          <div className="yumai-source-heading flex shrink-0 items-center justify-between px-4 pt-3 pb-1">
             <span className="yumai-panel-caption">原文</span>
-            {!isPopup && <span className="text-xs text-slate-400">选中词语可查看语境释义</span>}
+            <span className="yumai-shortcut">Ctrl + Enter 翻译</span>
           </div>
           <textarea
             aria-label="原文输入区"
@@ -952,7 +1005,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             }}
             onSelect={handleTextareaSelect}
             onKeyDown={handleTextareaKeyDown}
-            placeholder="输入或粘贴文本，选中单词可查看语境释义...（Ctrl+Enter 翻译）"
+            placeholder="输入或粘贴要翻译的文本…"
             className={`${
               isPopup
                 ? 'flex-1 min-h-0 px-4 pb-3 resize-none overflow-y-auto text-sm'
@@ -987,7 +1040,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
               </span>
             </div>
 
-            <div className="flex items-center gap-1">
+            {sourceText.trim() && <div className="flex items-center gap-1">
               <button
                 onClick={() => handlePlayAudio(selectedWord || sourceText, sourceLang, 'source')}
                 disabled={!sourceText.trim() && !selectedWord}
@@ -1015,9 +1068,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
               <button
                 onClick={() => {
                   setSourceText('');
-                  setResult(null);
-                  setSelectedWord(null);
-                  setWordExplanation(null);
+                  resetTranslationView();
                   try { localStorage.removeItem('freetranslate_draft'); } catch(e){}
                 }}
                 disabled={!sourceText.trim()}
@@ -1026,7 +1077,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
               >
                 <Eraser className="w-3.5 h-3.5" />
               </button>
-            </div>
+            </div>}
           </div>
         </div>
         )}
@@ -1113,12 +1164,10 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                 <div className="text-xs font-semibold">
                   <div className="flex items-center justify-between pb-1.5">
                     <span className="yumai-panel-caption flex items-center gap-1">
-                      <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
-                      {result?.sourceText && result.sourceText !== sourceText ? '所选内容译文' : '翻译结果'}
+                      {result?.sourceText && result.sourceText !== sourceText ? '所选内容译文' : '译文'}
                     </span>
                     <span className="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md font-medium" role="status">生成中…</span>
                   </div>
-                  <div className="h-px bg-slate-200" />
                 </div>
                 <div className={`yumai-result-text ${
                   isPopup
@@ -1142,16 +1191,14 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                 <div className="text-xs font-semibold">
                   <div className="flex items-center justify-between pb-1.5">
                     <span className="yumai-panel-caption flex items-center gap-1">
-                      <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
-                      {result?.sourceText && result.sourceText !== sourceText ? '所选内容译文' : '翻译结果'}
+                      {result?.sourceText && result.sourceText !== sourceText ? '所选内容译文' : '译文'}
                     </span>
                     {result?.detectedLang && (
                       <span className="text-xs text-slate-500">
-                        识别语种: {result.detectedLang}
+                        识别为 {languages.find(language => language.code === result.detectedLang)?.name || result.detectedLang}
                       </span>
                     )}
                   </div>
-                  <div className="h-px bg-slate-200" />
                 </div>
 
                 {/* Full Sentence Translation - selectable and copyable without hijacking */}
@@ -1163,21 +1210,19 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                   }`}
                 >
                   {result?.translation || (
-                    <span className="text-slate-400 italic font-normal text-xs sm:text-sm flex items-center gap-1.5 pt-2 select-none">
-                      <Sparkles className="w-3.5 h-3.5 text-indigo-300 animate-pulse" />
-                      翻译结果将在这里显示；选中单词可查看语境释义
-                    </span>
+                    <div className="yumai-empty-result select-none">
+                      <Languages aria-hidden="true" />
+                      <p>译文将在这里显示</p>
+                      <span>{sourceText.trim() ? '点击“翻译”，或按 Ctrl + Enter。' : '先在原文区输入文本，再点击“翻译”。'}</span>
+                    </div>
                   )}
                 </div>
               </div>
 
               {/* Translation Card Actions Footer */}
-              <div className="yumai-result-footer flex shrink-0 items-center justify-between text-xs text-slate-500" aria-label="译文操作">
+              {result?.translation && <div className="yumai-result-footer flex shrink-0 items-center justify-between text-xs text-slate-500" aria-label="译文操作">
                 <div className="flex items-center gap-1.5 text-xs">
-                  <span>引擎</span>
-                  <span className="font-medium text-slate-600 text-xs">
-                    {settings.defaultProvider}
-                  </span>
+                  <span>选中单词可查看语境释义</span>
                 </div>
 
                 <div className="flex items-center gap-1.5">
@@ -1196,6 +1241,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                     ) : (
                       <Volume2 className="w-4 h-4" />
                     )}
+                    <span>朗读</span>
                   </button>
 
                   <button
@@ -1205,9 +1251,10 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                     title="复制译文" aria-label="复制译文"
                   >
                     {copied && copiedArea === 'target' ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                    <span>{copied && copiedArea === 'target' ? '已复制' : '复制'}</span>
                   </button>
                 </div>
-              </div>
+              </div>}
             </>
           )}
         </div>

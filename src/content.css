@@ -5,6 +5,7 @@
 @import "tailwindcss/theme" layer(theme);
 @import "tailwindcss/utilities" layer(utilities);
 @import "./yumai-ui.css";
+@import "./styles/yumai-clarity.css";
 
 .freetranslate-host-reset {
   all: initial;
