@@ -68,7 +68,7 @@ const PROVIDERS_INFO: Array<{
   { id: 'custom', name: '自定义 API / 本地服务' },
 ];
 
-const TTS_VOICES_BY_ENGINE: Record<TTSEngine, Array<{ id: string; name: string }>> = {
+const TTS_VOICES_BY_ENGINE: Partial<Record<TTSEngine, Array<{ id: string; name: string }>>> = {
   gemini: [
     { id: 'Kore', name: 'Gemini Neural - Kore (Female 24kHz)' },
     { id: 'Zephyr', name: 'Gemini Neural - Zephyr (Female)' },
@@ -76,17 +76,6 @@ const TTS_VOICES_BY_ENGINE: Record<TTSEngine, Array<{ id: string; name: string }
     { id: 'Fenrir', name: 'Gemini Neural - Fenrir (Male)' },
     { id: 'Aoede', name: 'Gemini Neural - Aoede (Female)' },
     { id: 'Charon', name: 'Gemini Neural - Charon (Male)' },
-  ],
-  edge: [
-    { id: 'zh-CN-XiaoxiaoNeural', name: 'Xiaoxiao (zh-CN Female)' },
-    { id: 'zh-CN-YunxiNeural', name: 'Yunxi (zh-CN Male)' },
-    { id: 'zh-CN-YunjianNeural', name: 'Yunjian (zh-CN News)' },
-    { id: 'zh-CN-XiaoyiNeural', name: 'Xiaoyi (zh-CN Female)' },
-    { id: 'en-US-JennyNeural', name: 'Jenny (en-US Female)' },
-    { id: 'en-US-GuyNeural', name: 'Guy (en-US Male)' },
-    { id: 'en-GB-SoniaNeural', name: 'Sonia (en-GB Female)' },
-    { id: 'ja-JP-NanamiNeural', name: 'Nanami (ja-JP Female)' },
-    { id: 'ko-KR-SunHiNeural', name: 'SunHi (ko-KR Female)' },
   ],
   openai: [
     { id: 'alloy', name: 'OpenAI TTS-1 - Alloy' },
@@ -896,7 +885,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   }}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-brand-500 font-medium"
                 >
-                  <option value="edge">Microsoft Edge Neural（免 Key · 推荐）</option>
+                  <option value="browser">浏览器本地语音（免 Key · 推荐，文字不出本机）</option>
                   <option value="gemini">Google Gemini Audio（共享 Gemini Key）</option>
                   <option value="openai">OpenAI Audio Speech（共享 OpenAI Key）</option>
                   <option value="minimax">MiniMax T2A（共享 MiniMax Key）</option>
@@ -904,8 +893,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <option value="doubao">火山引擎（豆包 TTS）</option>
                   <option value="fishaudio">Fish Audio（Fish Speech 1.5）</option>
                   <option value="mimo">小米 MiMo（限时免费）</option>
-                  <option value="browser">Web Speech API (浏览器本地)</option>
-                  <option value="google-web">Google Translate TTS (免 Key 备用)</option>
+                  <option value="google-web">Google 翻译语音（免 Key，文字会发送到 Google）</option>
                 </select>
               </div>
 

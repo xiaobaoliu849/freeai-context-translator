@@ -49,8 +49,8 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "assets/*",
-        "content.css"
+        "content.css",
+        "assets/yumai-mark.svg"
       ],
       "matches": [
         "<all_urls>"

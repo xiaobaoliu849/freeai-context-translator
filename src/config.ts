@@ -80,7 +80,7 @@ export const DEFAULT_PROVIDER_CONFIGS: Record<ProviderType, ProviderConfig> = Ob
 // Version of the stored settings schema. Increment + add a one-time migration
 // in migrateSettings whenever a default changes so existing installs are
 // brought in line instead of keeping stale values forever.
-export const SETTINGS_VERSION = 4;
+export const SETTINGS_VERSION = 5;
 
 export const DEFAULT_SETTINGS: AppSettings = {
   defaultProvider: 'gemini',
@@ -119,6 +119,16 @@ export function migrateSettings(parsed: Partial<AppSettings>): Partial<AppSettin
       }
       parsed.providerConfigs.cerebras.availableModels = CEREBRAS_MODELS;
     }
+  }
+  if (parsed.settingsVersion === undefined || parsed.settingsVersion < 5) {
+    // "Microsoft Edge Neural" never had a working extension path: it silently
+    // fell back to the browser voice. Move users to the engine they actually heard.
+    if ((parsed.ttsEngine as string) === 'edge') {
+      parsed.ttsEngine = 'browser';
+      parsed.ttsVoice = 'default';
+    }
+  }
+  if (parsed.settingsVersion === undefined || parsed.settingsVersion < SETTINGS_VERSION) {
     parsed.settingsVersion = SETTINGS_VERSION;
   }
   return parsed;

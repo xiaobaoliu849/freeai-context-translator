@@ -53,3 +53,9 @@ test('privacy policy names every third-party endpoint the extension can send tex
     assert.ok(policy.includes(needle), `PRIVACY.md should mention "${needle}"`);
   }
 });
+
+test('web_accessible_resources exposes only what the content script loads', () => {
+  const resources = (manifest.web_accessible_resources as { resources: string[] }[]).flatMap((r) => r.resources);
+  assert.deepEqual([...resources].sort(), ['assets/yumai-mark.svg', 'content.css']);
+  assert.ok(!resources.some((r) => r.includes('*')), 'no wildcard resources: they let any site fingerprint the extension');
+});

@@ -185,7 +185,7 @@ const state: TranslateState = {
     provider: 'gemini',
     model: '',
     baseUrl: '',
-    ttsEngine: 'edge',
+    ttsEngine: 'browser',
     ttsVoice: '',
     ttsRate: 1.0,
   },
@@ -205,7 +205,7 @@ async function loadSettings(): Promise<PageSettings> {
       provider,
       model: cfg.model || '',
       baseUrl: cfg.baseUrl || '',
-      ttsEngine: s.ttsEngine || 'edge',
+      ttsEngine: s.ttsEngine || 'browser',
       ttsVoice: s.ttsVoice || '',
       ttsRate: s.ttsRate || 1.0,
     };
