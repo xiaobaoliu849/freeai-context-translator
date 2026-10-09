@@ -65,3 +65,18 @@ test('settings import rejects files that are not settings', () => {
   assert.throws(() => parseSettingsFile('"text"'), /没有有效的设置/);
   assert.throws(() => parseSettingsFile(JSON.stringify({ format: SETTINGS_EXPORT_FORMAT, settings: null })), /没有有效的设置/);
 });
+
+test('legacy "edge" TTS engine migrates to the local browser voice', () => {
+  const saved = JSON.stringify({ ttsEngine: 'edge', ttsVoice: 'zh-CN-XiaoxiaoNeural', settingsVersion: 4 });
+  const settings = parseSavedSettings(saved);
+  assert.equal(settings.ttsEngine, 'browser');
+  assert.equal(settings.ttsVoice, 'default');
+  assert.equal(settings.settingsVersion, SETTINGS_VERSION);
+});
+
+test('a chosen non-edge TTS engine survives the v5 migration', () => {
+  const saved = JSON.stringify({ ttsEngine: 'openai', ttsVoice: 'alloy', settingsVersion: 4 });
+  const settings = parseSavedSettings(saved);
+  assert.equal(settings.ttsEngine, 'openai');
+  assert.equal(settings.ttsVoice, 'alloy');
+});

@@ -17,7 +17,7 @@
 ### 数据发给谁
 你要求翻译、释义或朗读时，相关文字会直接从你的浏览器发送给**你自己选择的服务商**，例如 Google Gemini、DeepSeek、阿里云通义、字节豆包、月之暗面 Kimi、MiniMax、Groq、OpenAI、Fish Audio，或你填写的自定义 OpenAI 兼容地址、本地 Ollama。这些服务商按各自的隐私政策处理数据。
 
-使用"浏览器本地语音"朗读而本机语音不可用时，扩展可能将最多 200 个字符的文字发送到 Google 翻译的朗读接口（translate.google.com）以播放读音。
+选择"Google 翻译语音"朗读时，或使用"浏览器本地语音"而本机语音不可用时，扩展会将最多 200 个字符的文字发送到 Google 翻译的朗读接口（translate.google.com）以播放读音。
 
 除此之外，扩展不会把你的文字发送到任何地方。
 
@@ -48,7 +48,7 @@ Settings, API keys, and history stay on your device in the browser's `chrome.sto
 ### Who receives it
 When you ask for a translation, explanation, or read-aloud, the text is sent directly from your browser to **the provider you chose**, such as Google Gemini, DeepSeek, Alibaba Qwen, ByteDance Doubao, Moonshot Kimi, MiniMax, Groq, OpenAI, Fish Audio, a custom OpenAI-compatible endpoint you enter, or a local Ollama server. Each provider handles that data under its own privacy policy.
 
-If you use the "browser voice" read-aloud option and no local voice is available, the extension may send up to 200 characters of the text to Google Translate's speech endpoint (translate.google.com) to play the audio.
+If you choose the "Google Translate voice" read-aloud option, or use the "browser voice" option when no local voice is available, the extension sends up to 200 characters of the text to Google Translate's speech endpoint (translate.google.com) to play the audio.
 
 The extension sends your text nowhere else.
 
