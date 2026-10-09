@@ -719,3 +719,7 @@
 
 /* Full-tab header spans the window so the brand lines up with the side nav. */
 .yumai-app:not(.yumai-popup) .yumai-header > div { max-width: none; padding-inline: 24px; }
+
+/* Native toggles and sliders take the brand ink. */
+.yumai-app :is(input[type="checkbox"], input[type="radio"], input[type="range"]) { accent-color: var(--ym-primary); }
+.yumai-app .yumai-settings-body input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
