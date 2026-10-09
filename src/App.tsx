@@ -33,6 +33,8 @@ export interface AppProps {
   onTogglePin?: () => void;
   onClose?: () => void;
   onDragStart?: (e: React.PointerEvent<HTMLDivElement>) => void;
+  isExpanded?: boolean;
+  onToggleExpanded?: () => void;
 }
 
 export default function App({
@@ -44,6 +46,8 @@ export default function App({
   onTogglePin,
   onClose,
   onDragStart,
+  isExpanded = false,
+  onToggleExpanded,
 }: AppProps = {}) {
   // The same App is mounted by index.html (full web app), popup.html, and in-page floating window
   const isPopup =
@@ -249,6 +253,8 @@ export default function App({
         onTogglePin={onTogglePin}
         onClose={onClose}
         onDragStart={onDragStart}
+        isExpanded={isExpanded}
+        onToggleExpanded={onToggleExpanded}
       />
 
       {/* Separate reading workspace for full tabs; the popup remains a focused tool. */}

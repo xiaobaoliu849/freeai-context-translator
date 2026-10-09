@@ -1,5 +1,5 @@
 import React from 'react';
-import { Settings, History, ChevronDown, ExternalLink, Pin, X } from 'lucide-react';
+import { Settings, History, ChevronDown, ExternalLink, Pin, X, Maximize2, Minimize2 } from 'lucide-react';
 import { AppSettings } from '../types';
 
 interface HeaderProps {
@@ -12,6 +12,8 @@ interface HeaderProps {
   onTogglePin?: () => void;
   onClose?: () => void;
   onDragStart?: (e: React.PointerEvent<HTMLDivElement>) => void;
+  isExpanded?: boolean;
+  onToggleExpanded?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -24,6 +26,8 @@ export const Header: React.FC<HeaderProps> = ({
   onTogglePin,
   onClose,
   onDragStart,
+  isExpanded = false,
+  onToggleExpanded,
 }) => {
   const providerName = (settings?.defaultProvider || 'gemini').toUpperCase();
   const logoUrl = typeof chrome !== 'undefined' && chrome.runtime?.getURL
@@ -102,6 +106,13 @@ export const Header: React.FC<HeaderProps> = ({
               aria-pressed={isPinned}
             >
               <Pin className={`h-[17px] w-[17px] ${isPinned ? 'fill-current rotate-45' : ''}`} />
+            </button>
+          )}
+          {isFloating && onToggleExpanded && (
+            <button type="button" onClick={onToggleExpanded} className={iconButton}
+              title={isExpanded ? '恢复窗口大小' : '展开阅读窗口'}
+              aria-label={isExpanded ? '恢复窗口大小' : '展开阅读窗口'} aria-pressed={isExpanded}>
+              {isExpanded ? <Minimize2 className="h-[17px] w-[17px]" /> : <Maximize2 className="h-[17px] w-[17px]" />}
             </button>
           )}
           {isFloating && onClose && (

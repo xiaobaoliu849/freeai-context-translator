@@ -5,6 +5,7 @@ import { DEFAULT_SETTINGS, parseSavedSettings } from './config';
 import { AppSettings } from './types';
 import { initPageTranslate } from './pageTranslate';
 import './content.css';
+import { clampFloatingPosition, getFloatingSize } from './utils/floatingLayout';
 
 const SETTINGS_STORAGE_KEY = 'freetranslate_settings';
 
@@ -50,14 +51,31 @@ const SelectionPopover: React.FC<SelectionPopoverProps> = ({
   settings,
 }) => {
   const [isPinned, setIsPinned] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const readViewport = () => ({ width: window.innerWidth, height: window.innerHeight, scrollX: window.scrollX, scrollY: window.scrollY });
 
   // Position state (absolute document coordinates, clamped within visible viewport)
-  const [pos, setPos] = useState(() => ({
-    x: Math.min(Math.max(position.x + window.scrollX, window.scrollX + 8), window.scrollX + Math.max(8, window.innerWidth - 460)),
-    y: Math.min(Math.max(position.y + 10 + window.scrollY, window.scrollY + 8), window.scrollY + Math.max(8, window.innerHeight - 590)),
-  }));
+  const [pos, setPos] = useState(() => clampFloatingPosition(
+    { x: position.x + window.scrollX, y: position.y + 10 + window.scrollY },
+    getFloatingSize(readViewport()), readViewport(),
+  ));
 
   const cardRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const card = cardRef.current;
+    if (!card) return;
+    const clamp = () => {
+      const rect = card.getBoundingClientRect();
+      setPos(current => {
+        const next = clampFloatingPosition(current, rect, readViewport());
+        return next.x === current.x && next.y === current.y ? current : next;
+      });
+    };
+    const observer = new ResizeObserver(clamp);
+    observer.observe(card);
+    window.addEventListener('resize', clamp);
+    return () => { observer.disconnect(); window.removeEventListener('resize', clamp); };
+  }, []);
   const isDraggingRef = useRef(false);
   const dragStartRef = useRef<{ startX: number; startY: number; initX: number; initY: number }>({
     startX: 0,
@@ -86,9 +104,11 @@ const SelectionPopover: React.FC<SelectionPopoverProps> = ({
       suppressSelectionUntil = Date.now() + 2000;
       const dx = moveEv.clientX - dragStartRef.current.startX;
       const dy = moveEv.clientY - dragStartRef.current.startY;
-      const nextX = Math.max(window.scrollX + 8, Math.min(window.scrollX + window.innerWidth - 320, dragStartRef.current.initX + dx));
-      const nextY = Math.max(window.scrollY + 8, dragStartRef.current.initY + dy);
-      setPos({ x: nextX, y: nextY });
+      const rect = cardRef.current?.getBoundingClientRect();
+      setPos(clampFloatingPosition(
+        { x: dragStartRef.current.initX + dx, y: dragStartRef.current.initY + dy },
+        rect || getFloatingSize(readViewport(), isExpanded), readViewport(),
+      ));
     };
 
     const handlePointerUp = () => {
@@ -135,7 +155,7 @@ const SelectionPopover: React.FC<SelectionPopoverProps> = ({
   return (
     <div
       ref={cardRef}
-      className="freetranslate-modal-card"
+      className={`freetranslate-modal-card ${isExpanded ? 'freetranslate-modal-expanded' : ''}`}
       style={{
         left: `${pos.x}px`,
         top: `${pos.y}px`,
@@ -150,7 +170,13 @@ const SelectionPopover: React.FC<SelectionPopoverProps> = ({
         onTogglePin={() => setIsPinned((prev) => !prev)}
         onClose={onClose}
         onDragStart={handleDragStart}
+        isExpanded={isExpanded}
+        onToggleExpanded={() => {
+          if (cardRef.current) { cardRef.current.style.width = ''; cardRef.current.style.height = ''; }
+          setIsExpanded(value => !value);
+        }}
       />
+      <div className="freetranslate-resize-hint">拖动标题栏移动 · 拖动右下角调整大小</div>
     </div>
   );
 };
@@ -471,6 +497,7 @@ if (isTopFrame && !contentGlobal.__ftTopFrameReady) {
   }, true);
 
   function getSelectionPosition(): { x: number; y: number } {
+    const size = getFloatingSize({ width: window.innerWidth, height: window.innerHeight });
     const sel = window.getSelection();
     if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
       try {
@@ -478,15 +505,15 @@ if (isTopFrame && !contentGlobal.__ftTopFrameReady) {
         const rect = range.getBoundingClientRect();
         if (rect.width > 0 || rect.height > 0) {
           return {
-            x: Math.max(12, Math.min(rect.left, window.innerWidth - 460)),
-            y: Math.max(12, Math.min(rect.bottom + 8, window.innerHeight - 200)),
+            x: Math.max(12, Math.min(rect.left, window.innerWidth - size.width - 12)),
+            y: Math.max(12, Math.min(rect.bottom + 8, window.innerHeight - size.height - 12)),
           };
         }
       } catch (e) {}
     }
     return {
-      x: Math.max(12, Math.min(lastContextMenuPos.x, window.innerWidth - 460)),
-      y: Math.max(12, Math.min(lastContextMenuPos.y + 8, window.innerHeight - 200)),
+      x: Math.max(12, Math.min(lastContextMenuPos.x, window.innerWidth - size.width - 12)),
+      y: Math.max(12, Math.min(lastContextMenuPos.y + 8, window.innerHeight - size.height - 12)),
     };
   }
 

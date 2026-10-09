@@ -1,4 +1,25 @@
 @import "./styles/yumai-tokens.css";
+/* Shadow DOM does not receive index.css's Tailwind preflight. Keep this reset
+   scoped and in the base layer so utilities still control individual elements. */
+@layer base {
+  .yumai-app *, .yumai-app *::before, .yumai-app *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    border: 0 solid;
+  }
+  .yumai-app :is(h1, h2, h3, h4, h5, h6) { font-size: inherit; font-weight: inherit; }
+  .yumai-app :is(button, input, select, textarea) {
+    font: inherit;
+    letter-spacing: inherit;
+    color: inherit;
+    background-color: transparent;
+    border-radius: 0;
+  }
+  .yumai-app button { appearance: none; }
+  .yumai-app :is(img, svg) { display: block; vertical-align: middle; }
+  .yumai-app img { max-width: 100%; height: auto; }
+}
 /* YUMAI 4.0 visual system. Scoped to the app so host webpages are not affected. */
 .yumai-app {
   --ym-accent: #4958ba;
@@ -242,8 +263,6 @@
 }
 .yumai-floating .yumai-result-panel { border-radius: 14px; }
 .yumai-floating .yumai-result-text { font-size: 15px !important; line-height: 1.72 !important; }
-.yumai-floating .yumai-word-card > div:first-child { padding: 10px 14px; }
-.yumai-floating .yumai-word-card > div:nth-child(2) { padding-inline: 14px; }
 .yumai-floating .yumai-provider { background: #f3f4f8; }
 .yumai-floating .yumai-context-chip { font-size: 11px; }
 .yumai-floating .yumai-source-editor { font-size: 14px !important; }
@@ -263,3 +282,64 @@
 .yumai-app .yumai-settings-body input, .yumai-app .yumai-settings-body select { min-height: 36px; }
 .yumai-app .yumai-settings-tabs button { min-height: 42px; }
 .yumai-app .yumai-history-item:hover { background: #fbfcff; }
+
+/* Host websites often change their root font size. Pixel-based local theme
+   values keep the overlay's controls stable while browser zoom still works. */
+.yumai-floating {
+  --spacing: 4px;
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 16px;
+  --text-lg: 18px;
+  --text-xl: 20px;
+  --text-2xl: 24px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.yumai-floating .yumai-header > div { height: 52px; gap: 8px; padding-inline: 12px; }
+.yumai-floating .yumai-header img { width: 30px; height: 30px; }
+.yumai-floating .yumai-header .yumai-icon-button { width: 32px; height: 32px; padding: 0; }
+.yumai-floating .yumai-language-bar { min-height: 44px; }
+.yumai-floating .yumai-context-chip { flex-shrink: 0; }
+.yumai-floating .yumai-context-chip button { font-size: 12px; }
+.yumai-floating .yumai-result-panel { min-height: 0; }
+
+/* Dictionary: compact stable header, one scroll region, full untruncated data. */
+.yumai-word-card { min-width: 0; }
+.yumai-word-header { flex: 0 0 auto; padding: 14px 18px 12px; border-bottom: 1px solid var(--ym-border); background: #fff; }
+.yumai-word-title-row, .yumai-word-title, .yumai-word-actions { display: flex; align-items: center; gap: 8px; }
+.yumai-word-title-row { justify-content: space-between; }
+.yumai-word-title { min-width: 0; }
+.yumai-word-title h3 { margin: 0; font-size: 23px; font-weight: 700; line-height: 1.25; letter-spacing: -.025em; overflow-wrap: anywhere; }
+.yumai-word-actions { flex: 0 0 auto; gap: 4px; }
+.yumai-app .yumai-word-icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 32px; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 8px; background: transparent; }
+.yumai-app .yumai-word-icon:hover { background: var(--ym-surface-muted); }
+.yumai-app .yumai-word-icon[data-playing="true"] { background: var(--ym-primary-soft); color: var(--ym-primary); }
+.yumai-word-icon svg { width: 16px; height: 16px; }
+.yumai-word-meta { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 10px; margin-top: 8px; font-size: 12px; line-height: 1.6; color: var(--ym-text-muted); overflow-wrap: anywhere; }
+.yumai-word-phonetic { font-family: ui-monospace, monospace; }
+.yumai-word-pos { flex: 0 1 auto; }
+.yumai-word-level { padding: 1px 6px; background: #f1f4f8; border-radius: 5px; font-size: 11px; font-weight: 600; }
+.yumai-word-body { flex: 1 1 0; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-gutter: stable; padding: 16px 18px 22px; color: var(--ym-text); overflow-wrap: anywhere; }
+.yumai-word-body > * + * { margin-top: 18px; }
+.yumai-word-body:focus-visible { outline: 2px solid var(--ym-primary); outline-offset: -3px; }
+.yumai-word-meaning { padding: 14px 16px; border-radius: 12px; background: #f2f5fc; border: 1px solid #e6ecf7; }
+.yumai-word-meaning h4, .yumai-word-section h4 { margin: 0 0 6px; font-size: 12px; font-weight: 650; line-height: 1.5; color: var(--ym-text-muted); }
+.yumai-word-meaning h4 { color: var(--ym-primary); }
+.yumai-word-meaning p { margin: 0; font-size: 17px; font-weight: 600; line-height: 1.65; color: var(--ym-text); }
+.yumai-word-section p, .yumai-word-context p { margin: 0; font-size: 14px; font-weight: 400; line-height: 1.8; color: #44546b; white-space: pre-wrap; }
+.yumai-word-context { padding-block: 10px; border-block: 1px solid var(--ym-border); }
+.yumai-word-context summary { padding: 3px 0; font-size: 12px; font-weight: 600; color: var(--ym-text-muted); cursor: pointer; }
+.yumai-word-context[open] p { margin-top: 8px; }
+.yumai-word-context mark { padding: 1px 3px; border-radius: 3px; color: #263b73; background: #e9eefb; }
+.yumai-app .yumai-word-disclosure { display: flex; align-items: center; gap: 6px; width: 100%; min-height: 36px; padding: 6px 0; font-size: 13px; font-weight: 600; line-height: 1.5; color: var(--ym-primary); text-align: left; cursor: pointer; }
+.yumai-word-disclosure:hover { color: var(--ym-primary-hover); }
+.yumai-word-vocabulary { display: grid; gap: 16px; }
+.yumai-word-examples { display: grid; gap: 10px; margin-top: 8px; }
+.yumai-word-context summary:focus-visible { outline: 2px solid var(--ym-primary); outline-offset: 3px; }
+@media (max-width: 400px) {
+  .yumai-floating .yumai-header .yumai-provider { max-width: 65px; padding-inline: 6px; }
+  .yumai-floating .yumai-header h1 + span { display: none; }
+  .yumai-word-header { padding-inline: 14px; }
+  .yumai-word-body { padding-inline: 14px; }
+}
