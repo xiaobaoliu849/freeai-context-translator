@@ -4,6 +4,7 @@ dist/
 dist-web/
 dist-content/
 coverage/
+preview/
 .DS_Store
 *.log
 .env*
