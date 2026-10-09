@@ -82,11 +82,132 @@ try {
     throw new Error(`Condition not met: ${expression}`);
   };
   await command('Page.enable');
+  const output = join(root, 'preview'); await mkdir(output, { recursive: true });
+  const capture = async name => { const { data } = await command('Page.captureScreenshot', { format: 'png' }); await writeFile(join(output, name), Buffer.from(data, 'base64')); };
+  const contrast = (foreground, background) => {
+    const luminance = rgb => rgb.match(/[\d.]+/g).slice(0, 3).map(Number).map(c => {
+      const n = c / 255; return n <= 0.04045 ? n / 12.92 : ((n + 0.055) / 1.055) ** 2.4;
+    }).reduce((sum, value, i) => sum + value * [0.2126, 0.7152, 0.0722][i], 0);
+    const a = luminance(foreground), b = luminance(background);
+    return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+  };
   // The extension's actual popup and full-tab entry points must differ.
   await command('Emulation.setDeviceMetricsOverride', { width: 560, height: 595, deviceScaleFactor: 1, mobile: false });
   await command('Page.navigate', { url: `${origin}/popup.html` });
   await waitFor("document.querySelector('.yumai-popup') && document.querySelector('textarea')");
   assert.equal(await evaluate("Boolean(document.querySelector('.yumai-workspace'))"), false);
+  const emptyState = await evaluate(`(() => {
+    const button = document.querySelector('.yumai-translate-button');
+    return {
+      placeholderColor: getComputedStyle(document.querySelector('textarea'), '::placeholder').color,
+      buttonColor: getComputedStyle(button).color, buttonBackground: getComputedStyle(button).backgroundColor,
+      buttonOpacity: getComputedStyle(button).opacity, disabled: button.disabled,
+      emptyFontStyle: getComputedStyle(document.querySelector('.yumai-empty-result p')).fontStyle,
+      sourceActions: !!document.querySelector('button[aria-label="复制原文"]'),
+      targetActions: !!document.querySelector('button[aria-label="复制译文"]'),
+    };
+  })()`);
+  assert.ok(contrast(emptyState.placeholderColor, 'rgb(255, 255, 255)') >= 4.5, 'Input guidance contrast is too low');
+  assert.ok(contrast(emptyState.buttonColor, emptyState.buttonBackground) >= 4.5, 'Disabled action label is washed out');
+  assert.equal(emptyState.buttonOpacity, '1'); assert.equal(emptyState.disabled, true);
+  assert.equal(emptyState.emptyFontStyle, 'normal');
+  assert.equal(emptyState.sourceActions, false); assert.equal(emptyState.targetActions, false);
+  await capture('yumai-popup-clarity-empty.png');
+  await evaluate(`(() => {
+    const originalFetch = window.fetch.bind(window);
+    window.fetch = (input, init) => {
+      const url = typeof input === 'string' ? input : input.url;
+      if (url.includes('/api/translate/stream')) return Promise.resolve(new Response('Fixture: use non-streaming response', { status: 503 }));
+      if (url.includes('/api/translate')) return Promise.resolve(new Response(JSON.stringify({ translation: window.__translationSample || '研究系统帮助科学家在临床应用之前评估各种想法。', detectedLang: 'en' }), { headers: { 'Content-Type': 'application/json' } }));
+      return originalFetch(input, init);
+    };
+    document.querySelector('textarea').focus();
+  })()`);
+  await command('Input.insertText', { text: 'Research systems help scientists evaluate ideas before clinical use.' });
+  await waitFor("!document.querySelector('.yumai-translate-button').disabled");
+  assert.ok(await evaluate("Boolean(document.querySelector('button[aria-label=\"复制原文\"]'))"));
+  assert.equal(await evaluate("Boolean(document.querySelector('.yumai-context-chip'))"), false, 'Sentence mode has a redundant mode row');
+  await capture('yumai-popup-clarity-with-text.png');
+  await command('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', modifiers: 2, windowsVirtualKeyCode: 13 });
+  await command('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', modifiers: 2, windowsVirtualKeyCode: 13 });
+  await waitFor("document.querySelector('.yumai-result-text')?.textContent.includes('研究系统帮助科学家')");
+  assert.ok(await evaluate("Boolean(document.querySelector('button[aria-label=\"复制译文\"]'))"));
+  const resultLayout = await evaluate(`(() => {
+    const panel = document.querySelector('.yumai-result-panel').getBoundingClientRect();
+    const footer = document.querySelector('.yumai-result-footer').getBoundingClientRect();
+    return { panelBottom: panel.bottom, footerBottom: footer.bottom, viewportHeight: innerHeight,
+      textColor: getComputedStyle(document.querySelector('.yumai-result-text')).color };
+  })()`);
+  assert.ok(resultLayout.footerBottom <= resultLayout.panelBottom && resultLayout.panelBottom <= resultLayout.viewportHeight, 'Result actions are clipped');
+  assert.ok(contrast(resultLayout.textColor, 'rgb(255, 255, 255)') >= 4.5);
+  await evaluate('document.activeElement?.blur()');
+  await capture('yumai-popup-clarity-result.png');
+  await evaluate(`(() => {
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async text => { window.__copiedText = text; } } });
+    document.querySelector('button[aria-label="复制译文"]').click();
+  })()`);
+  await waitFor("window.__copiedText === '研究系统帮助科学家在临床应用之前评估各种想法。'");
+  await evaluate("document.querySelector('button[aria-label=\"清空文本\"]').click()");
+  await waitFor("!document.querySelector('textarea').value && !document.querySelector('button[aria-label=\"复制译文\"]')");
+  await evaluate("window.__translationSample = Array(35).fill('研究系统帮助科学家在临床应用之前评估各种想法。').join('\\n\\n'); document.querySelector('textarea').focus()");
+  await command('Input.insertText', { text: Array(22).fill('Research systems help scientists evaluate ideas before clinical use.').join('\n\n') });
+  await command('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', modifiers: 2, windowsVirtualKeyCode: 13 });
+  await command('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', modifiers: 2, windowsVirtualKeyCode: 13 });
+  await waitFor("document.querySelector('.yumai-result-text')?.textContent === window.__translationSample");
+  assert.ok(await evaluate(`(() => {
+    const source = document.querySelector('textarea'), result = document.querySelector('.yumai-result-scroll');
+    const footer = document.querySelector('.yumai-result-footer').getBoundingClientRect();
+    return source.scrollHeight > source.clientHeight && result.scrollHeight > result.clientHeight && footer.bottom <= innerHeight;
+  })()`), 'Long source/result must scroll inside the popup');
+  assert.equal(await evaluate("document.querySelector('button[aria-label=\"复制译文\"] span').textContent"), '复制', 'Previous copy feedback leaked into a new result');
+  await evaluate("document.activeElement?.blur(); document.querySelector('textarea').scrollTop = 0; document.querySelector('.yumai-result-scroll').scrollTop = 0");
+  await capture('yumai-popup-clarity-long-text.png');
+  console.log('PASS: popup empty/result states, text contrast, contextual actions, and keyboard translation.');
+  const interactionFailures = [];
+  // A clipboard permission prompt can settle after the user replaces the source.
+  await evaluate(`(() => {
+    navigator.clipboard.writeText = () => new Promise(resolve => { window.__resolveCopy = resolve; });
+    document.querySelector('button[aria-label="复制原文"]').click();
+    document.querySelector('button[aria-label="清空文本"]').click();
+    document.querySelector('textarea').focus();
+  })()`);
+  await command('Input.insertText', { text: 'A new sentence must not inherit the previous copy status.' });
+  await evaluate('window.__resolveCopy()');
+  await delay(100);
+  if (await evaluate("Boolean(document.querySelector('button[aria-label=\"复制原文\"] .lucide-check'))")) interactionFailures.push('Delayed copy success marks replacement text as copied');
+  // Deliberately ignore abort in the fixture: late responses must still be discarded.
+  await evaluate(`(() => {
+    const originalFetch = window.fetch;
+    window.fetch = (input, init) => {
+      if (input === '/api/translate') return new Promise((resolve, reject) => {
+        window.__fallbackSignal = init.signal;
+        if (window.__rejectOnAbort) init.signal?.addEventListener('abort', () => reject(new DOMException('Stopped', 'AbortError')), { once: true });
+        window.__resolveTranslation = () => resolve(new Response(JSON.stringify({ translation: 'Stale cleared result', detectedLang: 'en' }), { headers: { 'Content-Type': 'application/json' } }));
+      });
+      if (typeof input === 'string' && /^https?:/.test(input)) { window.__unexpectedProviderCalls = (window.__unexpectedProviderCalls || 0) + 1; return Promise.reject(new Error('Unexpected provider call')); }
+      return originalFetch(input, init);
+    };
+    document.querySelector('.yumai-translate-button').click();
+  })()`);
+  await waitFor('window.__resolveTranslation');
+  await evaluate("document.querySelector('button[aria-label=\"清空文本\"]').click(); window.__resolveTranslation()");
+  await delay(100);
+  if (!(await evaluate("Boolean(document.querySelector('.yumai-empty-result')) && !document.querySelector('.yumai-result-text')?.textContent.includes('Stale cleared result')"))) interactionFailures.push('Cleared translation reappears after a late response');
+  if (!(await evaluate('window.__fallbackSignal?.aborted'))) interactionFailures.push('Clear does not abort the fallback request');
+  await evaluate('window.__rejectOnAbort = true; delete window.__resolveTranslation; document.querySelector("textarea").focus()');
+  await command('Input.insertText', { text: 'Stop must remain available when all input is deleted.' });
+  await evaluate('document.querySelector(".yumai-translate-button").click()');
+  await waitFor('window.__resolveTranslation');
+  await evaluate('document.querySelector("textarea").focus(); document.querySelector("textarea").select()');
+  await command('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8 });
+  await command('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8 });
+  await waitFor('!document.querySelector("textarea").value');
+  assert.equal(await evaluate('document.querySelector(".yumai-translate-button").disabled'), false, 'Deleting input disables Stop during a request');
+  await evaluate('document.querySelector(".yumai-translate-button").click()');
+  await waitFor('document.querySelector(".yumai-translate-button").dataset.loading === "false"');
+  assert.equal(await evaluate('window.__fallbackSignal.aborted'), true);
+  assert.equal(await evaluate('window.__unexpectedProviderCalls || 0'), 0, 'Aborting the server fallback starts a provider request');
+  assert.ok(await evaluate('Boolean(document.querySelector(".yumai-empty-result"))'));
   await evaluate(`(() => {
     window.chrome = { runtime: { getURL: path => ${JSON.stringify(origin)} + '/' + path }, tabs: { create: options => window.__openedTab = options.url } };
     document.querySelector('button[aria-label="在独立标签页打开"]').click();
@@ -96,7 +217,42 @@ try {
   await command('Page.navigate', { url: `${origin}/workspace.html` });
   await waitFor("document.querySelector('.yumai-workspace-outline') && document.querySelector('textarea')");
   assert.equal(await evaluate("Boolean(document.querySelector('.yumai-popup'))"), false);
+  await evaluate("document.querySelector('.yumai-layout-menu summary').click()");
+  await evaluate("document.querySelector('button[aria-label=\"原文加宽 (6:4)\"]').focus(); document.activeElement.click()");
+  assert.equal(await evaluate("document.querySelector('.yumai-translation-workspace').style.getPropertyValue('--split')"), '60%');
+  assert.equal(await evaluate("document.querySelector('.yumai-layout-menu').open"), false);
+  if (!(await evaluate("document.activeElement === document.querySelector('.yumai-layout-menu summary')"))) interactionFailures.push('Layout selection leaves keyboard focus inside the closed menu');
+  await evaluate('document.querySelector(".yumai-layout-menu summary").click(); document.querySelector(".yumai-layout-options button").focus()');
+  await command('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+  await command('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+  assert.equal(await evaluate('document.querySelector(".yumai-layout-menu").open'), false);
+  assert.ok(await evaluate('document.activeElement === document.querySelector(".yumai-layout-menu summary")'));
+  assert.deepEqual(interactionFailures, [], 'Adversarial interaction failures');
+  console.log('PASS: delayed clipboard, late cleared response, fallback cancellation, empty-input Stop, and layout focus/Escape.');
   console.log('PASS: extension toolbar popup and dedicated full-tab workspace entry points.');
+  // Exercise the final client fallback as well; no request reaches a model server.
+  await evaluate(`localStorage.setItem('freetranslate_settings', JSON.stringify({ defaultProvider: 'ollama', autoTranslate: false, settingsVersion: 4, providerConfigs: { ollama: { apiKey: '', baseUrl: 'http://model-fixture.invalid', model: 'fixture-model', availableModels: [] } } }))`);
+  await command('Page.navigate', { url: `${origin}/workspace.html` });
+  await waitFor('document.querySelector("textarea")');
+  await evaluate(`(() => {
+    window.fetch = (input, init) => {
+      if (input === '/api/translate/stream' || input === '/api/translate') return Promise.resolve(new Response('Unavailable fixture', { status: 503 }));
+      if (input === 'http://model-fixture.invalid/chat/completions') return new Promise((resolve, reject) => {
+        window.__clientSignal = init.signal;
+        init.signal?.addEventListener('abort', () => reject(new DOMException('Stopped', 'AbortError')), { once: true });
+      });
+      throw new Error('Unexpected fetch: ' + input);
+    };
+    document.querySelector('textarea').focus();
+  })()`);
+  await command('Input.insertText', { text: 'Client fallback requests should stop when the user clears the text.' });
+  await evaluate('document.querySelector(".yumai-translate-button").click()');
+  await waitFor('window.__clientSignal');
+  await evaluate('document.querySelector("button[aria-label=\\"清空文本\\"]").click()');
+  await waitFor('window.__clientSignal.aborted && document.querySelector(".yumai-empty-result")');
+  assert.equal(await evaluate('document.querySelector(".yumai-translate-button").dataset.loading'), 'false');
+  await evaluate('localStorage.removeItem("freetranslate_settings")');
+  console.log('PASS: client provider fallback is cancelled by Clear.');
   await command('Emulation.setDeviceMetricsOverride', { width: 1100, height: 850, deviceScaleFactor: 1, mobile: false });
   await command('Page.navigate', { url: `${origin}/host.html` });
   await waitFor("Boolean(document.querySelector('#sample'))");
@@ -159,8 +315,6 @@ try {
     assert.equal(m.meaningFont, '17px'); assert.equal(m.hostBorder, '5px', 'Host styles changed');
     assert.equal(m.translatorPadding, '12px', 'Base reset overrides Tailwind utility spacing');
   };
-  const output = join(root, 'preview'); await mkdir(output, { recursive: true });
-  const capture = async name => { const { data } = await command('Page.captureScreenshot', { format: 'png' }); await writeFile(join(output, name), Buffer.from(data, 'base64')); };
   const initial = await metrics(); assertFits(initial); assert.equal(initial.width, 560); assert.ok(initial.titleHeight <= 34);
   await capture('yumai-floating-dictionary.png');
   const captureCard = async name => {
