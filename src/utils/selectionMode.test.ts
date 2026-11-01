@@ -31,3 +31,7 @@ test('selected words preserve Japanese, Korean and accented characters', () => {
   assert.equal(normalizeSelectedTerm('(résumé)'), 'résumé');
   assert.equal(normalizeSelectedTerm('重大突破。'), '重大突破');
 });
+
+test('Chinese clauses without final punctuation do not open the dictionary', () => {
+  assert.equal(classifySelection('她坐在河岸上看着水位上升'), 'sentence');
+});

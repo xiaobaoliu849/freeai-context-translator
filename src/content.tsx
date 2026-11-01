@@ -1,3 +1,4 @@
+import { contextForRange } from './utils/selectionMode';
 import React, { useState, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
@@ -13,7 +14,7 @@ const SETTINGS_STORAGE_KEY = 'freetranslate_settings';
 let suppressSelectionUntil = 0;
 
 /**
- * Reads saved settings from chrome.storage.local (extension) or localStorage.
+ * Reads saved settings from chrome.storage.local (extension).
  */
 async function getSavedSettings(): Promise<AppSettings> {
   try {
@@ -23,12 +24,6 @@ async function getSavedSettings(): Promise<AppSettings> {
         return parseSavedSettings(result[SETTINGS_STORAGE_KEY]);
       }
     }
-  } catch (e) {
-    // Ignore
-  }
-  try {
-    const local = localStorage.getItem(SETTINGS_STORAGE_KEY);
-    if (local) return parseSavedSettings(local);
   } catch (e) {
     // Ignore
   }
@@ -275,9 +270,7 @@ function getSelectionContext(selectedText: string): string {
   if (node.parentElement?.closest('input, textarea, [contenteditable], [contenteditable="true"]')) return '';
   const selected = value.slice(range.startOffset, range.endOffset).trim();
   if (selected !== selectedText.trim()) return '';
-  const left = Math.max(0, range.startOffset - 140);
-  const right = Math.min(value.length, range.endOffset + 140);
-  return value.slice(left, right).replace(/\s+/g, ' ').trim().slice(0, 380);
+  return contextForRange(value, range.startOffset, range.endOffset);
 }
 
 function showFloatBtn(text: string, x: number, y: number, mode: 'click' | 'hover', selectionContext = '') {

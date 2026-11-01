@@ -1,11 +1,12 @@
-import { AppSettings, WordExplanation } from '../types';
+import { AppSettings } from '../types';
 import { DEFAULT_BASE_URLS, DEFAULT_SETTINGS, mergeKnownFreeModels, parseSavedSettings } from '../config';
 import {
   EXPLAIN_SYSTEM_PROMPT,
   TRANSLATE_SYSTEM_PROMPT,
+  parseExplanation,
+  parseTranslation,
   buildExplainPrompt,
   buildTranslatePrompt,
-  parseLLMJson,
 } from './prompts';
 import { BRIDGE_PORT_NAME, SETTINGS_STORAGE_KEY } from './bridge';
 import { callLLM, callLLMStream } from './llm';
@@ -365,7 +366,7 @@ async function translatePageParagraphs({
 
   for (const batch of batches) {
     const parts = batch.map((idx, j) => `${j + 1}: ${paragraphs[idx]}`).join('\n');
-    const prompt = `Translate each numbered segment into ${targetLang}. Return ONLY the numbered translations, one per line, in the same order and with the same numbers. Never merge, skip, or reorder segments. Preserve formatting like line breaks inside a segment as-is.
+    const prompt = `Translate each numbered segment into ${targetLang}. Return ONLY the numbered translations, one per line, in the same order and with the same numbers. Use adjacent segments to resolve references and terminology. Match the register and translate idioms naturally. Never merge, skip, or reorder segments. Preserve formatting like line breaks inside a segment as-is.
 
 ${parts}`;
     const raw = await callLLM({
@@ -503,7 +504,7 @@ export function handleBridgePort(port: chrome.runtime.Port) {
       const settings = await getBridgeSettings();
 
       if (msg.kind === 'translate') {
-        const { text, sourceLang, targetLang, provider, model, baseUrl } = msg.payload || {};
+        const { text, context, readerNote, sourceLang, targetLang, provider, model, baseUrl } = msg.payload || {};
         if (!text || !text.trim()) throw new Error('Text is required');
         const cfg = resolveProviderConfig(settings, provider);
         console.log('[bg:translate]', { provider, model: model || cfg.model, baseUrl: baseUrl || cfg.baseUrl, hasKey: !!cfg.apiKey, textLen: text.length });
@@ -516,7 +517,7 @@ export function handleBridgePort(port: chrome.runtime.Port) {
             apiKey: cfg.apiKey,
             baseUrl: baseUrl || cfg.baseUrl,
             model: model || cfg.model,
-            prompt: buildTranslatePrompt(text, sourceLang, targetLang),
+            prompt: buildTranslatePrompt(text, sourceLang, targetLang, context, readerNote),
             systemInstruction: TRANSLATE_SYSTEM_PROMPT,
             jsonOutput: true,
             signal: ctrl.signal,
@@ -525,17 +526,7 @@ export function handleBridgePort(port: chrome.runtime.Port) {
             reply('delta', { text: delta });
           }
           if (ctrl.signal.aborted) return; // client cancelled — no reply
-          const parsed = parseLLMJson(raw);
-          console.log('[bg:translate] rawLen', raw.length, 'rawHead', raw.slice(0, 200));
-          if (!raw.trim() || !parsed.translation) {
-            // A silent empty response usually means the model name doesn't exist
-            // (the provider returns 200 with an empty stream) — surface it
-            // instead of showing a confusing "Translation unavailable.".
-            reply('error', {
-              error: '模型未返回有效内容，可能模型名不存在。请在设置中重新「自动获取可用模型」并选择一个模型。',
-            });
-            return;
-          }
+          const parsed = parseTranslation(raw);
           reply('done', {
             result: {
               translation: parsed.translation,
@@ -552,7 +543,7 @@ export function handleBridgePort(port: chrome.runtime.Port) {
       }
 
       if (msg.kind === 'explain') {
-        const { sentence, selectedWord, targetLang, provider, model, baseUrl } = msg.payload || {};
+        const { sentence, readerNote, selectedWord, targetLang, provider, model, baseUrl } = msg.payload || {};
         if (!selectedWord || !selectedWord.trim()) throw new Error('Selected word is required');
         const cfg = resolveProviderConfig(settings, provider);
         const raw = await callLLM({
@@ -560,25 +551,11 @@ export function handleBridgePort(port: chrome.runtime.Port) {
           apiKey: cfg.apiKey,
           baseUrl: baseUrl || cfg.baseUrl,
           model: model || cfg.model,
-          prompt: buildExplainPrompt(selectedWord, sentence, targetLang),
+          prompt: buildExplainPrompt(selectedWord, sentence, targetLang, readerNote),
           systemInstruction: EXPLAIN_SYSTEM_PROMPT,
           jsonOutput: true,
         });
-        const parsed = parseLLMJson(raw);
-        const result: WordExplanation = {
-          word: parsed.word || selectedWord,
-          phonetic: parsed.phonetic || '',
-          pos: parsed.pos || '',
-          cefrLevel: parsed.cefrLevel || '',
-          literalMeaning: parsed.literalMeaning || '',
-          contextualMeaning: parsed.contextualMeaning || '',
-          contextExplanation: parsed.contextExplanation || '',
-          rootOrLemma: parsed.rootOrLemma || '',
-          collocations: parsed.collocations || [],
-          antonyms: parsed.antonyms || [],
-          synonymsInContext: parsed.synonymsInContext || [],
-          examples: parsed.examples || [],
-        };
+        const result = parseExplanation(raw, selectedWord);
         reply('done', { result });
         return;
       }

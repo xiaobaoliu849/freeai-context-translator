@@ -7,9 +7,10 @@ import { DEFAULT_BASE_URLS, mergeKnownFreeModels } from "./src/config";
 import {
   EXPLAIN_SYSTEM_PROMPT,
   TRANSLATE_SYSTEM_PROMPT,
+  parseExplanation,
+  parseTranslation,
   buildExplainPrompt,
   buildTranslatePrompt,
-  parseLLMJson,
 } from "./src/services/prompts";
 import { callLLM as llmCallLLM, callLLMStream as llmCallLLMStream } from "./src/services/llm";
 
@@ -388,7 +389,7 @@ app.post("/api/models", rateLimit, async (req, res) => {
 app.post("/api/translate", rateLimit, async (req, res) => {
   try {
     const {
-      text,
+      text, context, readerNote,
       sourceLang = "auto",
       targetLang = "zh-CN",
       provider = "gemini",
@@ -407,14 +408,14 @@ app.post("/api/translate", rateLimit, async (req, res) => {
         apiKey,
         baseUrl,
         model,
-        prompt: buildTranslatePrompt(text, sourceLang, targetLang),
+        prompt: buildTranslatePrompt(text, sourceLang, targetLang, context, readerNote),
         systemInstruction: TRANSLATE_SYSTEM_PROMPT,
         jsonOutput: true,
       });
 
-      const parsed = parseLLMJson(rawResponse);
+      const parsed = parseTranslation(rawResponse);
       const result = {
-        translation: parsed.translation || "Translation unavailable.",
+        translation: parsed.translation,
         detectedLang: parsed.detectedLang || "Auto",
         tokens: parsed.tokens || [],
       };
@@ -435,7 +436,7 @@ app.post("/api/translate", rateLimit, async (req, res) => {
 // ---------------------------
 app.post("/api/translate/stream", rateLimit, async (req, res) => {
   const {
-    text,
+    text, context, readerNote,
     sourceLang = "auto",
     targetLang = "zh-CN",
     provider = "gemini",
@@ -468,7 +469,7 @@ app.post("/api/translate/stream", rateLimit, async (req, res) => {
       apiKey,
       baseUrl,
       model,
-      prompt: buildTranslatePrompt(text, sourceLang, targetLang),
+      prompt: buildTranslatePrompt(text, sourceLang, targetLang, context, readerNote),
       systemInstruction: TRANSLATE_SYSTEM_PROMPT,
       jsonOutput: true,
       signal: abort.signal,
@@ -479,11 +480,11 @@ app.post("/api/translate/stream", rateLimit, async (req, res) => {
       send({ delta });
     }
 
-    const parsed = parseLLMJson(raw);
+    const parsed = parseTranslation(raw);
     send({
       done: true,
       result: {
-        translation: parsed.translation || "Translation unavailable.",
+        translation: parsed.translation,
         detectedLang: parsed.detectedLang || "Auto",
       },
     });
@@ -500,7 +501,7 @@ app.post("/api/translate/stream", rateLimit, async (req, res) => {
 // ---------------------------
 app.post("/api/explain-word", rateLimit, async (req, res) => {
   const {
-    sentence,
+    sentence, readerNote,
     selectedWord,
     targetLang = "zh-CN",
     provider = "gemini",
@@ -519,37 +520,14 @@ app.post("/api/explain-word", rateLimit, async (req, res) => {
       apiKey,
       baseUrl,
       model,
-      prompt: buildExplainPrompt(selectedWord, sentence, targetLang),
+      prompt: buildExplainPrompt(selectedWord, sentence, targetLang, readerNote),
       systemInstruction: EXPLAIN_SYSTEM_PROMPT,
       jsonOutput: true,
     });
 
-    const parsed = parseLLMJson(rawResponse);
-    return res.json({
-      word: parsed.word || selectedWord,
-      phonetic: parsed.phonetic || "",
-      pos: parsed.pos || "Word",
-      cefrLevel: parsed.cefrLevel || "",
-      literalMeaning: parsed.literalMeaning || selectedWord,
-      contextualMeaning: parsed.contextualMeaning || selectedWord,
-      contextExplanation: parsed.contextExplanation || `Contextual meaning of "${selectedWord}" in sentence: "${sentence}".`,
-      rootOrLemma: parsed.rootOrLemma || "",
-      collocations: parsed.collocations || [],
-      antonyms: parsed.antonyms || [],
-      synonymsInContext: parsed.synonymsInContext || [],
-      examples: parsed.examples || [],
-    });
+    return res.json(parseExplanation(rawResponse, selectedWord));
   } catch (err: any) {
-    console.error("Word explanation error:", err);
-    return res.json({
-      word: selectedWord,
-      phonetic: "",
-      pos: "Word",
-      literalMeaning: selectedWord,
-      contextualMeaning: selectedWord,
-      contextExplanation: `Contextual analysis for "${selectedWord}".`,
-      examples: [],
-    });
+    return res.status(502).json({ error: err.message || "Word explanation failed" });
   }
 });
 
