@@ -438,7 +438,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             }
           }
         }}
-        className="yumai-settings-panel w-full max-w-2xl overflow-hidden flex flex-col max-h-[92vh] text-slate-800"
+        className="yumai-settings-panel w-full max-w-2xl overflow-hidden flex flex-col text-slate-800"
       >
         {/* Modal Header */}
         <div className="yumai-settings-head flex items-center justify-between">
@@ -493,7 +493,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         {/* Modal Body */}
         <div id="yumai-settings-section" role="tabpanel" aria-labelledby={`yumai-tab-${activeTab}`} className="yumai-settings-body p-5 overflow-y-auto space-y-4 text-sm text-slate-600 flex-1">
           {activeTab === 'providers' && (
-            <div className="space-y-3.5 max-w-xl mx-auto py-1">
+            <div className="space-y-3.5">
 
               {/* 1. Provider Select Dropdown */}
               <div>
