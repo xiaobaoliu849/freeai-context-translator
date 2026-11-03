@@ -1,25 +1,85 @@
-/* YUMAI UI 4.1 design tokens. All variables are scoped to the app. */
+/* 语脉 YUMAI design tokens — the single source of colour, type, space, radius,
+   elevation and motion. Everything is scoped to .yumai-app so the in-page
+   overlay (content.css is also injected into host pages) never leaks values. */
 .yumai-app {
-  --ym-primary: #4958ba;
-  --ym-primary-hover: #34469f;
-  --ym-primary-soft: #eef0fb;
-  --ym-accent-ink: #384698;
-  --ym-background: #f6f7f9;
+  /* Brand: one deep navy ramp. 700 is the primary ink used for actions. */
+  --ym-brand-50: #f3f5fa;
+  --ym-brand-100: #e6eaf3;
+  --ym-brand-200: #cdd5e6;
+  --ym-brand-300: #a6b3cf;
+  --ym-brand-400: #7a8bb2;
+  --ym-brand-500: #52648f;
+  --ym-brand-600: #374c7d;
+  --ym-brand-700: #263b68;
+  --ym-brand-800: #1c2e54;
+  --ym-brand-900: #142242;
+  --ym-brand-950: #0d172f;
+
+  --ym-primary: var(--ym-brand-700);
+  --ym-primary-hover: var(--ym-brand-800);
+  --ym-primary-soft: #edf1f8;
+  --ym-primary-tint: var(--ym-brand-50);
+  --ym-accent-ink: var(--ym-brand-700);
+
+  /* Neutrals. Muted text is 6.2:1 on white, faint text 4.7:1 (AA). */
+  --ym-background: #f4f6f9;
   --ym-surface: #ffffff;
   --ym-surface-muted: #f7f8fb;
-  --ym-border: #e5e9f0;
-  --ym-text: #19253a;
-  --ym-text-muted: #65738a;
-  --ym-success: #28795f;
+  --ym-surface-sunken: #eff2f6;
+  --ym-reading-paper: #fbfcfe;
+  --ym-border: #e3e8ef;
+  --ym-border-strong: #d3dae5;
+  --ym-divider: #edf0f5;
+  --ym-text: #172338;
+  --ym-text-2: #34425a;
+  --ym-text-muted: #526175;
+  --ym-text-faint: #677487;
+
+  --ym-success: #23715a;
   --ym-danger: #b4525f;
-  --ym-radius-control: 10px;
-  --ym-radius-panel: 16px;
-  --ym-shadow-panel: 0 2px 12px rgb(23 34 60 / 4%);
-  --ym-shadow-floating: 0 20px 55px rgb(23 34 60 / 18%);
-  --ym-font: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --ym-danger-ink: #8f2335;
+  --ym-danger-soft: #fdf2f3;
+  --ym-danger-line: #f1c9cf;
+  --ym-focus-ring: rgb(38 59 104 / 38%);
+  --ym-focus-halo: 0 0 0 3px rgb(38 59 104 / 14%);
+
+  /* Radius: controls < cards < dialogs. */
+  --ym-radius-xs: 6px;
+  --ym-radius-control: 9px;
+  --ym-radius-card: 12px;
+  --ym-radius-panel: 14px;
+  --ym-radius-dialog: 18px;
+
+  /* Elevation: hairline + soft ambient, never heavy. */
+  --ym-shadow-xs: 0 1px 2px rgb(16 28 52 / 5%);
+  --ym-shadow-panel: 0 1px 2px rgb(16 28 52 / 4%), 0 2px 8px -2px rgb(16 28 52 / 6%);
+  --ym-shadow-raised: 0 1px 2px rgb(16 28 52 / 5%), 0 8px 24px -8px rgb(16 28 52 / 14%);
+  --ym-shadow-floating: 0 2px 6px rgb(16 28 52 / 6%), 0 24px 56px -16px rgb(16 28 52 / 26%);
+
+  /* 4px spacing rhythm. */
+  --ym-space-1: 4px;
+  --ym-space-2: 8px;
+  --ym-space-3: 12px;
+  --ym-space-4: 16px;
+  --ym-space-5: 20px;
+  --ym-space-6: 24px;
+  --ym-space-8: 32px;
+
+  /* Type: CJK-first stack, generous reading leading. */
+  --ym-font: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+  --ym-font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  --ym-text-caption: 12px;
+  --ym-text-ui: 13px;
+  --ym-text-body: 14px;
   --ym-reading-size: 16px;
   --ym-reading-line: 1.82;
   --ym-caption-size: 12px;
+
+  /* Motion: short and calm; disabled under prefers-reduced-motion. */
+  --ym-ease: cubic-bezier(.2, .7, .2, 1);
+  --ym-duration-fast: 120ms;
+  --ym-duration: 180ms;
+
   font-family: var(--ym-font);
   color: var(--ym-text);
   background: var(--ym-background);
@@ -50,9 +110,9 @@
   background: var(--ym-surface);
   font-size: 12px;
   font-weight: 600;
-  transition: background-color 120ms;
+  transition: background-color var(--ym-duration-fast) var(--ym-ease), border-color var(--ym-duration-fast) var(--ym-ease);
 }
-.yumai-app .yumai-secondary-action:hover { background: var(--ym-primary-soft); }
+.yumai-app .yumai-secondary-action:hover { background: var(--ym-primary-soft); border-color: var(--ym-border-strong); }
 .yumai-app .yumai-secondary-action:disabled { opacity: .45; cursor: not-allowed; }
 @media (prefers-reduced-motion: reduce) {
   .yumai-app .yumai-secondary-action { transition: none; }

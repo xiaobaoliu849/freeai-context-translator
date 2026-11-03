@@ -116,16 +116,16 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
               onClick={handlePlayWordAudio}
               disabled={!displayWord && !sentence}
               data-playing={Boolean(wordPhase)}
-              className="yumai-word-icon text-indigo-600 transition-colors cursor-pointer disabled:opacity-30"
+              className="yumai-word-icon text-brand-600 transition-colors cursor-pointer disabled:opacity-30"
               title="播放单词发音" aria-label="播放单词发音"
             >
               {wordPhase === 'generating' ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
               ) : wordPhase === 'playing' ? (
                 <span className="ft-eq flex items-end gap-0.5 h-3.5 px-0.5">
-                  <span className="w-0.5 bg-indigo-600 rounded-full animate-bounce h-2.5" />
-                  <span className="w-0.5 bg-indigo-600 rounded-full animate-bounce h-3.5 delay-75" />
-                  <span className="w-0.5 bg-indigo-600 rounded-full animate-bounce h-2 delay-150" />
+                  <span className="w-0.5 bg-brand-600 rounded-full animate-bounce h-2.5" />
+                  <span className="w-0.5 bg-brand-600 rounded-full animate-bounce h-3.5 delay-75" />
+                  <span className="w-0.5 bg-brand-600 rounded-full animate-bounce h-2 delay-150" />
                 </span>
               ) : <Volume2 className="w-3.5 h-3.5" />}
             </button>
@@ -169,9 +169,9 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
       <div className="yumai-word-card bg-white text-slate-800 w-full flex-1 min-h-0 flex flex-col overflow-hidden">
         {renderHeader()}
         <div className="p-4 space-y-3 animate-pulse select-none">
-          <div className="flex items-center gap-2 text-indigo-600 py-1">
-            <Sparkles className="w-4 h-4 animate-spin text-indigo-600" />
-            <span className="text-xs font-bold text-indigo-700">
+          <div className="flex items-center gap-2 text-brand-600 py-1">
+            <Sparkles className="w-4 h-4 animate-spin text-brand-600" />
+            <span className="text-xs font-bold text-brand-700">
               正在查找句中含义…
             </span>
           </div>
@@ -334,7 +334,7 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
               aria-controls={`${sectionId}-examples`}
               className="yumai-word-disclosure"
             >
-              <ChevronRight className={`w-3.5 h-3.5 text-indigo-500 transition-transform ${examplesOpen ? 'rotate-90' : ''}`} />
+              <ChevronRight className={`w-3.5 h-3.5 text-brand-500 transition-transform ${examplesOpen ? 'rotate-90' : ''}`} />
               <span>{examplesList.length} 条例句参考</span>
             </button>
             {examplesOpen && (
@@ -345,10 +345,10 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
                   return (
                     <div
                       key={idx}
-                      className="text-sm space-y-1 bg-slate-50 border-l-2 border-indigo-400 rounded-r-lg p-3"
+                      className="text-sm space-y-1 bg-slate-50 border-l-2 border-brand-400 rounded-r-lg p-3"
                     >
                       <p className="text-slate-900 font-semibold leading-relaxed">{src}</p>
-                      <p className="text-indigo-700 leading-relaxed font-medium">{tgt}</p>
+                      <p className="text-brand-700 leading-relaxed font-medium">{tgt}</p>
                     </div>
                   );
                 })}

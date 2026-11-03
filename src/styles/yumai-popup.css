@@ -1,0 +1,76 @@
+/* Compact Chrome toolbar popup. */
+.yumai-app.yumai-popup:not(.yumai-floating) {
+  --ym-primary: #253b35;
+  --ym-primary-hover: #142923;
+  --ym-accent: #466c60;
+  background: #f6f5f1;
+  color: #28342f;
+  font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+}
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-header {
+  background: #f6f5f1;
+  border: 0;
+  box-shadow: none;
+}
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-header > div { height: 66px; padding: 0 22px; }
+.popup-monogram {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 36px;
+  border-radius: 10px 10px 10px 3px;
+  background: #283f37;
+  color: #fffaf0;
+  font: 20px/1 "Songti SC", SimSun, serif;
+}
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-header h1 { font-size: 17px; font-weight: 600; color: #28342f; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-header h1 + span { font-size: 9px; letter-spacing: .12em; color: #6b756d; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-provider { background: transparent; border: 0; color: #536159; font-size: 10px; font-weight: 500; max-width: 95px; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-header .yumai-icon-button { width: 30px; height: 32px; color: #607066; border-radius: 7px; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-header .yumai-icon-button svg { width: 16px; height: 16px; stroke-width: 1.6; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-translator { padding: 0 20px 18px; gap: 8px; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-language-bar { min-height: 44px; background: transparent; padding: 0 2px 8px; border: 0; border-radius: 0; box-shadow: none; gap: 13px; justify-content: flex-start; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-language-bar > div { flex: 0 1 138px; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-language-bar select { background: transparent; padding: 7px 5px; font-size: 13px; font-weight: 550; color: #344b40; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-language-bar .yumai-swap-button { background: transparent; border: 0; color: #758177; min-width: 28px; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-translation-workspace { border: 0; border-radius: 0; overflow: hidden; gap: 0; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-source-panel {
+  background: #fffefa;
+  border: 1px solid #dedfd5;
+  border-radius: 14px;
+  box-shadow: 0 3px 7px rgb(42 54 44 / 3%);
+}
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-source-panel:focus-within { border-color: #98ada0; box-shadow: 0 0 0 2px rgb(75 110 89 / 7%); }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-source-heading { padding: 14px 16px 5px; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-panel-caption { font-size: 11px; font-weight: 500; color: #667268; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-shortcut { font-size: 10px; color: #68756c; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-source-editor { color: #28382e; font-size: 16px !important; line-height: 1.75 !important; padding: 7px 16px 8px; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-source-editor::placeholder { color: #6b756d; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-source-editor:focus { outline: none; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-panel-footer { background: transparent; padding: 6px 10px 10px 16px; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-panel-footer > div > span { font-size: 10px; color: #68756c; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-translate-button { width: auto; height: 34px; min-width: 74px; white-space: nowrap; border-radius: 8px; padding: 7px 17px; min-height: 32px; font-size: 12px; background: #283f37; color: #fff; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-translate-button:hover { background: #193026; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-translate-button:disabled { background: #e2e6dd; color: #52604f; opacity: 1; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-translate-button[data-loading=true] { background: #943e42; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-translation-workspace > [role=separator] { height: 16px; border: 0; background: transparent; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-translation-workspace > [role=separator] > div { width: 26px; height: 2px; background: #c6cec3; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-result-panel { padding: 10px 4px 2px; border: 0; box-shadow: none; border-radius: 0; background: transparent; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-result-panel:has(.yumai-empty-result) { background: transparent; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-result-panel:has(.yumai-empty-result) .yumai-result-scroll > div:first-child { display: none; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-empty-result { align-items: flex-start; text-align: left; padding: 12px 8px 0; gap: 8px; white-space: normal; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-empty-result .popup-empty-eyebrow { font-size: 9px; font-weight: 650; letter-spacing: .2em; color: #567360; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-empty-result p { font: 500 27px/1.45 "Songti SC", "Noto Serif CJK SC", SimSun, serif; letter-spacing: .025em; color: #2c4034; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-empty-result > span { color: #677268; font-size: 12px; }
+.popup-examples { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; margin-top: 10px; }
+.popup-examples button { display: grid; grid-template-columns: 1fr auto; gap: 6px; text-align: left; padding: 12px 14px; border-radius: 10px; border: 1px solid #dedfd5; background: #eeeee6; cursor: pointer; }
+.popup-examples button:hover { border-color: #8ea695; background: #e7ece1; }
+.yumai-empty-result .popup-examples button > span:first-child { font-size: 10px; color: #5c705f; }
+.popup-examples strong { grid-row: 2; font: 17px/1.3 Georgia, serif; color: #354b3b; }
+.popup-examples button > span:last-child { grid-column: 2; grid-row: 1 / 3; align-self: center; color: #577960; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-empty-result .popup-selection-tip { margin-top: 9px; font-size: 10px; color: #717a70; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-result-footer { background: transparent; border-top: 1px solid #dedfd5; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-result-text { color: #28382e; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-dictionary-active .yumai-result-panel { padding: 0; border-radius: 12px; background: #fffefa; border: 1px solid #dedfd5; }
+.yumai-app.yumai-popup:not(.yumai-floating) .desk-modes { background: #e8ece3; }
+.yumai-app.yumai-popup:not(.yumai-floating) .desk-modes button[aria-pressed=true] { color: #345440; }

@@ -68,7 +68,7 @@ const PROVIDERS_INFO: Array<{
   { id: 'custom', name: '自定义 API / 本地服务' },
 ];
 
-const TTS_VOICES_BY_ENGINE: Record<TTSEngine, Array<{ id: string; name: string }>> = {
+const TTS_VOICES_BY_ENGINE: Partial<Record<TTSEngine, Array<{ id: string; name: string }>>> = {
   gemini: [
     { id: 'Kore', name: 'Gemini Neural - Kore (Female 24kHz)' },
     { id: 'Zephyr', name: 'Gemini Neural - Zephyr (Female)' },
@@ -76,17 +76,6 @@ const TTS_VOICES_BY_ENGINE: Record<TTSEngine, Array<{ id: string; name: string }
     { id: 'Fenrir', name: 'Gemini Neural - Fenrir (Male)' },
     { id: 'Aoede', name: 'Gemini Neural - Aoede (Female)' },
     { id: 'Charon', name: 'Gemini Neural - Charon (Male)' },
-  ],
-  edge: [
-    { id: 'zh-CN-XiaoxiaoNeural', name: 'Xiaoxiao (zh-CN Female)' },
-    { id: 'zh-CN-YunxiNeural', name: 'Yunxi (zh-CN Male)' },
-    { id: 'zh-CN-YunjianNeural', name: 'Yunjian (zh-CN News)' },
-    { id: 'zh-CN-XiaoyiNeural', name: 'Xiaoyi (zh-CN Female)' },
-    { id: 'en-US-JennyNeural', name: 'Jenny (en-US Female)' },
-    { id: 'en-US-GuyNeural', name: 'Guy (en-US Male)' },
-    { id: 'en-GB-SoniaNeural', name: 'Sonia (en-GB Female)' },
-    { id: 'ja-JP-NanamiNeural', name: 'Nanami (ja-JP Female)' },
-    { id: 'ko-KR-SunHiNeural', name: 'SunHi (ko-KR Female)' },
   ],
   openai: [
     { id: 'alloy', name: 'OpenAI TTS-1 - Alloy' },
@@ -413,7 +402,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+    <div className="yumai-dialog-backdrop fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
         ref={dialogRef}
         role="dialog"
@@ -442,36 +431,33 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             }
           }
         }}
-        className="yumai-settings-panel bg-white border border-slate-200 rounded-2xl w-full max-w-2xl shadow-xl overflow-hidden flex flex-col max-h-[92vh] text-slate-800"
+        className="yumai-settings-panel w-full max-w-2xl overflow-hidden flex flex-col max-h-[92vh] text-slate-800"
       >
-        {/* Gradient hairline pop */}
-        <div className="h-[1px] bg-slate-100" />
-
         {/* Modal Header */}
-        <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-indigo-50 text-indigo-700 shrink-0">
+        <div className="yumai-settings-head flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="yumai-settings-mark shrink-0" aria-hidden="true">
               <Cpu className="w-4 h-4" />
             </div>
             <div>
-              <h2 id="yumai-settings-title" className="text-sm sm:text-base font-extrabold text-slate-900 leading-tight tracking-tight">语脉 · 设置</h2>
-              <p className="text-xs text-slate-500 font-medium">先连接 AI 服务，再按需调整翻译体验</p>
+              <h2 id="yumai-settings-title" className="text-slate-900 leading-tight">语脉 · 设置</h2>
+              <p>选择翻译模型，调整你的阅读偏好</p>
             </div>
           </div>
           <button
             ref={closeButtonRef}
             onClick={onClose}
             aria-label="关闭设置"
-            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors cursor-pointer border border-slate-200/60 shadow-2xs"
+            className="yumai-dialog-close"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Navigation Tabs (Strictly Single Line) */}
-        <div className="yumai-settings-tabs flex border-b border-slate-100 bg-white px-5 gap-3 sm:gap-5 text-xs font-semibold overflow-x-auto no-scrollbar" role="tablist" aria-label="设置分类">
+        <div className="yumai-settings-tabs flex shrink-0 overflow-x-auto no-scrollbar" role="tablist" aria-label="设置分类">
           {[
-            { id: 'providers', label: '快速开始', icon: Sparkles },
+            { id: 'providers', label: '模型服务', icon: Sparkles },
             { id: 'general', label: '翻译偏好', icon: Sliders },
             { id: 'tts', label: '语音朗读', icon: Volume2 },
             { id: 'shortcuts', label: '快捷键', icon: Keyboard },
@@ -486,13 +472,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 aria-controls="yumai-settings-section"
                 aria-selected={isActive}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`py-2.5 flex items-center gap-1.5 transition-all border-b-2 whitespace-nowrap shrink-0 cursor-pointer ${
-                  isActive
-                    ? 'border-indigo-600 font-semibold text-indigo-700'
-                    : 'text-slate-500 border-transparent hover:text-slate-800'
-                }`}
+                className="flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
               >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-violet-600' : ''}`} />
+                <Icon className="w-3.5 h-3.5" aria-hidden="true" />
                 <span>
                   {tab.label}
                 </span>
@@ -505,11 +487,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         <div id="yumai-settings-section" role="tabpanel" aria-labelledby={`yumai-tab-${activeTab}`} className="yumai-settings-body p-5 overflow-y-auto space-y-4 text-sm text-slate-600 flex-1">
           {activeTab === 'providers' && (
             <div className="space-y-3.5 max-w-xl mx-auto py-1">
-              <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 px-3 py-2.5">
-                <p className="font-semibold text-slate-800 text-sm mb-1">三步开始使用</p>
-                <p className="text-xs leading-relaxed text-slate-600">1. 选择服务商　→　2. 填写 API Key（如需要）　→　3. 选择模型并保存</p>
-                <p className="text-xs text-slate-500 mt-1">“校验可用性”只检查模型列表，实际调用是否成功请以翻译结果为准。</p>
-              </div>
+
               {/* 1. Provider Select Dropdown */}
               <div>
                 <label className="block text-xs font-bold text-slate-800 mb-1">
@@ -518,7 +496,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <select
                   value={currentProvider}
                   onChange={(e) => handleProviderChange(e.target.value as ProviderType)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-bold text-xs focus:outline-none focus:border-indigo-500 focus:bg-white shadow-2xs transition-all cursor-pointer"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-900 font-bold text-xs focus:outline-none focus:border-brand-500 focus:bg-white shadow-2xs transition-all cursor-pointer"
                 >
                   {PROVIDERS_INFO.map((p) => (
                     <option key={p.id} value={p.id}>
@@ -529,10 +507,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
 
               {/* 2. Form Fields for Selected Provider */}
-              <div className="bg-slate-50/80 border border-slate-200/90 rounded-2xl p-3.5 space-y-3.5 shadow-2xs">
+              <div className="yumai-settings-card p-4 space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
                   <div className="flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                    <Sparkles className="w-3.5 h-3.5 text-brand-600" />
                     <h3 className="font-bold text-slate-900 text-xs">
                       {PROVIDERS_INFO.find((p) => p.id === currentProvider)?.name} 配置
                     </h3>
@@ -553,7 +531,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 {currentProvider !== 'ollama' && currentProvider !== 'custom' && (
                   <button type="button" onClick={() => setShowAdvancedProvider(v => !v)}
                     aria-expanded={showAdvancedProvider}
-                    className="text-xs font-semibold text-indigo-700 hover:text-indigo-900 focus-visible:outline-2 focus-visible:outline-indigo-500">
+                    className="text-xs font-semibold text-brand-700 hover:text-brand-900 focus-visible:outline-2 focus-visible:outline-brand-500">
                     {showAdvancedProvider ? '收起高级设置 ↑' : '高级设置 · 自定义 API 地址 ↓'}
                   </button>
                 )}
@@ -567,7 +545,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       <button
                         type="button"
                         onClick={() => updateCurrentConfig({ baseUrl: 'http://localhost:11434/v1' })}
-                        className="text-[10px] text-indigo-600 hover:text-indigo-800 font-semibold underline cursor-pointer"
+                        className="text-[10px] text-brand-600 hover:text-brand-800 font-semibold underline cursor-pointer"
                       >
                         重置为默认 (http://localhost:11434/v1)
                       </button>
@@ -583,7 +561,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     onChange={(e) => updateCurrentConfig({ baseUrl: e.target.value })}
                     placeholder={currentProvider === 'ollama' ? 'http://localhost:11434/v1' : 'https://...'}
                     disabled={currentProvider === 'gemini'}
-                    className={`w-full border border-slate-200 rounded-xl px-3 py-1.5 text-slate-800 focus:outline-none focus:border-indigo-500 font-mono text-xs shadow-2xs ${
+                    className={`w-full border border-slate-200 rounded-xl px-3 py-1.5 text-slate-800 focus:outline-none focus:border-brand-500 font-mono text-xs shadow-2xs ${
                       currentProvider === 'gemini' ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white'
                     }`}
                   />
@@ -627,7 +605,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           ? '本地模型无需 API Key（留空即可）'
                           : 'sk-...'
                       }
-                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-slate-800 focus:outline-none focus:border-indigo-500 pr-10 font-mono text-xs shadow-2xs"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-slate-800 focus:outline-none focus:border-brand-500 pr-10 font-mono text-xs shadow-2xs"
                     />
                     <button
                       type="button"
@@ -653,7 +631,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         type="button"
                         onClick={handleFetchModels}
                         disabled={fetchingModels}
-                        className="px-2 py-0.5 text-[11px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg flex items-center gap-1 transition-all disabled:opacity-50 cursor-pointer whitespace-nowrap"
+                        className="px-2 py-0.5 text-[11px] font-bold text-brand-700 bg-brand-50 hover:bg-brand-100 border border-brand-200 rounded-lg flex items-center gap-1 transition-all disabled:opacity-50 cursor-pointer whitespace-nowrap"
                       >
                         <RefreshCw className={`w-3 h-3 ${fetchingModels ? 'animate-spin' : ''}`} />
                         <span>{fetchingModels ? '获取中...' : '自动获取'}</span>
@@ -678,7 +656,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         value={currentConfig.model || ''}
                         onChange={(e) => updateCurrentConfig({ model: e.target.value })}
                         placeholder="输入自定义模型 ID (如 gpt-4o, qwen-max)..."
-                        className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-slate-800 focus:outline-none focus:border-indigo-500 font-mono text-xs shadow-2xs"
+                        className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-slate-800 focus:outline-none focus:border-brand-500 font-mono text-xs shadow-2xs"
                       />
                       <button
                         type="button"
@@ -698,7 +676,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           updateCurrentConfig({ model: e.target.value });
                         }
                       }}
-                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-slate-800 focus:outline-none focus:border-indigo-500 font-semibold shadow-2xs text-xs cursor-pointer"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-slate-800 focus:outline-none focus:border-brand-500 font-semibold shadow-2xs text-xs cursor-pointer"
                     >
                       {Array.from(new Set([...(currentConfig.availableModels || []), currentConfig.model].filter(Boolean))).map((m) => (
                         <option key={m} value={m}>
@@ -771,7 +749,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <select
                   value={formData.defaultTargetLang}
                   onChange={(e) => setFormData({ ...formData, defaultTargetLang: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-indigo-500 font-medium"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-brand-500 font-medium"
                 >
                   {languages.map((l) => (
                     <option key={l.code} value={l.code}>
@@ -784,13 +762,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <div className="flex items-center justify-between py-2 border-b border-slate-100">
                 <div>
                   <p className="font-semibold text-slate-800">打字实时翻译</p>
-                  <p className="text-[11px] text-slate-400">输入停顿 500ms 后自动翻译</p>
+                  <p className="text-[11px] text-slate-500">输入停顿 500ms 后自动翻译</p>
                 </div>
                 <input
                   type="checkbox"
                   checked={formData.autoTranslate}
                   onChange={(e) => setFormData({ ...formData, autoTranslate: e.target.checked })}
-                  className="w-4 h-4 accent-indigo-600 rounded"
+                  className="w-4 h-4 accent-brand-600 rounded"
                 />
               </div>
 
@@ -801,14 +779,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <select
                   value={formData.wordHoverMode || 'click'}
                   onChange={(e) => setFormData({ ...formData, wordHoverMode: e.target.value as any })}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-indigo-500 font-medium"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-brand-500 font-medium"
                 >
                   <option value="click">显示小图标，点击翻译（推荐）</option>
                   <option value="hover">显示小图标，悬停翻译</option>
                   <option value="select">选中即翻译（直接弹出卡片）</option>
                   <option value="off">关闭划词图标（仅通过右键菜单或 Alt+T 翻译）</option>
                 </select>
-                <p className="text-[11px] text-slate-400 mt-1">
+                <p className="text-[11px] text-slate-500 mt-1">
                   划词后显示小图标、直接翻译或完全关闭浮标（避免选词干扰）。
                 </p>
               </div>
@@ -816,13 +794,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <div className="flex items-center justify-between py-2 border-b border-slate-100">
                 <div>
                   <p className="font-semibold text-slate-800">输入框内划词翻译</p>
-                  <p className="text-[11px] text-slate-400">允许在输入框内划词翻译</p>
+                  <p className="text-[11px] text-slate-500">允许在输入框内划词翻译</p>
                 </div>
                 <input
                   type="checkbox"
                   checked={formData.selectInputElementsText ?? false}
                   onChange={(e) => setFormData({ ...formData, selectInputElementsText: e.target.checked })}
-                  className="w-4 h-4 accent-indigo-600 rounded"
+                  className="w-4 h-4 accent-brand-600 rounded"
                 />
               </div>
 
@@ -876,12 +854,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {activeTab === 'tts' && (
             <div className="space-y-4">
               {/* Architecture Explanation Card */}
-              <div className="p-3 bg-indigo-50/80 border border-indigo-100 rounded-xl">
-                <p className="text-xs font-bold text-indigo-950 flex items-center gap-1.5 mb-1">
-                  <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+              <div className="p-3 bg-brand-50/80 border border-brand-100 rounded-xl">
+                <p className="text-xs font-bold text-brand-950 flex items-center gap-1.5 mb-1">
+                  <Sparkles className="w-3.5 h-3.5 text-brand-600" />
                   密钥共享，自由组合
                 </p>
-                <p className="text-[11px] text-indigo-800/90 leading-relaxed">
+                <p className="text-[11px] text-brand-800/90 leading-relaxed">
                   API Key 与【模型服务商】同步，可自由组合，如用 <b>Gemini</b> 翻译、<b>Edge</b> 免 Key 朗读。
                 </p>
               </div>
@@ -897,9 +875,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     const defaultVoice = TTS_VOICES_BY_ENGINE[newEngine]?.[0]?.id || 'default';
                     setFormData({ ...formData, ttsEngine: newEngine, ttsVoice: defaultVoice });
                   }}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-indigo-500 font-medium"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-brand-500 font-medium"
                 >
-                  <option value="edge">Microsoft Edge Neural（免 Key · 推荐）</option>
+                  <option value="browser">浏览器本地语音（免 Key · 推荐，文字不出本机）</option>
                   <option value="gemini">Google Gemini Audio（共享 Gemini Key）</option>
                   <option value="openai">OpenAI Audio Speech（共享 OpenAI Key）</option>
                   <option value="minimax">MiniMax T2A（共享 MiniMax Key）</option>
@@ -907,8 +885,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <option value="doubao">火山引擎（豆包 TTS）</option>
                   <option value="fishaudio">Fish Audio（Fish Speech 1.5）</option>
                   <option value="mimo">小米 MiMo（限时免费）</option>
-                  <option value="browser">Web Speech API (浏览器本地)</option>
-                  <option value="google-web">Google Translate TTS (免 Key 备用)</option>
+                  <option value="google-web">Google 翻译语音（免 Key，文字会发送到 Google）</option>
                 </select>
               </div>
 
@@ -929,7 +906,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <button
                       type="button"
                       onClick={() => setActiveTab('providers')}
-                      className="text-[11px] text-indigo-600 hover:underline font-medium"
+                      className="text-[11px] text-brand-600 hover:underline font-medium"
                     >
                       修改服务商设置 &rarr;
                     </button>
@@ -967,9 +944,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           });
                         }
                       }}
-                      className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-indigo-500 font-mono"
+                      className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-brand-500 font-mono"
                     />
-                    <p className="text-[10px] text-slate-400 mt-1">
+                    <p className="text-[10px] text-slate-500 mt-1">
                       与【模型服务商】同步，无需重复填写。
                     </p>
                   </div>
@@ -984,7 +961,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <select
                     value={formData.ttsVoice}
                     onChange={(e) => setFormData({ ...formData, ttsVoice: e.target.value })}
-                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-indigo-500 font-medium"
+                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:border-brand-500 font-medium"
                   >
                     {(TTS_VOICES_BY_ENGINE[formData.ttsEngine] || []).map((v) => (
                       <option key={v.id} value={v.id}>
@@ -999,7 +976,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     className={`shrink-0 px-2.5 py-2 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
                       testingTts
                         ? 'bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100'
-                        : 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100'
+                        : 'bg-brand-50 border-brand-200 text-brand-700 hover:bg-brand-100'
                     }`}
                   >
                     {testingTts ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
@@ -1019,18 +996,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   step="0.1"
                   value={formData.ttsRate || 1.0}
                   onChange={(e) => setFormData({ ...formData, ttsRate: parseFloat(e.target.value) })}
-                  className="w-full accent-indigo-600 cursor-pointer"
+                  className="w-full accent-brand-600 cursor-pointer"
                 />
               </div>
 
               {/* Test Audio Card */}
-              <div className="p-3.5 bg-indigo-50/70 border border-indigo-100 rounded-xl flex items-center justify-between">
+              <div className="p-3.5 bg-brand-50/70 border border-brand-100 rounded-xl flex items-center justify-between">
                 <div>
-                  <div className="text-xs font-bold text-indigo-900 flex items-center gap-1.5">
-                    <Volume2 className="w-4 h-4 text-indigo-600" />
+                  <div className="text-xs font-bold text-brand-900 flex items-center gap-1.5">
+                    <Volume2 className="w-4 h-4 text-brand-600" />
                     试听音色
                   </div>
-                  <div className="text-[11px] text-indigo-700/80 mt-0.5">
+                  <div className="text-[11px] text-brand-700/80 mt-0.5">
                     试听当前引擎与音色的朗读效果（按目标语言发音）
                   </div>
                 </div>
@@ -1041,7 +1018,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors ${
                     testingTts
                       ? 'bg-rose-500 text-white hover:bg-rose-600 shadow-xs animate-pulse'
-                      : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-xs'
+                      : 'bg-brand-700 text-white hover:bg-brand-800 shadow-xs'
                   }`}
                 >
                   {testingTts ? (
@@ -1081,27 +1058,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   Esc
                 </kbd>
               </div>
-              <p className="text-[11px] text-slate-400 leading-relaxed">
-                Alt+T 需在 <code className="font-mono text-indigo-600">chrome://extensions/shortcuts</code> 中绑定；首次安装后请重新加载扩展。
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                Alt+T 需在 <code className="font-mono text-brand-600">chrome://extensions/shortcuts</code> 中绑定；首次安装后请重新加载扩展。
               </p>
             </div>
           )}
         </div>
 
         {/* Footer Actions */}
-        <div className="yumai-settings-footer px-5 py-3 border-t border-slate-100 bg-white flex items-center justify-between gap-3">
+        <div className="yumai-settings-footer flex items-center justify-between gap-3">
           <span className="text-xs text-slate-500 font-medium max-w-[240px] leading-relaxed">设置在扩展中会自动同步；API Key 保存在本地浏览器，未额外加密</span>
           <div className="flex items-center gap-2">
             <button
               onClick={onClose}
-              className="px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-colors cursor-pointer"
+              className="yumai-button-secondary"
             >
               关闭
             </button>
             <button
               id="save-settings-btn"
               onClick={handleSave}
-              className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-[#4958ba] hover:bg-[#34469f] flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="yumai-primary-action text-white flex items-center gap-1.5 cursor-pointer"
             >
               {savedSuccess ? (
                 <>

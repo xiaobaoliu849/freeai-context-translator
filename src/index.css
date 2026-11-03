@@ -1,6 +1,9 @@
 @import "tailwindcss";
 @import "./yumai-ui.css";
 @import "./styles/yumai-clarity.css";
+@import "./styles/yumai-refine.css";
+@import "./styles/yumai-theme.css";
+@import "./styles/yumai-popup.css";
 
 /* Equalizer bars shown on play buttons while audio is playing */
 .ft-eq {
@@ -73,3 +76,5 @@ textarea, pre, .select-text {
     transition-duration: 0.01ms !important;
   }
 }
+
+@import "./styles/yumai-unified.css";
