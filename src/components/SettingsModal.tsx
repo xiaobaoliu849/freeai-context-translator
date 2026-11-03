@@ -63,7 +63,7 @@ const PROVIDERS_INFO: Array<{
   { id: 'openai', name: 'OpenAI (Audio Speech)' },
   { id: 'fishaudio', name: 'Fish Audio (Fish Speech)' },
   { id: 'glm', name: '智谱 GLM（glm-4.7-flash / glm-4-flash 免费）' },
-  { id: 'cerebras', name: 'Cerebras（免费额度，1M tokens/天）' },
+  { id: 'cerebras', name: 'Cerebras（免费额度）' },
   { id: 'ollama', name: 'Ollama 本地模型 (如 deepseek-r1, qwen2.5 等)' },
   { id: 'custom', name: '自定义 API / 本地服务' },
 ];

@@ -39,7 +39,7 @@ export const DEFAULT_BASE_URLS: Record<ProviderType, string> = {
 // 通过各服务商的 /models 接口实时获取（见 SettingsModal「自动获取可用模型」）。
 export const DEFAULT_MODELS: Partial<Record<ProviderType, string>> = {
   glm: 'glm-4.7-flash',
-  cerebras: 'gpt-oss-120b',
+  cerebras: 'qwen-3.8-27b',
   ollama: 'qwen2.5:latest',
 };
 
@@ -48,8 +48,9 @@ export const DEFAULT_MODELS: Partial<Record<ProviderType, string>> = {
 // 「自动获取可用模型」时把已知免费 flash 模型合并进列表，保证免费模型可被发现。
 export const GLM_FLASH_MODELS = ['glm-4.7-flash', 'glm-4-flash'];
 
-// Cerebras 最新可用模型列表（含 Production / Preview）
-export const CEREBRAS_MODELS = ['gpt-oss-120b', 'gemma-4-31b', 'llama-3.3-70b'];
+// Cerebras 免费账户当前开放的模型。qwen-3.8-27b 配额最高（450 次/分钟）；
+// gpt-oss-120b 仅 5 次/分钟，划词翻译很容易触发限流。
+export const CEREBRAS_MODELS = ['qwen-3.8-27b', 'gpt-oss-120b'];
 
 /** 合并已知模型到拉取结果；其余 provider 原样返回。 */
 export function mergeKnownFreeModels(provider: ProviderType, models: string[]): string[] {
@@ -80,7 +81,7 @@ export const DEFAULT_PROVIDER_CONFIGS: Record<ProviderType, ProviderConfig> = Ob
 // Version of the stored settings schema. Increment + add a one-time migration
 // in migrateSettings whenever a default changes so existing installs are
 // brought in line instead of keeping stale values forever.
-export const SETTINGS_VERSION = 5;
+export const SETTINGS_VERSION = 6;
 
 export const DEFAULT_SETTINGS: AppSettings = {
   settingsVersion: SETTINGS_VERSION,
@@ -129,6 +130,17 @@ export function migrateSettings(parsed: Partial<AppSettings>): Partial<AppSettin
     if ((parsed.ttsEngine as string) === 'edge') {
       parsed.ttsEngine = 'browser';
       parsed.ttsVoice = 'default';
+    }
+  }
+  if (parsed.settingsVersion === undefined || parsed.settingsVersion < 6) {
+    // Cerebras retired gemma-4-31b / llama-3.3-70b for free accounts, and the
+    // old default gpt-oss-120b is limited to 5 requests/minute.
+    if (parsed.providerConfigs?.cerebras) {
+      const cur = parsed.providerConfigs.cerebras.model;
+      if (!cur || ['gpt-oss-120b', 'gemma-4-31b', 'llama-3.3-70b'].includes(cur)) {
+        parsed.providerConfigs.cerebras.model = 'qwen-3.8-27b';
+      }
+      parsed.providerConfigs.cerebras.availableModels = CEREBRAS_MODELS;
     }
   }
   if (parsed.settingsVersion === undefined || parsed.settingsVersion < SETTINGS_VERSION) {
