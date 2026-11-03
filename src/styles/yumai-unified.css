@@ -56,3 +56,7 @@
 .yumai-app .yumai-settings-footer > .yumai-settings-status[data-dirty="true"] { color: #b45309; }
 .yumai-app .yumai-settings-status small { font-size: 10px; font-weight: 400; color: var(--ym-text-muted); }
 @media (max-width: 480px) { .yumai-app .yumai-segmented { grid-template-columns: 1fr; } }
+
+/* Settings keep one size across tabs: the body scrolls instead of the dialog resizing. */
+.yumai-app .yumai-settings-panel { height: min(640px, calc(100dvh - 32px)); }
+.yumai-app .yumai-settings-body { min-height: 0; scrollbar-gutter: stable; }
