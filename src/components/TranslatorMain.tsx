@@ -1004,7 +1004,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
               <button type="button" className="yumai-secondary-action" onClick={() => setFloatingEditorExpanded(true)}
                 aria-label="展开原文编辑器"><PencilLine className="h-3.5 w-3.5"/> 编辑</button>
             </div>
-            <p className="line-clamp-3 whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-700">{sourceText}</p>
+            <p className="line-clamp-3 whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-700 select-text">{sourceText}</p>
           </section>
         ) : (
         <div

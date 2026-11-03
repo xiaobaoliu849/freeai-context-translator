@@ -51,7 +51,7 @@ export const Header: React.FC<HeaderProps> = ({
         <div
           className={`flex min-w-0 items-center gap-2.5 ${isFloating ? 'cursor-move' : ''}`}
           onPointerDown={isFloating ? onDragStart : undefined}
-          title={isFloating ? '按住品牌区域移动窗口' : undefined}
+          title={isFloating ? '拖动空白处移动窗口' : undefined}
         >
           {isPopup && !isFloating ? (
             <span className="popup-monogram" aria-hidden="true">语</span>
