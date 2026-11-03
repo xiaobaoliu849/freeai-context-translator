@@ -497,9 +497,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               {/* 1. Provider Select Dropdown */}
               <div>
-                <label className="block text-xs font-bold text-slate-800 mb-1">
-                  选择 AI 服务商
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-slate-800">
+                    选择 AI 服务商
+                  </label>
+                  {currentProvider === 'gemini' && (
+                    <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                      需按服务商要求配置
+                    </span>
+                  )}
+                  {currentProvider === 'ollama' && (
+                    <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                      本地免 Key
+                    </span>
+                  )}
+                </div>
                 <select
                   value={currentProvider}
                   onChange={(e) => handleProviderChange(e.target.value as ProviderType)}
@@ -515,25 +527,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               {/* 2. Form Fields for Selected Provider */}
               <div className="yumai-settings-card p-4 space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
-                  <div className="flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-brand-600" />
-                    <h3 className="font-bold text-slate-900 text-xs">
-                      {PROVIDERS_INFO.find((p) => p.id === currentProvider)?.name} 配置
-                    </h3>
-                  </div>
-                  {currentProvider === 'gemini' && (
-                    <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
-                      需按服务商要求配置
-                    </span>
-                  )}
-                  {currentProvider === 'ollama' && (
-                    <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
-                      本地免 Key
-                    </span>
-                  )}
-                </div>
-
                 {/* Advanced provider URL: hidden for routine cloud configuration */}
                 {currentProvider !== 'ollama' && currentProvider !== 'custom' && (
                   <button type="button" onClick={() => setShowAdvancedProvider(v => !v)}
