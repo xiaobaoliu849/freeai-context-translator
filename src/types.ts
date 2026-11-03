@@ -54,6 +54,10 @@ export interface AppSettings {
   // Whether selection inside input/textarea fields also triggers translation
   selectInputElementsText?: boolean;
   autoTranslate: boolean;
+  /** concise: meaning + reason only; full: also collocations, synonyms and examples. */
+  lookupDetail?: 'concise' | 'full';
+  /** Standing background (e.g. "software engineering docs") used when a text has no note of its own. */
+  readingBackground?: string;
   enableContextMenu: boolean;
   fontSize?: 'sm' | 'base' | 'lg';
   layoutMode?: 'auto' | 'stacked' | 'side-by-side';

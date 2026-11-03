@@ -192,6 +192,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   if (!isOpen) return null;
 
+  const autoSaves = isExtensionContext();
+  const isDirty = JSON.stringify(formData) !== JSON.stringify(settings);
+  const requestClose = () => {
+    if (!autoSaves && isDirty && !window.confirm('有尚未保存的更改，确定放弃并关闭吗？')) return;
+    onClose();
+  };
+
   const currentProvider = formData.defaultProvider || 'gemini';
   const currentConfig: ProviderConfig = formData.providerConfigs?.[currentProvider] || {
     apiKey: '',
@@ -412,7 +419,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           if (e.key === 'Escape') {
             e.preventDefault();
             e.stopPropagation();
-            onClose();
+            requestClose();
           } else if (e.key === 'Tab') {
             const focusables = dialogRef.current
               ? (Array.from(dialogRef.current.querySelectorAll(
@@ -446,7 +453,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
           <button
             ref={closeButtonRef}
-            onClick={onClose}
+            onClick={requestClose}
             aria-label="关闭设置"
             className="yumai-dialog-close"
           >
@@ -772,6 +779,46 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 />
               </div>
 
+              <fieldset className="yumai-settings-card p-4 space-y-3">
+                <legend className="px-1 text-xs font-bold text-slate-800">语境与词义</legend>
+                <div>
+                  <p id="yumai-lookup-detail-label" className="text-xs font-bold text-slate-700 mb-1.5">查词详略</p>
+                  <div className="yumai-segmented" role="radiogroup" aria-labelledby="yumai-lookup-detail-label">
+                    {([
+                      { id: 'concise', label: '精简', hint: '只给句中含义和判断依据，更快、更省' },
+                      { id: 'full', label: '完整', hint: '另附搭配、近义/反义词和例句' },
+                    ] as const).map((option) => {
+                      const checked = (formData.lookupDetail || 'concise') === option.id;
+                      return (
+                        <button key={option.id} type="button" role="radio" aria-checked={checked}
+                          onClick={() => setFormData({ ...formData, lookupDetail: option.id })}>
+                          <span>{option.label}</span>
+                          <small>{option.hint}</small>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1.5">精简模式下，词卡底部仍可一键加载搭配与例句。</p>
+                </div>
+                <div>
+                  <label htmlFor="yumai-reading-background" className="block text-xs font-bold text-slate-700 mb-1">
+                    默认阅读背景
+                  </label>
+                  <textarea
+                    id="yumai-reading-background"
+                    value={formData.readingBackground || ''}
+                    maxLength={240}
+                    rows={2}
+                    onChange={(e) => setFormData({ ...formData, readingBackground: e.target.value })}
+                    placeholder="例如：我主要阅读机器学习论文和软件文档"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-brand-500 resize-y"
+                  />
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    帮助模型判断多义词（如 bank、model、kernel）。某段文字单独填写了“补充语境”时，以那段为准。
+                  </p>
+                </div>
+              </fieldset>
+
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
                   划词触发方式
@@ -1067,10 +1114,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         {/* Footer Actions */}
         <div className="yumai-settings-footer flex items-center justify-between gap-3">
-          <span className="text-xs text-slate-500 font-medium max-w-[240px] leading-relaxed">设置在扩展中会自动同步；API Key 保存在本地浏览器，未额外加密</span>
+          <span className="yumai-settings-status text-xs font-medium max-w-[260px] leading-relaxed" role="status" data-dirty={isDirty && !autoSaves}>
+            {autoSaves
+              ? (isDirty ? '正在保存…' : '更改已自动保存')
+              : (isDirty ? '有未保存的更改' : '所有更改已保存')}
+            <small>API Key 仅保存在本地浏览器，未额外加密</small>
+          </span>
           <div className="flex items-center gap-2">
             <button
-              onClick={onClose}
+              onClick={requestClose}
               className="yumai-button-secondary"
             >
               关闭

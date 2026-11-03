@@ -501,7 +501,7 @@ app.post("/api/translate/stream", rateLimit, async (req, res) => {
 // ---------------------------
 app.post("/api/explain-word", rateLimit, async (req, res) => {
   const {
-    sentence, readerNote,
+    sentence, readerNote, detail,
     selectedWord,
     targetLang = "zh-CN",
     provider = "gemini",
@@ -520,7 +520,7 @@ app.post("/api/explain-word", rateLimit, async (req, res) => {
       apiKey,
       baseUrl,
       model,
-      prompt: buildExplainPrompt(selectedWord, sentence, targetLang, readerNote),
+      prompt: buildExplainPrompt(selectedWord, sentence, targetLang, readerNote, detail === 'concise' ? 'concise' : 'full'),
       systemInstruction: EXPLAIN_SYSTEM_PROMPT,
       jsonOutput: true,
     });

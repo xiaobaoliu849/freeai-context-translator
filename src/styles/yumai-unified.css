@@ -42,3 +42,17 @@
 .yumai-app.yumai-popup:not(.yumai-floating) .yumai-language-bar select { border: 0; box-shadow: none; background: transparent; }
 .yumai-app.yumai-popup:not(.yumai-floating) .yumai-header .yumai-provider { border: 0; background: transparent; }
 .yumai-app .yumai-settings-card > div:first-child { border-bottom-color: var(--ym-divider); }
+
+/* Settings: context & meaning group, segmented choice, save status */
+.yumai-app fieldset.yumai-settings-card { margin: 0; min-width: 0; padding: 14px 0 16px; border: 0; border-block: 1px solid var(--ym-divider); }
+.yumai-app .yumai-segmented { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.yumai-app .yumai-segmented button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 9px 12px; border: 1px solid var(--ym-border); border-radius: 12px; background: var(--ym-surface); color: var(--ym-text); text-align: left; cursor: pointer; transition: border-color .15s, background-color .15s; }
+.yumai-app .yumai-segmented button span { font-size: 13px; font-weight: 650; }
+.yumai-app .yumai-segmented button small { font-size: 11px; line-height: 1.45; color: var(--ym-text-muted); }
+.yumai-app .yumai-segmented button:hover { border-color: var(--ym-primary); }
+.yumai-app .yumai-segmented button[aria-checked="true"] { border-color: var(--ym-primary); background: var(--ym-brand-50, var(--ym-surface-muted)); box-shadow: inset 0 0 0 1px var(--ym-primary); }
+.yumai-app .yumai-segmented button:focus-visible { outline: 2px solid var(--ym-primary); outline-offset: 2px; }
+.yumai-app .yumai-settings-footer > .yumai-settings-status { display: flex; flex-direction: column; gap: 1px; font-size: 12px; font-weight: 600; color: var(--ym-text-2); }
+.yumai-app .yumai-settings-footer > .yumai-settings-status[data-dirty="true"] { color: #b45309; }
+.yumai-app .yumai-settings-status small { font-size: 10px; font-weight: 400; color: var(--ym-text-muted); }
+@media (max-width: 480px) { .yumai-app .yumai-segmented { grid-template-columns: 1fr; } }

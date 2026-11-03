@@ -11,7 +11,7 @@ const quiet = <T>(fn: () => T): T => {
 test('translate prompt names both languages and asks for translation first', () => {
   const prompt = buildTranslatePrompt('Hello', 'auto', 'zh-CN');
   assert.match(prompt, /Detect the original language/);
-  assert.match(prompt, /into zh-CN/);
+  assert.ok(prompt.includes('into Simplified Chinese (zh-CN)'));
   assert.match(buildTranslatePrompt('Hello', 'en', 'ja'), /original language is en/);
   assert.match(prompt, /"Hello"/);
   assert.ok(prompt.indexOf('"translation"') < prompt.indexOf('"detectedLang"'), 'translation must be requested first for streaming');
@@ -21,7 +21,7 @@ test('explain prompt falls back to the word when no sentence is given', () => {
   assert.match(buildExplainPrompt('run', '', 'zh-CN'), /"excerpt":"run"/);
   const withContext = buildExplainPrompt('run', 'I run every day.', 'ja');
   assert.match(withContext, /"I run every day\."/);
-  assert.match(withContext, /Explain this one expression in ja/);
+  assert.ok(withContext.includes('Explain this one expression in Japanese (ja)'));
 });
 
 test('parseLLMJson handles strict JSON, fences and reasoning blocks', () => {
