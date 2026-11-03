@@ -83,6 +83,7 @@ export const DEFAULT_PROVIDER_CONFIGS: Record<ProviderType, ProviderConfig> = Ob
 export const SETTINGS_VERSION = 4;
 
 export const DEFAULT_SETTINGS: AppSettings = {
+  settingsVersion: SETTINGS_VERSION,
   defaultProvider: 'gemini',
   providerConfigs: DEFAULT_PROVIDER_CONFIGS,
   // Legacy compatibility fields (kept so old saved settings keep working)

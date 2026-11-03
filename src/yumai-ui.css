@@ -208,43 +208,6 @@
   .yumai-popup .yumai-source-editor { line-height: 1.52 !important; }
 }
 
-/* Phase 3 — dedicated editorial full-tab reading workspace. */
-.yumai-workspace { color: var(--ym-text); }
-.yumai-workspace-nav, .yumai-workspace-outline { background: var(--ym-surface); }
-.yumai-workspace-new { background: var(--ym-primary); transition: background 120ms; }
-.yumai-workspace-new:hover { background: var(--ym-primary-hover); }
-.yumai-workspace-center { min-width: 0; }
-.yumai-workspace .yumai-studio {
-  max-width: 1400px;
-  width: 100%;
-  padding-top: 16px;
-  margin-inline: auto;
-}
-.yumai-workspace .yumai-source-panel,
-.yumai-workspace .yumai-result-panel {
-  min-height: min(64vh, 640px);
-  border-radius: var(--ym-radius-panel);
-}
-.yumai-workspace .yumai-source-editor {
-  min-height: 350px;
-  font-size: 16px !important;
-  line-height: 1.9 !important;
-  padding-top: 8px;
-}
-.yumai-workspace .yumai-result-text {
-  font-size: 17px !important;
-  line-height: 1.95 !important;
-}
-.yumai-workspace-outline .yumai-outline-item { transition: background 120ms ease; }
-.yumai-workspace-outline .yumai-outline-scroll { scrollbar-width: thin; }
-@media (max-width: 1100px) {
- .yumai-workspace .yumai-source-panel,
- .yumai-workspace .yumai-result-panel { min-height: 340px; }
-}
-@media (prefers-reduced-motion: reduce) {
- .yumai-workspace-outline .yumai-outline-item { transition: none; }
-}
-
 /* Phase 4 — in-page context overlay is not a scaled-down editor. */
 .yumai-floating .yumai-header > div { height: 56px; padding-inline: 14px; }
 .yumai-floating .yumai-floating-snippet {
@@ -310,7 +273,7 @@
 .yumai-word-title-row, .yumai-word-title, .yumai-word-actions { display: flex; align-items: center; gap: 8px; }
 .yumai-word-title-row { justify-content: space-between; }
 .yumai-word-title { min-width: 0; }
-.yumai-word-title h3 { margin: 0; font-size: 23px; font-weight: 700; line-height: 1.25; letter-spacing: -.025em; overflow-wrap: anywhere; }
+.yumai-word-title h3 { margin: 0; font: 600 25px/1.25 Georgia, "Songti SC", serif; letter-spacing: -.025em; overflow-wrap: anywhere; }
 .yumai-word-actions { flex: 0 0 auto; gap: 4px; }
 .yumai-app .yumai-word-icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 32px; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 8px; background: transparent; }
 .yumai-app .yumai-word-icon:hover { background: var(--ym-surface-muted); }
@@ -323,7 +286,7 @@
 .yumai-word-body { flex: 1 1 0; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-gutter: stable; padding: 16px 18px 22px; color: var(--ym-text); overflow-wrap: anywhere; }
 .yumai-word-body > * + * { margin-top: 18px; }
 .yumai-word-body:focus-visible { outline: 2px solid var(--ym-primary); outline-offset: -3px; }
-.yumai-word-meaning { padding: 14px 16px; border-radius: 12px; background: #f2f5fc; border: 1px solid #e6ecf7; }
+.yumai-word-meaning { padding: 2px 0 3px 13px; border-inline-start: 3px solid #8e85c6; }
 .yumai-word-meaning h4, .yumai-word-section h4 { margin: 0 0 6px; font-size: 12px; font-weight: 650; line-height: 1.5; color: var(--ym-text-muted); }
 .yumai-word-meaning h4 { color: var(--ym-primary); }
 .yumai-word-meaning p { margin: 0; font-size: 17px; font-weight: 600; line-height: 1.65; color: var(--ym-text); }

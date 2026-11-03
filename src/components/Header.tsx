@@ -68,10 +68,9 @@ export const Header: React.FC<HeaderProps> = ({
               <h1 className="truncate font-bold text-[17px] tracking-tight text-slate-900">语脉</h1>
               <span className="text-[10px] font-semibold tracking-[0.12em] text-slate-400">YUMAI</span>
             </div>
-            {!isPopup && !isFloating && (
-              <span className="text-[11px] text-slate-500">读懂文字，更懂语境</span>
-            )}
+
           </div>
+          {isPopup && !isFloating && <span className="desk-popup-label">语境翻译</span>}
         </div>
 
         <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
@@ -85,7 +84,7 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="truncate">{providerName}</span>
             <ChevronDown className="w-3.5 h-3.5 shrink-0" />
           </button>
-          {!isFloating && (
+          {isPopup && !isFloating && (
             <button type="button" onClick={openFullTab} className={iconButton} title="在独立标签页打开" aria-label="在独立标签页打开">
               <ExternalLink className="h-[17px] w-[17px]" />
             </button>
