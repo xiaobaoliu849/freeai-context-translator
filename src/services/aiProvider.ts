@@ -7,6 +7,7 @@ import {
   parseTranslation,
   buildExplainPrompt,
   buildTranslatePrompt,
+  type LookupDetail,
 } from "./prompts";
 
 export async function translateTextClient(params: {
@@ -72,6 +73,7 @@ export async function translateTextClient(params: {
 export async function explainWordClient(params: {
   sentence: string;
   readerNote?: string;
+  detail?: LookupDetail;
   selectedWord: string;
   targetLang?: string;
   provider?: string;
@@ -80,7 +82,7 @@ export async function explainWordClient(params: {
   model?: string;
 }) {
   const {
-    sentence, readerNote,
+    sentence, readerNote, detail,
     selectedWord,
     targetLang = "zh-CN",
     provider = "gemini",
@@ -92,7 +94,7 @@ export async function explainWordClient(params: {
   // Extension: route through the background bridge (no apiKey sent).
   if (isExtensionContext()) {
     return bridgeExplain({
-      sentence, readerNote,
+      sentence, readerNote, detail,
       selectedWord,
       targetLang,
       provider,
@@ -106,7 +108,7 @@ export async function explainWordClient(params: {
     apiKey,
     baseUrl,
     model,
-    prompt: buildExplainPrompt(selectedWord, sentence, targetLang, readerNote),
+    prompt: buildExplainPrompt(selectedWord, sentence, targetLang, readerNote, detail),
     systemInstruction: EXPLAIN_SYSTEM_PROMPT,
     jsonOutput: true,
   });

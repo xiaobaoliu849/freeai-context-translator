@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { contextForRange } from './selectionMode';
-import { buildTranslatePrompt, parseExplanation, parseTranslation } from '../services/prompts';
+import { buildExplainPrompt, buildTranslatePrompt, parseExplanation, parseTranslation } from '../services/prompts';
 
 test('context is bounded around the selected occurrence, including long excerpts', () => {
   const source = 'We stopped at the bank for cash.' + ' '.repeat(160) + 'The river flooded its bank.';
@@ -31,4 +31,12 @@ test('invalid model payloads are failures, while plain-text translations remain 
   assert.equal(entry.word, 'bank');
   assert.deepEqual(entry.examples, []);
   assert.deepEqual(entry.collocations, []);
+});
+
+test('prompts name the target language and keep concise lookups free of vocabulary extras', () => {
+  assert.ok(buildTranslatePrompt('bank', 'en', 'zh-CN').includes('Simplified Chinese (zh-CN)'));
+  const concise = buildExplainPrompt('bank', 'The river flooded its bank.', 'zh-TW', 'geology notes', 'concise');
+  assert.ok(concise.includes('Traditional Chinese (zh-TW)'));
+  assert.ok(concise.includes('collocations, synonymsInContext, antonyms, examples: []'));
+  assert.ok(buildExplainPrompt('bank', 'x bank', 'xx').includes('at most two objects'));
 });

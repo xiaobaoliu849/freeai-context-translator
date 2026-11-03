@@ -543,7 +543,7 @@ export function handleBridgePort(port: chrome.runtime.Port) {
       }
 
       if (msg.kind === 'explain') {
-        const { sentence, readerNote, selectedWord, targetLang, provider, model, baseUrl } = msg.payload || {};
+        const { sentence, readerNote, detail, selectedWord, targetLang, provider, model, baseUrl } = msg.payload || {};
         if (!selectedWord || !selectedWord.trim()) throw new Error('Selected word is required');
         const cfg = resolveProviderConfig(settings, provider);
         const raw = await callLLM({
@@ -551,7 +551,7 @@ export function handleBridgePort(port: chrome.runtime.Port) {
           apiKey: cfg.apiKey,
           baseUrl: baseUrl || cfg.baseUrl,
           model: model || cfg.model,
-          prompt: buildExplainPrompt(selectedWord, sentence, targetLang, readerNote),
+          prompt: buildExplainPrompt(selectedWord, sentence, targetLang, readerNote, detail),
           systemInstruction: EXPLAIN_SYSTEM_PROMPT,
           jsonOutput: true,
         });

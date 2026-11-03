@@ -161,6 +161,7 @@ export function bridgeTranslate(
 export function bridgeExplain(payload: {
   sentence: string;
   readerNote?: string;
+  detail?: 'concise' | 'full';
   selectedWord: string;
   targetLang: string;
   provider: string;
