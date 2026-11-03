@@ -100,6 +100,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   wordHoverMode: 'off',
   selectInputElementsText: false,
   autoTranslate: false,
+  lookupDetail: 'concise',
+  readingBackground: '',
   enableContextMenu: true,
 };
 
