@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  CEREBRAS_MODELS, DEFAULT_SETTINGS, GLM_FLASH_MODELS, SETTINGS_VERSION,
+  CEREBRAS_MODELS, DEFAULT_SETTINGS, GLM_FLASH_MODELS, OPENROUTER_FREE_MODELS, SETTINGS_VERSION,
   mergeKnownFreeModels, migrateSettings, parseSavedSettings,
 } from './config';
 import { parseSettingsFile, SETTINGS_EXPORT_FORMAT } from './utils/settingsExport';
@@ -34,22 +34,27 @@ test('legacy settings are migrated once and stamped with the current version', (
   const migrated = migrateSettings({ wordHoverMode: 'hover',
     providerConfigs: { cerebras: { apiKey: 'k', baseUrl: '', model: 'zai-glm-4.6', availableModels: [] } } as any });
   assert.equal(migrated.wordHoverMode, 'off');
-  assert.equal(migrated.providerConfigs!.cerebras.model, 'gpt-oss-120b');
+  assert.equal(migrated.providerConfigs!.cerebras.model, 'qwen-3.8-27b');
   assert.deepEqual(migrated.providerConfigs!.cerebras.availableModels, CEREBRAS_MODELS);
   assert.equal(migrated.settingsVersion, SETTINGS_VERSION);
 
   // A current install keeps its explicit choices.
   const current = migrateSettings({ settingsVersion: SETTINGS_VERSION, wordHoverMode: 'click',
-    providerConfigs: { cerebras: { apiKey: '', baseUrl: '', model: 'gemma-4-31b', availableModels: [] } } as any });
+    providerConfigs: { cerebras: { apiKey: '', baseUrl: '', model: 'gpt-oss-120b', availableModels: [] } } as any });
   assert.equal(current.wordHoverMode, 'click');
-  assert.equal(current.providerConfigs!.cerebras.model, 'gemma-4-31b');
+  assert.equal(current.providerConfigs!.cerebras.model, 'gpt-oss-120b');
 });
 
 test('free models are merged into fetched model lists without duplicates', () => {
   assert.deepEqual(mergeKnownFreeModels('glm', ['glm-4-plus']), [...GLM_FLASH_MODELS, 'glm-4-plus']);
   assert.deepEqual(mergeKnownFreeModels('glm', [...GLM_FLASH_MODELS]), GLM_FLASH_MODELS);
-  assert.deepEqual(mergeKnownFreeModels('cerebras', ['gpt-oss-120b']), ['gemma-4-31b', 'llama-3.3-70b', 'gpt-oss-120b']);
+  assert.deepEqual(mergeKnownFreeModels('cerebras', ['gpt-oss-120b']), ['qwen-3.8-27b', 'gpt-oss-120b']);
   assert.deepEqual(mergeKnownFreeModels('openai', ['gpt-4o']), ['gpt-4o']);
+  // OpenRouter: known free models first, then other :free models, then paid ones.
+  assert.deepEqual(
+    mergeKnownFreeModels('openrouter', ['openai/gpt-5', 'meta/llama-5:free', 'google/gemma-4-31b-it:free']),
+    [...OPENROUTER_FREE_MODELS, 'meta/llama-5:free', 'openai/gpt-5'],
+  );
 });
 
 test('settings import accepts the export wrapper and raw objects', () => {

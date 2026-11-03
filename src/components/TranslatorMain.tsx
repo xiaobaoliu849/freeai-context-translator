@@ -723,6 +723,10 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
     window.setTimeout(() => { skipSelectionRef.current = false; }, 80);
   };
 
+  // "auto" is not a speakable language; use the detected one once known.
+  const detectedCode = /^[a-z]{2,3}(-[a-z0-9]+)?$/i.test(result?.detectedLang || '') ? result!.detectedLang! : 'en';
+  const speechSourceLang = sourceLang === 'auto' ? detectedCode : sourceLang;
+
   const handlePlayAudio = (text: string, lang: string, target: 'source' | 'target') => {
     if (!text || !text.trim()) return;
 
@@ -1001,10 +1005,17 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
           <section className="yumai-floating-snippet shrink-0 rounded-xl border border-slate-200 bg-white px-4 py-3" aria-label="已选中的网页文本">
             <div className="mb-1.5 flex items-center justify-between gap-2">
               <span className="yumai-panel-caption">已选中 · {selectionKind === 'passage' ? '长文本' : '句子'}</span>
-              <button type="button" className="yumai-secondary-action" onClick={() => setFloatingEditorExpanded(true)}
-                aria-label="展开原文编辑器"><PencilLine className="h-3.5 w-3.5"/> 编辑</button>
+              <div className="flex items-center gap-1.5">
+                <button type="button" className="yumai-secondary-action" data-active={playingTarget === 'source'}
+                  onClick={() => handlePlayAudio(sourceText, speechSourceLang, 'source')}
+                  title="朗读原文" aria-label="朗读原文">
+                  {playingTarget === 'source' ? <PlayIndicator phase={audioPhase} size={14} /> : <Volume2 className="h-3.5 w-3.5" />} 朗读
+                </button>
+                <button type="button" className="yumai-secondary-action" onClick={() => setFloatingEditorExpanded(true)}
+                  aria-label="展开原文编辑器"><PencilLine className="h-3.5 w-3.5"/> 编辑</button>
+              </div>
             </div>
-            <p className="line-clamp-3 whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-700">{sourceText}</p>
+            <p className="line-clamp-3 whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-700 select-text">{sourceText}</p>
           </section>
         ) : (
         <div
@@ -1074,7 +1085,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             <div className="popup-source-actions flex items-center gap-1">
             {sourceText.trim() && <div className="flex items-center gap-1">
               <button
-                onClick={() => handlePlayAudio(selectedWord || sourceText, sourceLang, 'source')}
+                onClick={() => handlePlayAudio(selectedWord || sourceText, speechSourceLang, 'source')}
                 disabled={!sourceText.trim() && !selectedWord}
                 className="yumai-tool-button" data-active={playingTarget === 'source'}
                 title={selectedWord ? `播放 "${selectedWord}"` : "播放原文"} aria-label="朗读原文"

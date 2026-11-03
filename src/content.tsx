@@ -30,6 +30,22 @@ async function getSavedSettings(): Promise<AppSettings> {
   return DEFAULT_SETTINGS;
 }
 
+// Parts of the floating card that keep their own pointer behaviour instead of
+// moving the window: controls, split handles, and text the user may select.
+const NO_DRAG_SELECTOR = [
+  'button', 'select', 'input', 'textarea', 'a', 'label', '[contenteditable]',
+  '[role="separator"]', '.select-text', '[data-no-drag]',
+].join(', ');
+// Size of the native CSS resize grip in the card's bottom-right corner.
+const RESIZE_GRIP_PX = 20;
+
+/** True when the pointer is over an element's own scrollbar, not its content. */
+function isOnScrollbar(el: HTMLElement, clientX: number, clientY: number): boolean {
+  const rect = el.getBoundingClientRect();
+  return clientX - rect.left - el.clientLeft > el.clientWidth
+    || clientY - rect.top - el.clientTop > el.clientHeight;
+}
+
 interface SelectionPopoverProps {
   selectedText: string;
   selectionContext?: string;
@@ -79,10 +95,15 @@ const SelectionPopover: React.FC<SelectionPopoverProps> = ({
     initY: pos.y,
   });
 
-  // Handle Dragging
+  // Handle Dragging: any part of the card that isn't a control, selectable
+  // text, a scrollbar or the resize grip moves the window.
   const handleDragStart = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
-    if ((e.target as HTMLElement).closest('button, select, input, textarea, a')) return;
+    const target = e.target as HTMLElement;
+    if (target.closest(NO_DRAG_SELECTOR)) return;
+    if (isOnScrollbar(target, e.clientX, e.clientY)) return;
+    const cardRect = cardRef.current?.getBoundingClientRect();
+    if (cardRect && cardRect.right - e.clientX < RESIZE_GRIP_PX && cardRect.bottom - e.clientY < RESIZE_GRIP_PX) return;
 
     e.preventDefault();
     isDraggingRef.current = true;
@@ -150,6 +171,7 @@ const SelectionPopover: React.FC<SelectionPopoverProps> = ({
   return (
     <div
       ref={cardRef}
+      onPointerDown={handleDragStart}
       className={`freetranslate-modal-card ${isExpanded ? 'freetranslate-modal-expanded' : ''}`}
       style={{
         left: `${pos.x}px`,
@@ -164,14 +186,13 @@ const SelectionPopover: React.FC<SelectionPopoverProps> = ({
         isPinned={isPinned}
         onTogglePin={() => setIsPinned((prev) => !prev)}
         onClose={onClose}
-        onDragStart={handleDragStart}
         isExpanded={isExpanded}
         onToggleExpanded={() => {
           if (cardRef.current) { cardRef.current.style.width = ''; cardRef.current.style.height = ''; }
           setIsExpanded(value => !value);
         }}
       />
-      <div className="freetranslate-resize-hint">拖动标题栏移动 · 拖动右下角调整大小</div>
+      <div className="freetranslate-resize-hint">拖动空白处移动 · 拖动右下角调整大小</div>
     </div>
   );
 };

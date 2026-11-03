@@ -8,12 +8,21 @@ const CLOUD_TTS_ENGINES: TTSEngine[] = ['gemini', 'openai', 'minimax', 'qwen', '
 // Engines that can stream audio chunks while generating (low first-byte latency)
 const STREAMABLE_TTS_ENGINES: TTSEngine[] = ['mimo', 'gemini'];
 
+// Seconds of audio to collect before playback starts. Cloud TTS (Gemini's
+// preview model especially) can generate slower than real time; playing each
+// chunk the moment it lands leaves a gap after every chunk.
+const INITIAL_BUFFER_SECONDS = 0.6;
+// Each time the queue runs dry the buffer target doubles, up to this cap, so a
+// slow stream turns into one longer pause instead of constant stutter.
+const MAX_BUFFER_SECONDS = 8;
+
 /**
- * Incremental 24kHz PCM16 player: each incoming base64 chunk is decoded and
- * scheduled back-to-back on an AudioContext, so audio starts playing as soon
- * as the first chunk arrives instead of waiting for the whole stream.
+ * Incremental 24kHz PCM16 player with a jitter buffer: incoming base64 chunks
+ * are decoded and queued until enough audio is buffered, then scheduled
+ * back-to-back on an AudioContext. If playback catches up with the stream it
+ * pauses to rebuffer a larger amount before resuming.
  */
-class StreamingPcmPlayer {
+export class StreamingPcmPlayer {
   private ctx: AudioContext | null = null;
   private sources: AudioBufferSourceNode[] = [];
   private nextStartTime = 0;
@@ -21,7 +30,13 @@ class StreamingPcmPlayer {
   private onEnd: (() => void) | null = null;
   private endTimer: number | null = null;
   private finished = false;
-  /** Fires the first time a chunk is scheduled (i.e. playback has begun). */
+  private pending: Float32Array[] = [];
+  private pendingSamples = 0;
+  private buffering = true;
+  private bufferTarget = INITIAL_BUFFER_SECONDS;
+  // A PCM16 sample split across two chunks: its first byte waits here.
+  private carryByte: number | null = null;
+  /** Fires the first time audio is scheduled (i.e. playback has begun). */
   onFirstChunk: (() => void) | null = null;
   private firedFirstChunk = false;
 
@@ -35,9 +50,14 @@ class StreamingPcmPlayer {
     }
     this.sampleRate = sampleRate;
     this.onEnd = onEnd ?? null;
-    this.nextStartTime = this.ctx.currentTime + 0.05;
+    this.nextStartTime = 0;
     this.sources = [];
     this.finished = false;
+    this.pending = [];
+    this.pendingSamples = 0;
+    this.buffering = true;
+    this.bufferTarget = INITIAL_BUFFER_SECONDS;
+    this.carryByte = null;
     this.firedFirstChunk = false;
     return true;
   }
@@ -46,26 +66,56 @@ class StreamingPcmPlayer {
     if (!this.ctx || !chunk) return;
     try {
       const binary = atob(chunk);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const offset = this.carryByte === null ? 0 : 1;
+      const total = binary.length + offset;
+      const bytes = new Uint8Array(total - (total % 2));
+      if (offset) bytes[0] = this.carryByte!;
+      for (let i = 0; i < bytes.length - offset; i++) bytes[i + offset] = binary.charCodeAt(i);
+      this.carryByte = total % 2 ? binary.charCodeAt(binary.length - 1) : null;
+      if (bytes.length === 0) return;
+
       const pcm16 = new Int16Array(bytes.buffer);
       const float32 = new Float32Array(pcm16.length);
       for (let i = 0; i < pcm16.length; i++) float32[i] = pcm16[i] / 32768.0;
-      const buffer = this.ctx.createBuffer(1, float32.length, this.sampleRate);
-      buffer.getChannelData(0).set(float32);
-      const source = this.ctx.createBufferSource();
-      source.buffer = buffer;
-      source.connect(this.ctx.destination);
-      const when = Math.max(this.nextStartTime, this.ctx.currentTime + 0.02);
-      source.start(when);
-      this.nextStartTime = when + buffer.duration;
-      this.sources.push(source);
-      if (!this.firedFirstChunk) {
-        this.firedFirstChunk = true;
-        this.onFirstChunk?.();
+
+      // Playback caught up with the stream: rebuffer more before resuming.
+      if (!this.buffering && this.nextStartTime <= this.ctx.currentTime) {
+        this.buffering = true;
+        this.bufferTarget = Math.min(this.bufferTarget * 2, MAX_BUFFER_SECONDS);
       }
+      this.pending.push(float32);
+      this.pendingSamples += float32.length;
+      if (!this.buffering || this.pendingSamples / this.sampleRate >= this.bufferTarget) this.flush();
     } catch (e) {
       console.warn('Failed to decode streaming PCM chunk:', e);
+    }
+  }
+
+  /** Schedules all pending audio as one buffer right after what is queued. */
+  private flush() {
+    if (!this.ctx || this.pendingSamples === 0) return;
+    const merged = new Float32Array(this.pendingSamples);
+    let at = 0;
+    for (const part of this.pending) {
+      merged.set(part, at);
+      at += part.length;
+    }
+    this.pending = [];
+    this.pendingSamples = 0;
+    this.buffering = false;
+
+    const buffer = this.ctx.createBuffer(1, merged.length, this.sampleRate);
+    buffer.getChannelData(0).set(merged);
+    const source = this.ctx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(this.ctx.destination);
+    const when = Math.max(this.nextStartTime, this.ctx.currentTime + 0.05);
+    source.start(when);
+    this.nextStartTime = when + buffer.duration;
+    this.sources.push(source);
+    if (!this.firedFirstChunk) {
+      this.firedFirstChunk = true;
+      this.onFirstChunk?.();
     }
   }
 
@@ -73,6 +123,7 @@ class StreamingPcmPlayer {
   finish() {
     if (!this.ctx || this.finished) return;
     this.finished = true;
+    this.flush();
     const remaining = Math.max(0, this.nextStartTime - this.ctx.currentTime);
     this.endTimer = window.setTimeout(() => {
       this.stop();
@@ -94,6 +145,8 @@ class StreamingPcmPlayer {
       }
     }
     this.sources = [];
+    this.pending = [];
+    this.pendingSamples = 0;
     if (this.ctx) {
       try {
         this.ctx.close();
@@ -591,7 +644,10 @@ class AudioPlayerService {
       return startedPlaying;
     } catch (err) {
       console.warn(`Streaming TTS (${engine}) failed:`, err);
-      if (player) {
+      if (player && startedPlaying && speakId === this.currentSpeakId) {
+        // Play whatever arrived (some of it may still be buffered).
+        player.finish();
+      } else if (player) {
         player.stop();
         this.streamPlayer = null;
       }
