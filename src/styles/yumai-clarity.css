@@ -27,28 +27,97 @@
 .yumai-layout-menu summary:focus-visible { outline: 2px solid var(--ym-primary); }
 .yumai-layout-options { position: absolute; top: calc(100% + 6px); right: 0; z-index: 35; display: flex; gap: 4px; padding: 8px; border: 1px solid #ccd5e1; border-radius: 8px; background: #fff; box-shadow: 0 6px 20px rgb(23 34 60 / 10%); }
 
-/* The toolbar popup is a single editing surface, rather than stacked cards. */
-.yumai-app.yumai-popup:not(.yumai-floating) { background: #fff; }
-.yumai-app.yumai-popup:not(.yumai-floating) .yumai-header > div { height: 52px; padding-inline: 16px; }
-.yumai-app.yumai-popup:not(.yumai-floating) .yumai-header img { width: 28px; height: 28px; border-radius: 8px; }
-.yumai-app.yumai-popup:not(.yumai-floating) .yumai-header h1 { font-size: 16px; }
-.yumai-app.yumai-popup:not(.yumai-floating) .yumai-provider { border: 1px solid #d9e0ea; border-radius: 6px; background: #fff; font-size: 12px; color: #334155; }
-.yumai-app.yumai-popup:not(.yumai-floating) .yumai-language-bar { min-height: 44px; padding: 0; gap: 8px; border: 0; border-radius: 0; box-shadow: none; }
-.yumai-app.yumai-popup:not(.yumai-floating) .yumai-language-bar select { padding: 9px 10px; background: #f1f3f6; border-radius: 6px; font-weight: 500; color: #1c2a3e; }
-.yumai-app.yumai-popup:not(.yumai-floating) .yumai-language-bar .yumai-swap-button { border: 0; background: transparent; color: #42526a; }
-.yumai-app.yumai-popup:not(.yumai-floating) .yumai-translation-workspace:not(.yumai-dictionary-active) { gap: 0; border: 1px solid #cdd6e2; border-radius: 10px; overflow: hidden; }
-.yumai-app.yumai-popup:not(.yumai-floating) .yumai-translation-workspace:not(.yumai-dictionary-active) > :is(.yumai-source-panel, .yumai-result-panel) { border: 0; border-radius: 0; box-shadow: none; }
-.yumai-app.yumai-popup:not(.yumai-floating) .yumai-translation-workspace > [role="separator"] { border-block: 1px solid #d9e1ec; height: 12px; background: #fafbfd; }
-.yumai-app.yumai-popup:not(.yumai-floating) .yumai-source-heading { padding-top: 12px; padding-bottom: 6px; }
-.yumai-app.yumai-popup:not(.yumai-floating) .yumai-source-editor { font-size: 15px !important; line-height: 1.65 !important; }
-.yumai-app.yumai-popup:not(.yumai-floating) .yumai-result-panel { padding: 14px 16px; }
-.yumai-app.yumai-popup:not(.yumai-floating) .yumai-dictionary-active .yumai-result-panel { padding: 0; }
-.yumai-app.yumai-popup:not(.yumai-floating) .yumai-empty-result { padding-top: 30px; }
-.yumai-app .yumai-workspace .yumai-source-panel, .yumai-app .yumai-workspace .yumai-result-panel { border-color: #cdd6e2; box-shadow: none; border-radius: 10px; }
 @media (max-height: 450px) {
   .yumai-empty-result { padding-block: 10px; }
   .yumai-empty-result svg { display: none; }
 }
+
+/* Reading desk */
+.yumai-app { --ym-primary: #514bad; --ym-primary-hover: #3a358b; --ym-accent: #514bad; }
+.yumai-app:not(.yumai-popup) { background: #f7f7fa; }
+.yumai-app:not(.yumai-popup) .yumai-header > div { max-width: 1192px; padding-inline: clamp(18px, 4vw, 48px); }
+.yumai-app .yumai-workspace { max-width: 1192px; margin: 0 auto; padding: 0 clamp(18px, 4vw, 48px) 40px; }
+.desk-intro { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: clamp(24px, 4vw, 48px) 0 26px; }
+.desk-kicker, .desk-example-type { display: flex; align-items: center; gap: 8px; color: #56529a; font-size: 11px; font-weight: 650; }
+.desk-kicker { letter-spacing: .18em; }
+.desk-kicker > span { width: 22px; height: 2px; background: #625ac1; }
+.desk-intro h2 { margin: 9px 0 7px; color: #25233d; font: 600 clamp(30px, 3.6vw, 44px)/1.22 "Songti SC", "Noto Serif CJK SC", SimSun, serif; letter-spacing: .04em; }
+.desk-lede { color: #5d6071; font-size: 14px; line-height: 1.7; }
+.desk-illustration { width: clamp(140px, 19vw, 210px); margin-right: 1.5%; }
+.yumai-workspace .yumai-studio { padding: 0; gap: 0; border: 1px solid #d9d9e3; border-radius: 17px; background: white; box-shadow: 0 6px 24px rgb(39 35 71 / 5%); }
+.yumai-workspace .yumai-language-bar { border: 0; border-bottom: 1px solid #e2e1e9; border-radius: 17px 17px 0 0; box-shadow: none; padding: 10px 14px; gap: 10px; }
+.yumai-workspace .yumai-language-bar > div { flex: 0 1 155px; }
+.yumai-workspace .yumai-language-bar select { background: #f6f5fa; }
+.yumai-workspace .yumai-layout-menu { margin-left: auto; }
+.yumai-workspace .yumai-translation-workspace { padding: 0; gap: 0; }
+.yumai-workspace .yumai-translation-workspace > [role=separator] { background: linear-gradient(to right, transparent calc(50% - .5px), #dfdfe7 50%, transparent calc(50% + .5px)); }
+.yumai-workspace .yumai-translation-workspace > [role=separator] > div { width: 3px; height: 28px; background: #c4c2d4; }
+.yumai-workspace .yumai-source-panel, .yumai-workspace .yumai-result-panel { min-height: clamp(260px, 38vh, 400px); border: 0; border-radius: 0 0 16px 16px; box-shadow: none; min-width: 0; }
+.yumai-workspace .yumai-source-heading { padding: 20px 22px 10px; }
+.yumai-workspace .yumai-source-editor { padding: 4px 22px 18px; line-height: 1.8 !important; font-size: 17px !important; min-height: 140px; resize: none; }
+.yumai-workspace .yumai-source-editor:focus-visible { outline-offset: -3px; }
+.yumai-workspace .yumai-panel-footer { padding: 7px 15px; border-radius: 0 0 16px 16px; }
+.yumai-workspace .yumai-result-panel:not(:has(.yumai-word-card)) { padding: 20px 22px; }
+.yumai-workspace .yumai-result-panel { background-color: #faf9fd; }
+.yumai-workspace .yumai-result-footer { background: transparent; }
+.yumai-workspace .yumai-result-scroll:has(.yumai-empty-result) { display: flex; flex-direction: column; }
+.yumai-workspace .yumai-result-text:has(.yumai-empty-result) { flex: 1; display: grid; align-items: center; }
+.yumai-workspace .yumai-result-text { font-size: 17px !important; overflow-wrap: anywhere; }
+.yumai-workspace .yumai-empty-result svg { box-sizing: content-box; padding: 13px; border-radius: 15px; background: #edeaf9; color: #7167aa; }
+.yumai-workspace .yumai-context-chip { padding: 7px 15px; border-bottom: 1px solid #e8e7ee; }
+.desk-samples, .desk-document { margin-top: 24px; }
+.desk-samples h3, .desk-document-actions button { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #4b4961; }
+.desk-example-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+.desk-example-grid button { cursor: pointer; padding: 15px 17px; text-align: left; border: 1px solid #dfdfe7; border-radius: 12px; background: #fff; }
+.desk-example-grid button:hover { border-color: #ada6cf; background: #fdfcff; }
+.desk-example-type svg:last-child { margin-left: auto; }
+.desk-example-text { display: block; margin-top: 9px; font: 20px/1.35 Georgia, serif; color: #323045; }
+.desk-document-actions { display: flex; align-items: center; justify-content: space-between; }
+.desk-document-actions button, .desk-document li button { cursor: pointer; padding: 8px 4px; }
+.desk-document-actions button:hover, .desk-document li button:hover { color: #514bad; }
+.desk-document-actions button span { font-size: 11px; background: #e9e7f4; padding: 1px 6px; border-radius: 5px; }
+.desk-document ol { margin-top: 8px; list-style: none; border-top: 1px solid #dbdbe5; }
+.desk-document li button { width: 100%; display: flex; gap: 12px; align-items: center; text-align: left; border-bottom: 1px solid #e4e3eb; color: #55566a; font-size: 13px; }
+.desk-document li button span:nth-child(2) { flex: 1; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
+.desk-context { flex: none; color: #544b88; font-size: 12px; padding: 5px 12px; background: #f5f3fb; border-radius: 8px; }
+.desk-context summary { cursor: pointer; }
+.desk-context p { margin: 6px 0; max-height: 6em; overflow-y: auto; color: #48485c; overflow-wrap: anywhere; }
+.desk-error { display: flex; align-items: center; gap: 8px; padding: 8px 12px; color: #843743; background: #fff2f2; font-size: 12px; }
+.desk-error p { flex: 1; overflow-wrap: anywhere; }
+.desk-error strong { display: block; }
+.desk-error button { flex-shrink: 0; cursor: pointer; padding: 4px; }
+.yumai-popup .yumai-result-panel:has(.yumai-empty-result) { background: #faf9fd; }
+.yumai-popup .yumai-empty-result svg { color: #7167aa; }
+@media (max-width: 767px) {
+  .desk-intro { padding-block: 24px 18px; }
+  .desk-illustration { width: 106px; margin-right: 0; }
+  .yumai-workspace .yumai-language-bar { gap: 5px; }
+  .yumai-workspace .yumai-language-bar > div { flex: 1; }
+  .yumai-workspace .yumai-source-panel, .yumai-workspace .yumai-result-panel { min-height: 186px; }
+  .yumai-workspace .yumai-source-panel { border-bottom: 1px solid #dedee8; border-radius: 0; }
+  .yumai-workspace .yumai-source-editor { min-height: 90px; }
+  .desk-example-grid { grid-template-columns: 1fr; gap: 7px; }
+  .desk-example-grid button { display: flex; align-items: center; gap: 15px; padding: 11px 14px; }
+  .desk-example-type svg:last-child { display: none; }
+  .desk-example-text { margin: 0; font-size: 17px; }
+}
+@media (max-width: 500px) { .desk-illustration { display: none; } }
+.desk-note { margin: 0 20px 5px; font-size: 12px; color: #5c538f; }
+.desk-note summary { cursor: pointer; padding: 4px 0; }
+.desk-note textarea { display: block; width: 100%; margin-top: 5px; padding: 8px 10px; resize: vertical; border: 1px solid #d8d5e5; border-radius: 8px; background: #faf9fd; color: #343249; font-size: 13px; }
+.desk-note textarea::placeholder { color: #747288; }
+
+.desk-mode-bar { display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; }
+.yumai-workspace .desk-mode-bar { padding: 8px 16px; border-bottom: 1px solid #e4e3ed; }
+.desk-modes { display: inline-flex; padding: 3px; gap: 3px; background: #efedf7; border-radius: 9px; }
+.desk-modes button, .desk-edit, .desk-try { display: inline-flex; gap: 6px; align-items: center; padding: 5px 10px; color: #5b5870; cursor: pointer; font-size: 12px; font-weight: 550; border-radius: 6px; }
+.desk-modes button[aria-pressed=true] { background: white; color: #4c448b; box-shadow: 0 1px 4px rgb(35 27 70 / 12%); }
+.desk-popup-label { padding-left: 10px; border-left: 1px solid #d8d5e2; font-size: 12px; color: #666276; }
+.yumai-app .desk-try, .yumai-app .desk-try span { color: #524994; }
+.desk-try { margin-top: 3px; background: #eeecf8; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-header { background: #faf9fd; border-bottom-color: #e4e1f0; }
+.yumai-popup .yumai-empty-result svg { box-sizing: content-box; padding: 9px; border-radius: 12px; background: #edebf7; }
+.desk-excerpt { padding: 4px 10px; border-inline-start: 2px solid #b9b3cf; font-size: 13px; line-height: 1.6; color: #655f77; max-height: 4.2em; overflow-y: auto; overflow-wrap: anywhere; }
 
 /* ---------------------------------------------------------------------------
    Polish pass: one primary colour, focus that is never clipped, calm states.

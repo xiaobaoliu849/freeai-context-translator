@@ -246,15 +246,14 @@ try {
   if (!(await evaluate("Boolean(document.querySelector('.yumai-empty-result')) && !document.querySelector('.yumai-result-text')?.textContent.includes('Stale cleared result')"))) interactionFailures.push('Cleared translation reappears after a late response');
   if (!(await evaluate('window.__fallbackSignal?.aborted'))) interactionFailures.push('Clear does not abort the fallback request');
   await evaluate('window.__rejectOnAbort = true; delete window.__resolveTranslation; document.querySelector("textarea").focus()');
-  await command('Input.insertText', { text: 'Stop must remain available when all input is deleted.' });
+  await command('Input.insertText', { text: 'Deleting the source must cancel its pending translation.' });
   await evaluate('document.querySelector(".yumai-translate-button").click()');
   await waitFor('window.__resolveTranslation');
   await evaluate('document.querySelector("textarea").focus(); document.querySelector("textarea").select()');
   await command('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8 });
   await command('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Backspace', code: 'Backspace', windowsVirtualKeyCode: 8 });
   await waitFor('!document.querySelector("textarea").value');
-  assert.equal(await evaluate('document.querySelector(".yumai-translate-button").disabled'), false, 'Deleting input disables Stop during a request');
-  await evaluate('document.querySelector(".yumai-translate-button").click()');
+  assert.equal(await evaluate('document.querySelector(".yumai-translate-button").disabled'), true, 'Deleting all input should cancel the request and disable Translate');
   await waitFor('document.querySelector(".yumai-translate-button").dataset.loading === "false"');
   assert.equal(await evaluate('window.__fallbackSignal.aborted'), true);
   assert.equal(await evaluate('window.__unexpectedProviderCalls || 0'), 0, 'Aborting the server fallback starts a provider request');
@@ -266,7 +265,7 @@ try {
   assert.equal(await evaluate('window.__openedTab'), `${origin}/workspace.html`);
   await command('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
   await command('Page.navigate', { url: `${origin}/workspace.html` });
-  await waitFor("document.querySelector('.yumai-workspace-outline') && document.querySelector('textarea')");
+  await waitFor("document.querySelector('.yumai-workspace') && document.querySelector('textarea')");
   assert.equal(await evaluate("Boolean(document.querySelector('.yumai-popup'))"), false);
   await evaluate("document.querySelector('.yumai-layout-menu summary').click()");
   await evaluate("document.querySelector('button[aria-label=\"原文加宽 (6:4)\"]').focus(); document.activeElement.click()");
@@ -279,7 +278,7 @@ try {
   assert.equal(await evaluate('document.querySelector(".yumai-layout-menu").open'), false);
   assert.ok(await evaluate('document.activeElement === document.querySelector(".yumai-layout-menu summary")'));
   assert.deepEqual(interactionFailures, [], 'Adversarial interaction failures');
-  console.log('PASS: delayed clipboard, late cleared response, fallback cancellation, empty-input Stop, and layout focus/Escape.');
+  console.log('PASS: delayed clipboard, late cleared response, fallback cancellation, empty-input cancellation, and layout focus/Escape.');
   console.log('PASS: extension toolbar popup and dedicated full-tab workspace entry points.');
   // Exercise the final client fallback as well; no request reaches a model server.
   await evaluate(`localStorage.setItem('freetranslate_settings', JSON.stringify({ defaultProvider: 'ollama', autoTranslate: false, settingsVersion: 4, providerConfigs: { ollama: { apiKey: '', baseUrl: 'http://model-fixture.invalid', model: 'fixture-model', availableModels: [] } } }))`);
@@ -319,6 +318,7 @@ try {
           onMessage: { addListener: fn => reply = fn }, onDisconnect: event(),
           postMessage(message) {
             window.__bridgeCalls.push(message.kind);
+            window.__lastPayload = message.payload;
             queueMicrotask(() => reply({ id: message.id, type: 'done', result:
               message.kind === 'explain' ? ${JSON.stringify(sample)} : { translation: '这是一个用于科学研究和评估的系统。', detectedLang: 'en' } }));
           }, disconnect() {},
@@ -410,8 +410,12 @@ try {
   assert.equal((await metrics()).width, 560, 'Expand/reset did not clear manual resize');
   await click('button[aria-label="编辑选中文本"]');
   await waitFor(`${shadow}?.querySelector('textarea')?.value === 'research'`);
-  await evaluate(`[...${shadow}.querySelectorAll('button')].find(b => b.textContent.trim() === '查看语境释义').click()`);
+  await evaluate(`[...${shadow}.querySelectorAll('button')].find(b => b.textContent.trim() === '语境释义').click()`);
   await waitFor(`${shadow}?.querySelector('.yumai-word-body')`);
+  await evaluate(`[...${shadow}.querySelectorAll('.desk-modes button')].find(b => b.textContent.trim() === '翻译').click()`);
+  await waitFor("window.__bridgeCalls.includes('translate')");
+  assert.equal(await evaluate('window.__lastPayload.text'), 'research');
+  assert.match(await evaluate('window.__lastPayload.context'), /research system people can chat with/);
   await click('button[aria-label="固定窗口"]');
   await evaluate("document.querySelector('#sample').dispatchEvent(new MouseEvent('mousedown',{bubbles:true}))");
   assert.ok(await evaluate(`Boolean(${shadow})`), 'Pinned card closed on outside click');

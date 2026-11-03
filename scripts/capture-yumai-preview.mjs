@@ -4,9 +4,9 @@
  * No API requests, keys or personal data are used in the sample.
  */
 import { spawn } from 'node:child_process';
-import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 
 const ROOT = new URL('../', import.meta.url);
 const SAMPLE = 'Excited to collaborate with the team at Amazon to bring the power of Android and Google Play to more people. Our goal is to make technology useful and accessible for everyone.';
@@ -32,22 +32,21 @@ async function waitFor(url, test, retries = 80) {
   throw new Error('Timed out waiting for ' + url);
 }
 
-const server = spawn('python3', ['-m', 'http.server', '4173', '--bind', '127.0.0.1', '--directory', 'dist'], {
-  cwd: ROOT, stdio: 'ignore',
+const python = process.platform === 'win32' ? 'python' : 'python3';
+const profile = await mkdtemp(join(tmpdir(), 'yumai-preview-'));
+const server = spawn(python, ['-m', 'http.server', '4173', '--bind', '127.0.0.1', '--directory', 'dist'], {
+  cwd: ROOT, windowsHide: true, stdio: 'ignore',
 });
-const webServer = spawn('python3', ['-m', 'http.server', '4174', '--bind', '127.0.0.1', '--directory', 'dist-web'], {
-  cwd: ROOT, stdio: 'ignore',
+const webServer = spawn(python, ['-m', 'http.server', '4174', '--bind', '127.0.0.1', '--directory', 'dist-web'], {
+  cwd: ROOT, windowsHide: true, stdio: 'ignore',
 });
-// A fresh profile per run: a reused one restores the previous run's draft
-// text from localStorage and breaks the length assertions below.
-const profile = await mkdtemp(join(tmpdir(), 'yumai-ui4-preview-'));
 const chrome = spawn(process.env.CHROME_PATH || 'google-chrome', [
   '--headless=new', '--no-sandbox', '--disable-gpu', '--hide-scrollbars',
   '--disable-dev-shm-usage', '--disable-extensions',
   '--remote-debugging-port=9222',
   `--user-data-dir=${profile}`,
   '--window-size=560,595', 'about:blank',
-], { cwd: ROOT, stdio: 'ignore' });
+], { cwd: ROOT, windowsHide: true, stdio: 'ignore' });
 
 let connection;
 try {
@@ -184,7 +183,7 @@ try {
   await command('Page.navigate',{url:'http://127.0.0.1:4174/index.html'});
   let workspaceReady=false;
   for(let i=0;i<55;i++){
-    const status=await command('Runtime.evaluate',{expression:"Boolean(document.querySelector('.yumai-workspace-outline') && document.querySelector('textarea'))",returnByValue:true});
+    const status=await command('Runtime.evaluate',{expression:"Boolean(document.querySelector('.yumai-workspace') && document.querySelector('textarea'))",returnByValue:true});
     if(status.result?.value) {workspaceReady=true;break;}
     await sleep(180);
   }
@@ -192,8 +191,12 @@ try {
   await command('Runtime.evaluate',{expression:"document.querySelector('textarea').focus(); true",returnByValue:true});
   await command('Input.insertText',{text:ARTICLE});
   await sleep(500);
+  const openOutline = () => command('Runtime.evaluate', {
+    expression: "document.querySelector('.desk-document button[aria-expanded=false]')?.click()", returnByValue: true
+  });
+  await openOutline();
   const outline=await command('Runtime.evaluate',{
-    expression:"({length:document.querySelector('textarea')?.value.length,items:document.querySelectorAll('.yumai-outline-item').length,workspace:!!document.querySelector('.yumai-workspace')})",
+    expression:"({length:document.querySelector('textarea')?.value.length,items:document.querySelectorAll('.desk-document ol button').length,workspace:!!document.querySelector('.yumai-workspace')})",
     returnByValue:true
   });
   const outlineInfo=outline.result?.value;
@@ -207,7 +210,7 @@ try {
   }
   if(!workspaceTranslated)throw new Error('Workspace did not display a mock translation');
   await capture('yumai-workspace-1440.png');
-  await command('Runtime.evaluate',{expression:"document.querySelector('.yumai-outline-item')?.click(); true",returnByValue:true});
+  await command('Runtime.evaluate',{expression:"document.querySelector('.desk-document ol button')?.click(); true",returnByValue:true});
   let selectedResult=false;
   for(let i=0;i<55;i++){
     const state=await command('Runtime.evaluate',{
@@ -237,8 +240,9 @@ try {
   await command('Runtime.evaluate',{expression:"document.querySelector('textarea').focus(); true",returnByValue:true});
   await command('Input.insertText',{text:LONG_ARTICLE});
   await sleep(550);
+  await openOutline();
   const longState=await command('Runtime.evaluate',{
-    expression:"({length:document.querySelector('textarea')?.value.length, sourceScroll:document.querySelector('textarea')?.scrollHeight,sourceClient:document.querySelector('textarea')?.clientHeight,outline:document.querySelectorAll('.yumai-outline-item').length})",
+    expression:"({length:document.querySelector('textarea')?.value.length, sourceScroll:document.querySelector('textarea')?.scrollHeight,sourceClient:document.querySelector('textarea')?.clientHeight,outline:document.querySelectorAll('.desk-document ol button').length})",
     returnByValue:true
   });
   const ls=longState.result?.value;

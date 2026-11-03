@@ -140,6 +140,8 @@ export const bridgeClient = new BridgeClient();
 // ---------------------------
 
 export interface BridgeTranslatePayload {
+  context?: string;
+  readerNote?: string;
   text: string;
   sourceLang: string;
   targetLang: string;
@@ -158,6 +160,7 @@ export function bridgeTranslate(
 
 export function bridgeExplain(payload: {
   sentence: string;
+  readerNote?: string;
   selectedWord: string;
   targetLang: string;
   provider: string;

@@ -441,7 +441,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
             <div>
               <h2 id="yumai-settings-title" className="text-slate-900 leading-tight">语脉 · 设置</h2>
-              <p>先连接 AI 服务，再按需调整翻译体验</p>
+              <p>选择翻译模型，调整你的阅读偏好</p>
             </div>
           </div>
           <button
@@ -457,7 +457,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         {/* Navigation Tabs (Strictly Single Line) */}
         <div className="yumai-settings-tabs flex shrink-0 overflow-x-auto no-scrollbar" role="tablist" aria-label="设置分类">
           {[
-            { id: 'providers', label: '快速开始', icon: Sparkles },
+            { id: 'providers', label: '模型服务', icon: Sparkles },
             { id: 'general', label: '翻译偏好', icon: Sliders },
             { id: 'tts', label: '语音朗读', icon: Volume2 },
             { id: 'shortcuts', label: '快捷键', icon: Keyboard },
@@ -487,15 +487,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         <div id="yumai-settings-section" role="tabpanel" aria-labelledby={`yumai-tab-${activeTab}`} className="yumai-settings-body p-5 overflow-y-auto space-y-4 text-sm text-slate-600 flex-1">
           {activeTab === 'providers' && (
             <div className="space-y-3.5 max-w-xl mx-auto py-1">
-              <div className="yumai-settings-intro">
-                <p className="font-semibold text-slate-900 text-sm">三步开始使用</p>
-                <ol className="yumai-settings-steps">
-                  <li><b aria-hidden="true">1</b>选择服务商</li>
-                  <li><b aria-hidden="true">2</b>填写 API Key（如需要）</li>
-                  <li><b aria-hidden="true">3</b>选择模型并保存</li>
-                </ol>
-                <p className="text-xs text-slate-600 mt-2">“校验可用性”只检查模型列表，实际调用是否成功请以翻译结果为准。</p>
-              </div>
+
               {/* 1. Provider Select Dropdown */}
               <div>
                 <label className="block text-xs font-bold text-slate-800 mb-1">

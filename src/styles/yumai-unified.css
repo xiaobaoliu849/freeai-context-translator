@@ -1,0 +1,44 @@
+/* All app surfaces use the same palette, including portal dialogs and Shadow DOM. */
+.yumai-app {
+  --ym-brand-50: #f4f5ef; --ym-brand-100: #e9eee5; --ym-brand-200: #d3dfd1;
+  --ym-brand-300: #afc4ae; --ym-brand-400: #8aa68a; --ym-brand-500: #668768;
+  --ym-brand-600: #4a6b50; --ym-brand-700: #283f37; --ym-brand-800: #193026;
+  --ym-brand-900: #15271f; --ym-brand-950: #0b1811;
+  --ym-primary: var(--ym-brand-700); --ym-primary-hover: var(--ym-brand-800);
+  --ym-primary-soft: var(--ym-brand-100); --ym-accent: var(--ym-brand-700);
+  --ym-primary-tint: var(--ym-brand-50); --ym-accent-ink: var(--ym-brand-700);
+  --ym-background: #f6f5f1; --ym-surface: #fffefa; --ym-surface-muted: #f6f5f1;
+  --ym-surface-sunken: #eeeee6; --ym-reading-paper: #fafaf5;
+  --ym-border: #dedfd5; --ym-border-strong: #b9c8b7; --ym-divider: #e7e7dd;
+  --ym-text: #28382e; --ym-text-2: #3e5042; --ym-text-muted: #5c6c60; --ym-text-faint: #69786d;
+  --ym-focus-ring: #668768; --ym-focus-halo: 0 0 0 3px rgb(75 110 89 / 12%);
+}
+.yumai-app .yumai-settings-panel, .yumai-app .yumai-history-drawer { background: var(--ym-surface); }
+.yumai-app .yumai-settings-panel { border-radius: 16px; }
+.yumai-app .yumai-settings-intro { background: transparent; border: 0; border-bottom: 1px solid var(--ym-divider); border-radius: 0; padding: 0 0 14px; }
+.yumai-app .yumai-settings-card { background: transparent; border: 0; border-radius: 0; padding: 0; box-shadow: none; }
+.yumai-app .yumai-settings-mark, .yumai-app .yumai-history-mark { background: var(--ym-primary-soft); color: var(--ym-primary); }
+.yumai-app .yumai-settings-tabs { background: var(--ym-surface-sunken); }
+.yumai-app .yumai-settings-footer { gap: 12px; }
+.yumai-app .yumai-settings-footer > span { max-width: 210px; font-size: 10px; line-height: 1.6; }
+.yumai-app .yumai-settings-panel :is(input,select,button) { box-shadow: none; }
+.yumai-app .yumai-settings-footer .yumai-primary-action { background: var(--ym-primary); }
+.yumai-app .yumai-word-card, .yumai-app .yumai-word-header { background: var(--ym-surface); }
+.yumai-app .yumai-word-meaning { border-color: var(--ym-brand-400); background: var(--ym-primary-tint); }
+.yumai-app .yumai-word-context mark { background: var(--ym-primary-soft); color: var(--ym-primary); }
+.yumai-app .desk-modes { background: var(--ym-surface-sunken); }
+.yumai-app .desk-modes button[aria-pressed=true] { background: var(--ym-surface); color: var(--ym-primary); }
+.yumai-app:not(.yumai-popup) { background: var(--ym-background); }
+.yumai-app .desk-intro h2, .yumai-app .desk-example-text { color: var(--ym-text); }
+.yumai-app .desk-kicker, .yumai-app .desk-example-type { color: var(--ym-primary); }
+.yumai-app .desk-example-grid button { background: var(--ym-surface); border-color: var(--ym-border); }
+.yumai-app .desk-note, .yumai-app .desk-context { color: var(--ym-primary); }
+.yumai-app .desk-note textarea { background: var(--ym-surface-muted); border-color: var(--ym-border); }
+.yumai-app .desk-illustration { filter: grayscale(1); opacity: .7; }
+.yumai-app .yumai-result-footer { background: transparent; }
+.yumai-app .yumai-header { background: var(--ym-background); }
+.yumai-app .yumai-settings-body input[type=checkbox], .yumai-app .yumai-settings-body input[type=range] { accent-color: var(--ym-primary); }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-translation-workspace:not(.yumai-dictionary-active) { border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-language-bar select { border: 0; box-shadow: none; background: transparent; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-header .yumai-provider { border: 0; background: transparent; }
+.yumai-app .yumai-settings-card > div:first-child { border-bottom-color: var(--ym-divider); }

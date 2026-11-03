@@ -12,7 +12,7 @@ export function classifySelection(value: string): SelectionKind {
   const endsSentence = /[.!?。！？；;]$/.test(text);
   const wordCount = text.split(/\s+/).filter(Boolean).length;
   const cjk = /^[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\s]+$/u.test(text);
-  if (!endsSentence && ((cjk && text.length <= 6) || (wordCount <= 4 && text.length <= 42))) {
+  if (!endsSentence && (cjk ? text.length <= 6 : wordCount <= 4 && text.length <= 42 && !/[，。！？、；]/u.test(text))) {
     return 'term';
   }
   return 'sentence';
@@ -21,6 +21,16 @@ export function classifySelection(value: string): SelectionKind {
 /** Retain letters/digits from every writing system, not only Latin and Han. */
 export function normalizeSelectedTerm(value: string): string {
   return value.trim().replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '').trim();
+}
+
+/** Bounded context for the actual occurrence, even when the same words appear twice. */
+export function contextForRange(value: string, start: number, end: number): string {
+  const before = value.slice(Math.max(0, start - 140), start);
+  const after = value.slice(end, end + 140);
+  if (!(before + after).trim()) return '';
+  const selected = value.slice(start, end);
+  const middle = before.length + selected.length + after.length <= 380 ? selected : ' […] ';
+  return (before + middle + after).replace(/\s+/g, ' ').trim();
 }
 
 export interface ReadingSegment {

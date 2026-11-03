@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Volume2, Loader2, Copy, Check, Eraser, RefreshCw, Settings, History, Sparkles, X, ArrowRightLeft, Zap, PencilLine, Languages } from 'lucide-react';
+import { Volume2, Loader2, Copy, Check, Eraser, RefreshCw, BookOpen, Settings, History, Sparkles, X, ArrowRightLeft, Zap, PencilLine, Languages } from 'lucide-react';
 import { AppSettings, TranslationResult, WordExplanation } from '../types';
 import { audioPlayer } from '../utils/audio';
 import { consumeSSE, extractPartialTranslation } from '../services/streaming';
 import { bridgeTranslate, bridgeExplain, isExtensionContext } from '../services/bridge';
-import { classifySelection, getReadingSegments, normalizeSelectedTerm } from '../utils/selectionMode';
+import { classifySelection, contextForRange, getReadingSegments, normalizeSelectedTerm } from '../utils/selectionMode';
 import { WordContextCard } from './WordContextCard';
 import { describeTranslationError, detectPlatform, getLanguageName, getTranslateShortcutLabel } from '../utils/uiText';
 
@@ -28,7 +28,7 @@ interface TranslatorMainProps {
   /** Limited surrounding text from the same page text node; never form-field data. */
   selectionContext?: string;
   /** Chosen segment from the reading outline. */
-  workspaceSelection?: { id: number; text: string } | null;
+  workspaceSelection?: { id: number; text: string; start: number } | null;
   resetSignal?: number;
   /** Compact app-shell layout used inside the 440x570 extension popup. */
   isPopup?: boolean;
@@ -106,12 +106,17 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
       if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
     };
   }, [sourceText, result?.id, result?.translation, selectedWord]);
+  const [draftNote, setDraftNote] = useState({ document: resetSignal, text: '' });
+  const readerNote = draftNote.document === resetSignal ? draftNote.text : '';
+  const setReaderNote = (text: string) => setDraftNote({ document: resetSignal, text });
   const [wordContext, setWordContext] = useState<string>('');
   const [activeSelection, setActiveSelection] = useState<string>('');
+  const activeStart = useRef(0);
   const [readingOutlineOpen, setReadingOutlineOpen] = useState(false);
   const [floatingEditorExpanded, setFloatingEditorExpanded] = useState(false);
   const compactFloatingSource = isFloating && !selectedWord && !floatingEditorExpanded && Boolean(sourceText.trim());
   const wordReqIdRef = useRef(0);
+  const lookupTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const skipSelectionRef = useRef(false);
   const selectionKind = classifySelection(sourceText);
   const readingSegments = React.useMemo(() => selectionKind === 'passage' ? getReadingSegments(sourceText) : [], [sourceText, selectionKind]);
@@ -253,11 +258,13 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
    * Streaming translate through the background bridge (extension context):
    * deltas arrive over the port and drive the same typewriter UI.
    */
-  const translateViaBridge = async (signal: AbortSignal, textToTranslate: string): Promise<{ translation: string; detectedLang?: string }> => {
+  const translateViaBridge = async (signal: AbortSignal, textToTranslate: string, context: string): Promise<{ translation: string; detectedLang?: string }> => {
     let raw = '';
     return bridgeTranslate(
       {
         text: textToTranslate,
+        readerNote,
+        context,
         sourceLang,
         targetLang,
         provider: activeProvider,
@@ -326,13 +333,18 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
     if (streamError && !doneResult) {
       throw new Error(streamError);
     }
-    return doneResult || { translation: raw.trim() || 'Translation unavailable.' };
+    if (!doneResult) throw new Error('翻译连接中断，请重试。');
+    return doneResult;
   };
 
-  const handleTranslate = async (textToTranslate?: string) => {
+  const handleTranslate = async (textToTranslate?: string, startOffset?: number) => {
     const text = textToTranslate || sourceText;
     if (!text || !text.trim()) return;
 
+    const offset = startOffset ?? (text === activeSelection ? activeStart.current : sourceText.indexOf(text));
+    const context = text !== sourceText && offset !== -1
+      ? contextForRange(sourceText, offset, offset + text.length)
+      : selectionContext;
     const requestId = ++translateReqIdRef.current;
     // Cancel any in-flight request from a previous translate (web SSE or the
     // background bridge) before starting this one.
@@ -340,6 +352,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
     const controller = new AbortController();
     streamAbortRef.current = controller;
     setLoading(true);
+    setResult(null);
     setError(null);
     streamingTextRef.current = '';
     setStreamingText('');
@@ -348,7 +361,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
       let data: any;
       const apiKeyToUse = activeConfig.apiKey || (activeProvider === 'gemini' ? settings.geminiApiKey : '');
       const body = JSON.stringify({
-        text,
+        text, context, readerNote,
         sourceLang,
         targetLang,
         provider: activeProvider,
@@ -360,12 +373,12 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
       try {
         // 1. Prefer streaming. In the extension this goes through the
         // background bridge; in the web app through the server SSE endpoint.
-        data = isExtensionContext() ? await translateViaBridge(controller.signal, text) : await translateViaStream(body, controller.signal);
+        data = isExtensionContext() ? await translateViaBridge(controller.signal, text, context) : await translateViaStream(body, controller.signal);
       } catch (err: any) {
         // If this request was aborted (superseded by a newer one, or the user
         // pressed Stop), don't waste a call on the fallback path — propagate.
         if (requestId !== translateReqIdRef.current) throw err;
-        if (controller.signal.aborted) throw err;
+        if (controller.signal.aborted || isExtensionContext()) throw err;
         // 2. Fall back to the non-streaming server endpoint
         try {
           const res = await fetch('/api/translate', {
@@ -387,7 +400,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
           if (requestId !== translateReqIdRef.current) return;
           controller.signal.throwIfAborted();
           data = await translateTextClient({
-            text,
+            text, context, readerNote,
             sourceLang,
             targetLang,
             provider: activeProvider,
@@ -463,13 +476,14 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
 
   // Auto-translate debounce
   useEffect(() => {
-    if (settings.autoTranslate && !selectedWord && sourceText.trim().length > 1) {
+    if (settings.autoTranslate && !activeSelection && !selectedWord && sourceText.trim().length > 1) {
+      const version = translateReqIdRef.current;
       const timer = setTimeout(() => {
-        handleTranslate();
+        if (version === translateReqIdRef.current) handleTranslate();
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [sourceText, sourceLang, targetLang, settings.autoTranslate, activeProvider, activeConfig.model, selectedWord]);
+  }, [sourceText, sourceLang, targetLang, settings.autoTranslate, activeProvider, activeConfig.model, selectedWord, activeSelection, readerNote]);
 
   // Auto-grow the input textarea with its content (90px → 260px). Skipped in
   // the compact popup, where the textarea scrolls inside a fixed-height pane.
@@ -481,18 +495,6 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
     el.style.height = `${Math.min(Math.max(el.scrollHeight, 90), 260)}px`;
   }, [sourceText, isPopup]);
 
-  // History "retranslate" trigger: App bumps this counter after loading an
-  // item's text/langs, so we re-run the translation with current settings.
-  const retranslateHandledRef = useRef(0);
-  useEffect(() => {
-    if (retranslateSignal && retranslateSignal !== retranslateHandledRef.current) {
-      retranslateHandledRef.current = retranslateSignal;
-      if (sourceText.trim()) {
-        handleTranslate();
-      }
-    }
-  }, [retranslateSignal]);
-
   // Handle selecting a word in context with instant cache retrieval
   const handleSelectWord = async (word: string, contextOverride?: string) => {
     const cleanWord = normalizeSelectedTerm(word);
@@ -502,7 +504,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
     setWordContext(lookupSentence);
     setActiveSelection('');
     setReadingOutlineOpen(false);
-    const cacheKey = `${cleanWord.toLowerCase()}_${targetLang}_${activeProvider}_${activeConfig.model}_${lookupSentence.toLowerCase()}`;
+    const cacheKey = `${cleanWord.toLowerCase()}_${targetLang}_${activeProvider}_${activeConfig.model}_${lookupSentence}_${readerNote}`;
 
     // Return cached explanation instantly if available
     if (wordCacheRef.current[cacheKey]) {
@@ -524,6 +526,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
         // Always use the extension background bridge: keys never enter page context.
         data = await bridgeExplain({
           sentence: lookupSentence,
+          readerNote,
           selectedWord: cleanWord,
           targetLang,
           provider: activeProvider,
@@ -537,6 +540,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               sentence: lookupSentence,
+              readerNote,
               selectedWord: cleanWord,
               targetLang,
               provider: activeProvider,
@@ -551,6 +555,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
           const { explainWordClient } = await import('../services/aiProvider');
           data = await explainWordClient({
             sentence: lookupSentence,
+            readerNote,
             selectedWord: cleanWord,
             targetLang,
             provider: activeProvider,
@@ -576,9 +581,11 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
 
   /** Clears the selected word and returns to the sentence translation view. */
   const clearWordSelection = () => {
+    clearTimeout(lookupTimer.current);
     wordReqIdRef.current++;
     setSelectedWord(null);
     setWordExplanation(null);
+    setExplainingWord(false);
   };
 
   /**
@@ -602,6 +609,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
   };
 
   const resetTranslationView = () => {
+    clearTimeout(lookupTimer.current);
     translateReqIdRef.current += 1;
     wordReqIdRef.current += 1;
     streamAbortRef.current?.abort();
@@ -626,6 +634,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
   }, [resetSignal]);
 
   useEffect(() => () => {
+    clearTimeout(lookupTimer.current);
     translateReqIdRef.current += 1;
     wordReqIdRef.current += 1;
     streamAbortRef.current?.abort();
@@ -634,12 +643,26 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
   // Translate only the chosen reading segment, keeping the original document intact.
   const handledWorkspaceSelectionRef = useRef(0);
   useEffect(() => {
-    if (!workspaceSelection || workspaceSelection.id === handledWorkspaceSelectionRef.current) return;
+    if (!workspaceSelection) { handledWorkspaceSelectionRef.current = 0; return; }
+    if (workspaceSelection.id === handledWorkspaceSelectionRef.current) return;
     handledWorkspaceSelectionRef.current = workspaceSelection.id;
     clearWordSelection();
+    activeStart.current = workspaceSelection.start;
     setActiveSelection(workspaceSelection.text);
-    handleTranslate(workspaceSelection.text);
+    handleTranslate(workspaceSelection.text, workspaceSelection.start);
   }, [workspaceSelection?.id]);
+
+  // History "retranslate" trigger: App bumps this counter after loading an
+  // item's text/langs, so we re-run the translation with current settings.
+  const retranslateHandledRef = useRef(0);
+  useEffect(() => {
+    if (retranslateSignal && retranslateSignal !== retranslateHandledRef.current) {
+      retranslateHandledRef.current = retranslateSignal;
+      if (sourceText.trim()) {
+        handleTranslate();
+      }
+    }
+  }, [retranslateSignal]);
 
   // Explicit selections choose a relevant view; history retranslation remains separate.
   const handledSelectionRef = useRef(0);
@@ -657,6 +680,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
   }, [selectionSignal]);
 
   const handleTextareaSelect = (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
+    clearTimeout(lookupTimer.current);
     if (skipSelectionRef.current) return;
     const target = e.currentTarget;
     const start = target.selectionStart;
@@ -665,10 +689,11 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
       const highlighted = target.value.substring(start, end).trim();
       if (!highlighted) return;
       if (classifySelection(highlighted) === 'term') {
-        const nearby = target.value.slice(Math.max(0, start - 140), Math.min(target.value.length, end + 140));
-        handleSelectWord(highlighted, nearby);
+        const nearby = contextForRange(target.value, start, end) || selectionContext || highlighted;
+        lookupTimer.current = setTimeout(() => handleSelectWord(highlighted, nearby), 220);
       } else {
         clearWordSelection();
+        activeStart.current = start + target.value.slice(start, end).indexOf(highlighted);
         setActiveSelection(highlighted);
       }
       return;
@@ -684,6 +709,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
     skipSelectionRef.current = true;
     editor.focus();
     editor.setSelectionRange(start, end);
+    activeStart.current = start;
     setActiveSelection(sourceText.slice(start, end));
     window.setTimeout(() => { skipSelectionRef.current = false; }, 80);
   };
@@ -743,14 +769,40 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
     // Enter inserts a newline; Ctrl/Cmd+Enter translates.
     if (e.key !== 'Enter' || (!e.ctrlKey && !e.metaKey) || e.shiftKey || e.nativeEvent.isComposing) return;
     e.preventDefault();
+    clearWordSelection();
     handleTranslate(activeSelection || undefined);
   };
+
+  const translateButton = (
+    <button
+          onClick={() => { if (loading) handleStop(); else { clearWordSelection(); handleTranslate(activeSelection || undefined); } }}
+          disabled={!loading && !sourceText.trim()}
+          className="yumai-translate-button inline-flex shrink-0 items-center justify-center gap-1.5 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          data-loading={loading}
+          aria-label={loading ? '停止翻译' : activeSelection ? '翻译选段' : '翻译文本'}
+          title={loading ? '停止生成' : 'Ctrl/Cmd+Enter 翻译，Enter 换行'}
+        >
+          {loading ? (
+            <>
+              <X className="w-3.5 h-3.5 shrink-0" />
+              <span>停止</span>
+            </>
+          ) : (
+            <>
+              <span>{activeSelection ? '翻译选段' : '翻译'}</span>
+            </>
+          )}
+        </button>
+  );
 
   return (
     <div className={isPopup
       ? 'yumai-translator flex-1 min-h-0 flex flex-col gap-2 px-3 py-3'
       : 'yumai-translator yumai-studio max-w-[1400px] mx-auto px-3 sm:px-6 py-5 flex flex-col gap-4'
     }>
+      {selectionContext && selectionContext !== sourceText.trim() && !selectedWord && (
+        <details className="desk-context"><summary>本次翻译参考的上下文</summary><p>{selectionContext}</p></details>
+      )}
       {copyError && <p role="alert" className="text-xs text-rose-700 px-2">{copyError}</p>}
       {/* 1. ELEGANT LANGUAGE SELECTOR TOOLBAR */}
       <div className="yumai-language-bar flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 sm:px-3.5">
@@ -759,7 +811,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
           {!isPopup && <span className="yumai-lang-label hidden sm:inline" aria-hidden="true">源语言</span>}
           <select
             value={sourceLang}
-            onChange={(e) => setSourceLang(e.target.value)}
+            onChange={(e) => { resetTranslationView(); setSourceLang(e.target.value); }}
             className="w-full rounded-lg text-slate-800 font-semibold cursor-pointer" aria-label="原文语言"
           >
             <option value="auto">自动识别</option>
@@ -773,7 +825,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
 
         {/* Swap Button */}
         <button
-          onClick={onSwapLanguages}
+          onClick={() => { resetTranslationView(); onSwapLanguages(); }}
           className="yumai-swap-button p-2 rounded-lg transition-colors cursor-pointer shrink-0" aria-label="互换语言"
           title="互换语言"
         >
@@ -785,7 +837,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
           {!isPopup && <span className="yumai-lang-label hidden sm:inline" aria-hidden="true">目标语言</span>}
           <select
             value={targetLang}
-            onChange={(e) => setTargetLang(e.target.value)}
+            onChange={(e) => { resetTranslationView(); setTargetLang(e.target.value); }}
             className="w-full rounded-lg text-slate-800 font-semibold cursor-pointer" aria-label="译文语言"
           >
             {languages.map((l) => (
@@ -835,25 +887,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
         )}
 
         {/* Translate / Stop Button */}
-        <button
-          onClick={() => (loading ? handleStop() : handleTranslate())}
-          disabled={!loading && !sourceText.trim()}
-          className="yumai-translate-button inline-flex shrink-0 items-center justify-center gap-1.5 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          data-loading={loading}
-          aria-label={loading ? '停止翻译' : '翻译文本'}
-          title={loading ? '停止生成' : `${shortcutLabel} 翻译，Enter 换行`}
-        >
-          {loading ? (
-            <>
-              <X className="w-3.5 h-3.5 shrink-0" />
-              <span>停止</span>
-            </>
-          ) : (
-            <>
-              <span>翻译</span>
-            </>
-          )}
-        </button>
+        {(!isPopup || isFloating || selectedWord) && translateButton}
       </div>
 
       {/* ERROR MESSAGE ALERT — raw message stays visible; the hint says what to do next. */}
@@ -881,37 +915,32 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
         </div>
       )}
 
-      {/* Auto-detected content intent with an explicit manual override. */}
-      {sourceText.trim() && (selectedWord || selectionKind === 'term' || selectionKind === 'passage') && (
-        <div className="yumai-context-chip flex flex-wrap items-center justify-between gap-2 px-1" aria-live="polite">
-          <span className="text-slate-500">
-            {selectedWord ? '词语释义' : selectionKind === 'passage' ? '长文阅读' : '词语 / 短语'}
-          </span>
-          <div className="flex items-center gap-2">
-            {isFloating && selectedWord && (
-              <button type="button" onClick={() => { clearWordSelection(); setFloatingEditorExpanded(true); }}
-                className="yumai-chip-button"
-                aria-label="编辑选中文本">编辑原文</button>
-            )}
-            {selectedWord ? (
-              <button type="button" onClick={() => { clearWordSelection(); if (!result?.translation || result.sourceText !== sourceText) handleTranslate(); }}
-                className="yumai-chip-button yumai-chip-button--accent">
-                改看翻译
-              </button>
-            ) : selectionKind === 'term' ? (
-              <button type="button" onClick={() => handleSelectWord(sourceText, selectionContext || sourceText)}
-                className="yumai-chip-button yumai-chip-button--accent">
-                查看语境释义
-              </button>
-            ) : null}
-            {selectionKind === 'passage' && (
-              <button type="button" onClick={() => setReadingOutlineOpen(v => !v)}
-                aria-expanded={readingOutlineOpen}
-                className="yumai-chip-button yumai-chip-button--accent">
-                {readingOutlineOpen ? '收起段落' : '段落导航'}
-              </button>
-            )}
+      {(selectedWord || (sourceText.trim() && selectionKind === 'term')) && (
+        <div className="desk-mode-bar">
+          <div className="desk-modes" role="group" aria-label="阅读方式">
+            <button type="button" aria-pressed={!selectedWord} onClick={() => {
+              clearWordSelection();
+              if (!result?.translation || result.sourceText !== sourceText) handleTranslate();
+            }}><Languages size={14}/>翻译</button>
+            <button type="button" aria-pressed={Boolean(selectedWord)} onClick={() => {
+              if (!selectedWord) handleSelectWord(sourceText, selectionContext || sourceText);
+            }}><BookOpen size={14}/>语境释义</button>
           </div>
+          {isFloating && selectedWord && (
+            <button type="button" className="desk-edit" aria-label="编辑选中文本" onClick={() => {
+              clearWordSelection();
+              setFloatingEditorExpanded(true);
+            }}><PencilLine size={13}/>编辑原文</button>
+          )}
+        </div>
+      )}
+      {isPopup && selectionKind === 'passage' && !selectedWord && (
+        <div className="yumai-context-chip flex items-center justify-between">
+          <span>长文阅读</span>
+          <button type="button" className="desk-edit" aria-expanded={readingOutlineOpen}
+            onClick={() => { setFloatingEditorExpanded(true); setReadingOutlineOpen(v => !v); }}>
+            {readingOutlineOpen ? '收起段落' : '段落导航'}
+          </button>
         </div>
       )}
       {selectionKind === 'passage' && readingOutlineOpen && !selectedWord && (
@@ -985,16 +1014,12 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             value={sourceText}
             onChange={(e) => {
               setSourceText(e.target.value);
-              setActiveSelection('');
-              setReadingOutlineOpen(false);
-              if (selectedWord) {
-                setSelectedWord(null);
-                setWordExplanation(null);
-              }
+              resetTranslationView();
+              if (isFloating) setFloatingEditorExpanded(true);
             }}
             onSelect={handleTextareaSelect}
             onKeyDown={handleTextareaKeyDown}
-            placeholder="输入或粘贴要翻译的文本…"
+            placeholder="在这里输入或粘贴原文…"
             className={`${
               isPopup
                 ? 'flex-1 min-h-0 px-4 pb-3 resize-none overflow-y-auto text-sm'
@@ -1002,10 +1027,18 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             } yumai-source-editor text-slate-800 font-normal focus:outline-none placeholder:text-slate-400 bg-transparent leading-relaxed`}
           />
 
+          {!isPopup && (
+            <details className="desk-note">
+              <summary>补充语境{readerNote.trim() ? ' · 已填写' : ''}</summary>
+              <textarea aria-label="补充语境" value={readerNote} maxLength={240} rows={2}
+                placeholder="例如：这是软件开发团队的会议记录"
+                onChange={event => { setReaderNote(event.target.value); resetTranslationView(); }}/>
+            </details>
+          )}
           {/* Input Box Actions Toolbar */}
           <div className="yumai-panel-footer flex shrink-0 items-center justify-between px-3 py-1.5 text-slate-500 text-xs">
             <div className="flex items-center gap-1.5">
-              {activeSelection && (
+              {isFloating && activeSelection && (
                 <button type="button" onClick={() => handleTranslate(activeSelection)}
                   className="yumai-chip-button yumai-chip-button--accent"
                   title="仅翻译当前高亮选中的句子或段落">
@@ -1029,6 +1062,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
               </span>
             </div>
 
+            <div className="popup-source-actions flex items-center gap-1">
             {sourceText.trim() && <div className="flex items-center gap-1">
               <button
                 onClick={() => handlePlayAudio(selectedWord || sourceText, sourceLang, 'source')}
@@ -1055,6 +1089,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
               <button
                 onClick={() => {
                   setSourceText('');
+                  setReaderNote('');
                   resetTranslationView();
                   try { localStorage.removeItem('freetranslate_draft'); } catch(e){}
                 }}
@@ -1065,6 +1100,8 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                 <Eraser className="w-3.5 h-3.5" />
               </button>
             </div>}
+            {isPopup && !isFloating && translateButton}
+            </div>
           </div>
         </div>
         )}
@@ -1185,6 +1222,10 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                   </div>
                 </div>
 
+                {result && result.sourceText !== sourceText && (
+                  <blockquote className="desk-excerpt" title={result.sourceText}>{result.sourceText}</blockquote>
+                )}
+
                 {/* Full Sentence Translation - selectable and copyable without hijacking */}
                 <div
                   className={`yumai-result-text ${
@@ -1195,9 +1236,26 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                 >
                   {result?.translation || (
                     <div className="yumai-empty-result select-none">
-                      <span className="yumai-empty-icon" aria-hidden="true"><Languages /></span>
-                      <p>译文将在这里显示</p>
-                      <span>{sourceText.trim() ? `点击“翻译”，或按 ${shortcutLabel}。` : '先在原文区输入文本，再点击“翻译”。'}</span>
+                      {isPopup && !isFloating ? <>
+                        <span className="popup-empty-eyebrow">BEYOND WORDS</span>
+                        <p>{sourceText.trim() ? '准备好，读懂下一句。' : '读懂字里行间。'}</p>
+                        <span>{sourceText.trim() ? '点击翻译，或按 Ctrl + Enter。' : '结合上下文，让每个词找到合适的意思。'}</span>
+                        {!sourceText.trim() && <div className="popup-examples">
+                          <button type="button" onClick={() => {
+                            setSourceText('We paddled back to the bank when the wind picked up.');
+                            textareaRef.current?.focus();
+                          }}><span>一词多义</span><strong lang="en">Back to the bank.</strong><span aria-hidden="true">↗</span></button>
+                          <button type="button" onClick={() => {
+                            setSourceText("We have finished the last interview. Let's call it a day.");
+                            textareaRef.current?.focus();
+                          }}><span>地道表达</span><strong lang="en">Call it a day.</strong><span aria-hidden="true">↗</span></button>
+                        </div>}
+                        <span className="popup-selection-tip">选中原文中的词语，即可查看语境释义</span>
+                      </> : <>
+                        <Languages aria-hidden="true" />
+                        <p>等待译文</p>
+                        <span>{sourceText.trim() ? '点击“翻译”，或按 Ctrl + Enter。' : '输入原文后，这里会显示译文。'}</span>
+                      </>}
                     </div>
                   )}
                 </div>
@@ -1206,7 +1264,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
               {/* Translation Card Actions Footer */}
               {result?.translation && <div className="yumai-result-footer flex shrink-0 items-center justify-between text-xs text-slate-500" aria-label="译文操作">
                 <div className="flex items-center gap-1.5 text-xs">
-                  <span>选中单词可查看语境释义</span>
+                  <span>选中原文中的词语可查看释义</span>
                 </div>
 
                 <div className="flex items-center gap-1.5">

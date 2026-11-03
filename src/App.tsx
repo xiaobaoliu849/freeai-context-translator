@@ -4,7 +4,7 @@ import { ReadingWorkspaceShell } from './components/ReadingWorkspaceShell';
 import { TranslatorMain } from './components/TranslatorMain';
 import { SettingsModal } from './components/SettingsModal';
 import { HistoryDrawer } from './components/HistoryDrawer';
-import { DEFAULT_PROVIDER_CONFIGS, DEFAULT_SETTINGS, SUPPORTED_LANGUAGES, migrateSettings } from './config';
+import { DEFAULT_SETTINGS, SUPPORTED_LANGUAGES, parseSavedSettings } from './config';
 import { AppSettings, HistoryItem } from './types';
 
 const STORAGE_KEYS = {
@@ -73,8 +73,8 @@ export default function App({
   const [selectionContext, setSelectionContext] = useState(initialContext || '');
   // Selection is distinct from history retranslation: a selected term opens its definition.
   const [selectionSignal, setSelectionSignal] = useState(initialText ? 1 : 0);
-  const [sourceLang, setSourceLang] = useState<string>('auto');
-  const [targetLang, setTargetLang] = useState<string>('zh-CN');
+  const [sourceLangOverride, setSourceLang] = useState<string>();
+  const [targetLangOverride, setTargetLang] = useState<string>();
 
   // If opened inside Chrome extension popup, check if the current active tab has selected text
   useEffect(() => {
@@ -113,12 +113,12 @@ export default function App({
 
   // Bumped when the user retranslates a history item (TranslatorMain reacts).
   const [retranslateSignal, setRetranslateSignal] = useState(0);
-  const [workspaceSelection, setWorkspaceSelection] = useState<{id:number; text:string} | null>(null);
+  const [workspaceSelection, setWorkspaceSelection] = useState<{id:number; text:string; start:number} | null>(null);
   const [resetSignal, setResetSignal] = useState(0);
 
   // Settings & History State with LocalStorage and chrome.storage
   const [settings, setSettings] = useState<AppSettings>(() => {
-    if (initialSettings) return initialSettings;
+    if (initialSettings || isFloating) return initialSettings || DEFAULT_SETTINGS;
     try {
       const savedNew = localStorage.getItem(STORAGE_KEYS.settings);
       const savedOld = localStorage.getItem('nextai_translator_settings');
@@ -129,44 +129,34 @@ export default function App({
         localStorage.removeItem('nextai_translator_settings');
       }
 
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        const mergedConfigs: any = { ...DEFAULT_PROVIDER_CONFIGS, ...(parsed.providerConfigs || {}) };
-        return {
-          ...DEFAULT_SETTINGS,
-          ...parsed,
-          providerConfigs: mergedConfigs,
-        };
-      }
-      return DEFAULT_SETTINGS;
+      return parseSavedSettings(saved);
     } catch (e) {
       return DEFAULT_SETTINGS;
     }
   });
 
+  const extensionStorage = typeof chrome !== 'undefined' && Boolean(chrome.storage?.local);
+  const [storageReady, setStorageReady] = useState(!extensionStorage);
   // Sync settings and history from chrome.storage.local on mount
   useEffect(() => {
-    if (typeof chrome !== 'undefined' && chrome.storage?.local) {
-      chrome.storage.local.get([STORAGE_KEYS.settings, STORAGE_KEYS.history], (result) => {
-        if (result[STORAGE_KEYS.settings]) {
-          try {
-            const raw = result[STORAGE_KEYS.settings];
-            const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-            setSettings((prev) => ({ ...prev, ...parsed }));
-          } catch (e) {}
-        }
-        if (result[STORAGE_KEYS.history]) {
-          try {
-            const rawH = result[STORAGE_KEYS.history];
-            const parsedH = typeof rawH === 'string' ? JSON.parse(rawH) : rawH;
-            if (Array.isArray(parsedH)) setHistory(parsedH);
-          } catch (e) {}
-        }
-      });
-    }
+    if (!extensionStorage) return;
+    let current = true;
+    chrome.storage.local.get([STORAGE_KEYS.settings, STORAGE_KEYS.history], (result) => {
+      if (!current) return;
+      const stored = result?.[STORAGE_KEYS.settings];
+      if (stored) setSettings(prev => parseSavedSettings(stored, prev));
+      const storedHistory = result?.[STORAGE_KEYS.history];
+      try {
+        const items = typeof storedHistory === 'string' ? JSON.parse(storedHistory) : storedHistory;
+        if (Array.isArray(items)) setHistory(items);
+      } catch { /* Ignore malformed legacy history. */ }
+      setStorageReady(true);
+    });
+    return () => { current = false; };
   }, []);
 
   const [history, setHistory] = useState<HistoryItem[]>(() => {
+    if (isFloating) return [];
     try {
       const savedNew = localStorage.getItem(STORAGE_KEYS.history);
       const savedOld = localStorage.getItem('nextai_translator_history');
@@ -183,8 +173,9 @@ export default function App({
   });
 
   useEffect(() => {
+    if (!storageReady) return;
     try {
-      localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(settings));
+      if (!isFloating) localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(settings));
     } catch (e) {
       // ignore
     }
@@ -192,16 +183,20 @@ export default function App({
     // with JSON.parse, which would throw on a raw object and silently fall
     // back to DEFAULT_SETTINGS — losing the API key for the bridge.
     mirrorToExtensionStorage({ [STORAGE_KEYS.settings]: JSON.stringify(settings) });
-  }, [settings]);
+  }, [settings, storageReady, isFloating]);
 
   useEffect(() => {
+    if (!storageReady) return;
     try {
-      localStorage.setItem(STORAGE_KEYS.history, JSON.stringify(history));
+      if (!isFloating) localStorage.setItem(STORAGE_KEYS.history, JSON.stringify(history));
     } catch (e) {
       // ignore
     }
     mirrorToExtensionStorage({ [STORAGE_KEYS.history]: JSON.stringify(history) });
-  }, [history]);
+  }, [history, storageReady, isFloating]);
+
+  const sourceLang = sourceLangOverride || settings.defaultSourceLang || 'auto';
+  const targetLang = targetLangOverride || settings.defaultTargetLang || 'zh-CN';
 
   const handleSwapLanguages = () => {
     if (sourceLang === 'auto') {
@@ -240,6 +235,30 @@ export default function App({
     });
   };
 
+  const translator = storageReady ? (
+    <TranslatorMain
+      sourceText={sourceText}
+      setSourceText={(text) => { setSelectionContext(''); setSourceText(text); }}
+      sourceLang={sourceLang}
+      setSourceLang={setSourceLang}
+      targetLang={targetLang}
+      setTargetLang={setTargetLang}
+      onSwapLanguages={handleSwapLanguages}
+      languages={SUPPORTED_LANGUAGES}
+      settings={settings}
+      onSaveHistory={handleSaveHistoryItem}
+      openSettings={() => setIsSettingsOpen(true)}
+      openHistory={() => setIsHistoryOpen(true)}
+      retranslateSignal={retranslateSignal}
+      selectionSignal={selectionSignal}
+      selectionContext={selectionContext}
+      isPopup={isPopup}
+      isFloating={isFloating}
+      workspaceSelection={workspaceSelection}
+      resetSignal={resetSignal}
+    />
+  ) : <p role="status" className="p-4 text-sm text-slate-500">正在读取翻译设置…</p>;
+
   return (
     <div className={`yumai-app ${isFloating ? 'yumai-floating' : ''} ${isPopup ? 'yumai-popup h-screen overflow-hidden' : 'min-h-screen'} flex flex-col text-slate-900 selection:bg-brand-100 selection:text-slate-900`}>
       {/* Header Bar */}
@@ -259,58 +278,14 @@ export default function App({
 
       {/* Separate reading workspace for full tabs; the popup remains a focused tool. */}
       <main className={isPopup ? 'flex-1 min-h-0 flex flex-col overflow-hidden' : 'flex-1 min-w-0'}>
-        {isPopup ? (
-        <TranslatorMain
-          sourceText={sourceText}
-          setSourceText={setSourceText}
-          sourceLang={sourceLang}
-          setSourceLang={setSourceLang}
-          targetLang={targetLang}
-          setTargetLang={setTargetLang}
-          onSwapLanguages={handleSwapLanguages}
-          languages={SUPPORTED_LANGUAGES}
-          settings={settings}
-          onSaveHistory={handleSaveHistoryItem}
-          openSettings={() => setIsSettingsOpen(true)}
-          openHistory={() => setIsHistoryOpen(true)}
-          retranslateSignal={retranslateSignal}
-          selectionSignal={selectionSignal}
-          selectionContext={selectionContext}
-          isPopup={isPopup}
-          isFloating={isFloating}
-          workspaceSelection={workspaceSelection}
-          resetSignal={resetSignal}
-        />
-        ) : (
+        {isPopup ? translator : (
           <ReadingWorkspaceShell
             sourceText={sourceText}
-            historyCount={history.length}
             onNewDocument={() => { setSourceText(''); setSelectionContext(''); setWorkspaceSelection(null); setResetSignal(v => v + 1); }}
-            onOpenHistory={() => setIsHistoryOpen(true)}
-            onOpenSettings={() => setIsSettingsOpen(true)}
-            onTranslateSegment={(text) => setWorkspaceSelection(prev => ({id:(prev?.id || 0) + 1,text}))}
+            onLoadExample={(text) => { setSourceText(text); setSelectionContext(''); setWorkspaceSelection(null); setResetSignal(v => v + 1); }}
+            onTranslateSegment={(segment) => setWorkspaceSelection(prev => ({id:(prev?.id || 0) + 1, ...segment}))}
           >
-        <TranslatorMain
-          sourceText={sourceText}
-          setSourceText={setSourceText}
-          sourceLang={sourceLang}
-          setSourceLang={setSourceLang}
-          targetLang={targetLang}
-          setTargetLang={setTargetLang}
-          onSwapLanguages={handleSwapLanguages}
-          languages={SUPPORTED_LANGUAGES}
-          settings={settings}
-          onSaveHistory={handleSaveHistoryItem}
-          openSettings={() => setIsSettingsOpen(true)}
-          openHistory={() => setIsHistoryOpen(true)}
-          retranslateSignal={retranslateSignal}
-          selectionSignal={selectionSignal}
-          selectionContext={selectionContext}
-          isPopup={isPopup}
-          isFloating={isFloating}
-          workspaceSelection={workspaceSelection}
-          resetSignal={resetSignal}
-        />
+            {translator}
           </ReadingWorkspaceShell>
         )}
       </main>
@@ -330,11 +305,15 @@ export default function App({
         history={history}
         settings={settings}
         onSelectHistory={(item) => {
+          setSelectionContext('');
+          setResetSignal(v => v + 1);
           setSourceText(item.sourceText);
           setSourceLang(item.sourceLang);
           setTargetLang(item.targetLang);
         }}
         onRetranslate={(item) => {
+          setResetSignal(v => v + 1);
+          setSelectionContext('');
           setSourceText(item.sourceText);
           setSourceLang(item.sourceLang);
           setTargetLang(item.targetLang);

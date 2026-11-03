@@ -3,13 +3,16 @@ import { bridgeExplain, bridgeTranslate, isExtensionContext } from "./bridge";
 import {
   EXPLAIN_SYSTEM_PROMPT,
   TRANSLATE_SYSTEM_PROMPT,
+  parseExplanation,
+  parseTranslation,
   buildExplainPrompt,
   buildTranslatePrompt,
-  parseLLMJson,
 } from "./prompts";
 
 export async function translateTextClient(params: {
   text: string;
+  context?: string;
+  readerNote?: string;
   sourceLang?: string;
   targetLang?: string;
   provider?: string;
@@ -19,7 +22,7 @@ export async function translateTextClient(params: {
   signal?: AbortSignal;
 }) {
   const {
-    text,
+    text, context, readerNote,
     sourceLang = "auto",
     targetLang = "zh-CN",
     provider = "gemini",
@@ -33,7 +36,7 @@ export async function translateTextClient(params: {
   // sent over the wire — the service worker resolves it from storage itself.
   if (isExtensionContext()) {
     const data = await bridgeTranslate({
-      text,
+      text, context, readerNote,
       sourceLang,
       targetLang,
       provider,
@@ -41,7 +44,7 @@ export async function translateTextClient(params: {
       baseUrl,
     }, undefined, signal);
     return {
-      translation: data.translation || "Translation unavailable.",
+      translation: data.translation,
       detectedLang: data.detectedLang || "Auto",
       tokens: [],
     };
@@ -52,15 +55,15 @@ export async function translateTextClient(params: {
     apiKey,
     baseUrl,
     model,
-    prompt: buildTranslatePrompt(text, sourceLang, targetLang),
+    prompt: buildTranslatePrompt(text, sourceLang, targetLang, context, readerNote),
     systemInstruction: TRANSLATE_SYSTEM_PROMPT,
     jsonOutput: true,
     signal,
   });
 
-  const parsed = parseLLMJson(raw);
+  const parsed = parseTranslation(raw);
   return {
-    translation: parsed.translation || "Translation unavailable.",
+    translation: parsed.translation,
     detectedLang: parsed.detectedLang || "Auto",
     tokens: parsed.tokens || [],
   };
@@ -68,6 +71,7 @@ export async function translateTextClient(params: {
 
 export async function explainWordClient(params: {
   sentence: string;
+  readerNote?: string;
   selectedWord: string;
   targetLang?: string;
   provider?: string;
@@ -76,7 +80,7 @@ export async function explainWordClient(params: {
   model?: string;
 }) {
   const {
-    sentence,
+    sentence, readerNote,
     selectedWord,
     targetLang = "zh-CN",
     provider = "gemini",
@@ -88,7 +92,7 @@ export async function explainWordClient(params: {
   // Extension: route through the background bridge (no apiKey sent).
   if (isExtensionContext()) {
     return bridgeExplain({
-      sentence,
+      sentence, readerNote,
       selectedWord,
       targetLang,
       provider,
@@ -102,24 +106,10 @@ export async function explainWordClient(params: {
     apiKey,
     baseUrl,
     model,
-    prompt: buildExplainPrompt(selectedWord, sentence, targetLang),
+    prompt: buildExplainPrompt(selectedWord, sentence, targetLang, readerNote),
     systemInstruction: EXPLAIN_SYSTEM_PROMPT,
     jsonOutput: true,
   });
 
-  const parsed = parseLLMJson(raw);
-  return {
-    word: parsed.word || selectedWord,
-    phonetic: parsed.phonetic || "",
-    pos: parsed.pos || "",
-    cefrLevel: parsed.cefrLevel || "",
-    literalMeaning: parsed.literalMeaning || "",
-    contextualMeaning: parsed.contextualMeaning || "",
-    contextExplanation: parsed.contextExplanation || "",
-    rootOrLemma: parsed.rootOrLemma || "",
-    collocations: parsed.collocations || [],
-    antonyms: parsed.antonyms || [],
-    synonymsInContext: parsed.synonymsInContext || [],
-    examples: parsed.examples || [],
-  };
+  return parseExplanation(raw, selectedWord);
 }
