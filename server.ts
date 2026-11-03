@@ -130,11 +130,12 @@ function rateLimit(req: express.Request, res: express.Response, next: express.Ne
  */
 function resolveServerApiKey(provider: string, apiKey: string | undefined): string | undefined {
   // Direct key wins; then a provider-specific env key (GLM_API_KEY,
-  // CEREBRAS_API_KEY, ...); then the legacy "no key → Gemini" fallback.
+  // CEREBRAS_API_KEY, OPENROUTER_API_KEY, ...); then the legacy "no key → Gemini" fallback.
   const direct = apiKey || {
     gemini: process.env.GEMINI_API_KEY,
     glm: process.env.GLM_API_KEY,
     cerebras: process.env.CEREBRAS_API_KEY,
+    openrouter: process.env.OPENROUTER_API_KEY,
   }[provider];
   if (direct) return direct;
   const geminiPath = provider === "gemini" || (provider !== "custom" && provider !== "ollama");

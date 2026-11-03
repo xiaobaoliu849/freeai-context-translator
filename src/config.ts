@@ -31,6 +31,7 @@ export const DEFAULT_BASE_URLS: Record<ProviderType, string> = {
   mimo: 'https://api.xiaomimimo.com/v1',
   glm: 'https://open.bigmodel.cn/api/paas/v4',
   cerebras: 'https://api.cerebras.ai/v1',
+  openrouter: 'https://openrouter.ai/api/v1',
   ollama: 'http://localhost:11434/v1',
   custom: 'http://localhost:11434/v1',
 };
@@ -40,6 +41,7 @@ export const DEFAULT_BASE_URLS: Record<ProviderType, string> = {
 export const DEFAULT_MODELS: Partial<Record<ProviderType, string>> = {
   glm: 'glm-4.7-flash',
   cerebras: 'qwen-3.8-27b',
+  openrouter: 'openrouter/free',
   ollama: 'qwen2.5:latest',
 };
 
@@ -52,6 +54,14 @@ export const GLM_FLASH_MODELS = ['glm-4.7-flash', 'glm-4-flash'];
 // gpt-oss-120b 仅 5 次/分钟，划词翻译很容易触发限流。
 export const CEREBRAS_MODELS = ['qwen-3.8-27b', 'gpt-oss-120b'];
 
+// OpenRouter 免费模型。openrouter/free 会自动路由到当前可用的免费模型，
+// 免费模型下线时也不需要改设置。
+export const OPENROUTER_FREE_MODELS = [
+  'openrouter/free',
+  'google/gemma-4-31b-it:free',
+  'nvidia/nemotron-3-ultra-550b-a55b:free',
+];
+
 /** 合并已知模型到拉取结果；其余 provider 原样返回。 */
 export function mergeKnownFreeModels(provider: ProviderType, models: string[]): string[] {
   if (provider === 'glm') {
@@ -61,6 +71,12 @@ export function mergeKnownFreeModels(provider: ProviderType, models: string[]): 
   if (provider === 'cerebras') {
     const extra = CEREBRAS_MODELS.filter((m) => !models.includes(m));
     return extra.length ? [...extra, ...models] : models;
+  }
+  if (provider === 'openrouter') {
+    // /models 返回数百个模型，把免费的（:free）排在前面方便挑选。
+    const free = models.filter((m) => m.endsWith(':free'));
+    const paid = models.filter((m) => !m.endsWith(':free'));
+    return [...new Set([...OPENROUTER_FREE_MODELS, ...free, ...paid])];
   }
   return models;
 }
@@ -73,7 +89,10 @@ export const DEFAULT_PROVIDER_CONFIGS: Record<ProviderType, ProviderConfig> = Ob
       apiKey: '',
       baseUrl: DEFAULT_BASE_URLS[p],
       model: DEFAULT_MODELS[p] || '',
-      availableModels: p === 'cerebras' ? CEREBRAS_MODELS : p === 'glm' ? GLM_FLASH_MODELS : [],
+      availableModels: p === 'cerebras' ? CEREBRAS_MODELS
+        : p === 'glm' ? GLM_FLASH_MODELS
+        : p === 'openrouter' ? OPENROUTER_FREE_MODELS
+        : [],
     },
   ]),
 ) as Record<ProviderType, ProviderConfig>;

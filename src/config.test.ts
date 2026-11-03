@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  CEREBRAS_MODELS, DEFAULT_SETTINGS, GLM_FLASH_MODELS, SETTINGS_VERSION,
+  CEREBRAS_MODELS, DEFAULT_SETTINGS, GLM_FLASH_MODELS, OPENROUTER_FREE_MODELS, SETTINGS_VERSION,
   mergeKnownFreeModels, migrateSettings, parseSavedSettings,
 } from './config';
 import { parseSettingsFile, SETTINGS_EXPORT_FORMAT } from './utils/settingsExport';
@@ -50,6 +50,11 @@ test('free models are merged into fetched model lists without duplicates', () =>
   assert.deepEqual(mergeKnownFreeModels('glm', [...GLM_FLASH_MODELS]), GLM_FLASH_MODELS);
   assert.deepEqual(mergeKnownFreeModels('cerebras', ['gpt-oss-120b']), ['qwen-3.8-27b', 'gpt-oss-120b']);
   assert.deepEqual(mergeKnownFreeModels('openai', ['gpt-4o']), ['gpt-4o']);
+  // OpenRouter: known free models first, then other :free models, then paid ones.
+  assert.deepEqual(
+    mergeKnownFreeModels('openrouter', ['openai/gpt-5', 'meta/llama-5:free', 'google/gemma-4-31b-it:free']),
+    [...OPENROUTER_FREE_MODELS, 'meta/llama-5:free', 'openai/gpt-5'],
+  );
 });
 
 test('settings import accepts the export wrapper and raw objects', () => {
