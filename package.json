@@ -1,5 +1,5 @@
 {
-  "name": "react-example",
+  "name": "yumai",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -10,7 +10,8 @@
     "start": "NODE_ENV=production node dist-web/server.cjs",
     "clean": "rm -rf dist dist-web",
     "lint": "tsc --noEmit",
-    "test:ui": "tsx --test src/utils/*.test.ts"
+    "test:ui": "tsx --test src/*.test.ts src/services/*.test.ts src/utils/*.test.ts",
+    "store:assets": "node scripts/build-store-assets.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

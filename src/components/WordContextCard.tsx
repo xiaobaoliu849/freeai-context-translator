@@ -297,7 +297,7 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
         {synonyms.length > 0 && (
           <div>
             <div className="text-xs font-semibold text-slate-600 mb-2 select-none flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+              <span className="w-1.5 h-1.5 rounded-full bg-brand-500" />
               近义表达
             </div>
             <div className="flex flex-wrap gap-1.5">

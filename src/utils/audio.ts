@@ -354,6 +354,9 @@ class AudioPlayerService {
     const speakId = this.currentSpeakId;
     onStart?.();
 
+    // Legacy "edge" engine had no real implementation; treat it as the local voice.
+    if (engine === 'edge') engine = 'browser';
+
     if (engine === 'browser') {
       const success = this.playBrowserSpeech(text, lang, rate, onEnd, () => {
         if (speakId === this.currentSpeakId) {

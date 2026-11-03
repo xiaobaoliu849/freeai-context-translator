@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Volume2, Loader2, Copy, Check, Eraser, RefreshCw, X, ArrowRightLeft, BookOpen, Zap, PencilLine, Languages } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Volume2, Loader2, Copy, Check, Eraser, RefreshCw, BookOpen, Settings, History, Sparkles, X, ArrowRightLeft, Zap, PencilLine, Languages } from 'lucide-react';
 import { AppSettings, TranslationResult, WordExplanation } from '../types';
 import { audioPlayer } from '../utils/audio';
 import { consumeSSE, extractPartialTranslation } from '../services/streaming';
 import { bridgeTranslate, bridgeExplain, isExtensionContext } from '../services/bridge';
 import { classifySelection, contextForRange, getReadingSegments, normalizeSelectedTerm } from '../utils/selectionMode';
 import { WordContextCard } from './WordContextCard';
+import { describeTranslationError, detectPlatform, getLanguageName, getTranslateShortcutLabel } from '../utils/uiText';
 
 interface TranslatorMainProps {
   sourceText: string;
@@ -244,6 +245,8 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
   const translateReqIdRef = useRef(0);
 
   const activeProvider = settings.defaultProvider || 'gemini';
+  const shortcutLabel = useMemo(() => getTranslateShortcutLabel(detectPlatform()), []);
+  const errorInfo = useMemo(() => (error ? describeTranslationError(error, activeProvider) : null), [error, activeProvider]);
   const activeConfig = settings.providerConfigs?.[activeProvider] || {
     apiKey: activeProvider === 'gemini' ? settings.geminiApiKey : '',
     baseUrl: '',
@@ -597,7 +600,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
     return (
       <span className="italic">
         “{sentence.slice(0, idx)}
-        <mark className="bg-gradient-to-r from-brand-100 to-brand-100 text-brand-700 font-bold rounded px-0.5 not-italic border-b-2 border-brand-300">
+        <mark className="bg-brand-100 text-brand-800 font-semibold rounded px-0.5 not-italic border-b-2 border-brand-300">
           {sentence.slice(idx, idx + w.length)}
         </mark>
         {sentence.slice(idx + w.length)}”
@@ -804,8 +807,8 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
       {/* 1. ELEGANT LANGUAGE SELECTOR TOOLBAR */}
       <div className="yumai-language-bar flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 sm:px-3.5">
         {/* Source Language Select */}
-        <div className="flex items-center gap-1 flex-1 min-w-0">
-          {!isPopup && <span className="text-[11px] font-extrabold text-slate-400 pl-1 uppercase tracking-wider hidden sm:inline">从</span>}
+        <div className="yumai-lang-field flex items-center gap-1 flex-1 min-w-0">
+          {!isPopup && <span className="yumai-lang-label hidden sm:inline" aria-hidden="true">源语言</span>}
           <select
             value={sourceLang}
             onChange={(e) => { resetTranslationView(); setSourceLang(e.target.value); }}
@@ -830,8 +833,8 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
         </button>
 
         {/* Target Language Select */}
-        <div className="flex items-center gap-1 flex-1 min-w-0">
-          {!isPopup && <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider hidden sm:inline">至</span>}
+        <div className="yumai-lang-field flex items-center gap-1 flex-1 min-w-0">
+          {!isPopup && <span className="yumai-lang-label hidden sm:inline" aria-hidden="true">目标语言</span>}
           <select
             value={targetLang}
             onChange={(e) => { resetTranslationView(); setTargetLang(e.target.value); }}
@@ -871,9 +874,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                     menu.querySelector('summary')?.focus();
                   }
                 }}
-                className={`px-2 py-1 rounded-lg transition-colors cursor-pointer ${
-                  Math.abs(splitPercent - p.v) < 3 ? 'bg-white text-brand-700 shadow-2xs font-extrabold' : 'hover:text-slate-900'
-                }`}
+                className="yumai-layout-option"
                 title={p.title}
                 aria-label={p.title}
                 aria-pressed={Math.abs(splitPercent - p.v) < 3}
@@ -889,12 +890,28 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
         {(!isPopup || isFloating || selectedWord) && translateButton}
       </div>
 
-      {/* ERROR MESSAGE ALERT */}
-      {error && (
-        <div className="desk-error" role="alert">
-          <p><strong>翻译未完成</strong>{error}</p>
-          <button type="button" onClick={openSettings}>模型设置</button>
-          <button type="button" onClick={() => setError(null)} aria-label="关闭错误提示"><X size={15}/></button>
+      {/* ERROR MESSAGE ALERT — raw message stays visible; the hint says what to do next. */}
+      {error && errorInfo && (
+        <div className="yumai-error-banner" role="alert">
+          <div className="yumai-error-body">
+            <p className="yumai-error-title">翻译失败 · {errorInfo.hint}</p>
+            <p className="yumai-error-detail">{error}</p>
+          </div>
+          <div className="yumai-error-actions">
+            {sourceText.trim() && (
+              <button type="button" className="yumai-error-button" onClick={() => handleTranslate(activeSelection || undefined)}>
+                <RefreshCw className="w-3.5 h-3.5" aria-hidden="true" /> 重试
+              </button>
+            )}
+            {errorInfo.suggestSettings && (
+              <button type="button" className="yumai-error-button" onClick={openSettings}>
+                <Settings className="w-3.5 h-3.5" aria-hidden="true" /> 打开设置
+              </button>
+            )}
+            <button type="button" onClick={() => setError(null)} className="yumai-error-dismiss" aria-label="关闭错误提示" title="关闭">
+              <X className="w-3.5 h-3.5" aria-hidden="true" />
+            </button>
+          </div>
         </div>
       )}
 
@@ -927,18 +944,18 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
         </div>
       )}
       {selectionKind === 'passage' && readingOutlineOpen && !selectedWord && (
-        <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm space-y-2">
-          <p className="text-xs font-semibold text-slate-600">选择要翻译的段落</p>
+        <div className="yumai-inline-outline space-y-2">
+          <p className="text-xs font-semibold text-slate-600">原文段落导航（不与机器译文强行对应）</p>
           <div className="flex flex-wrap gap-2">
             {readingSegments.map((segment, index) => (
               <button type="button" key={segment.start}
                 onClick={() => focusReadingSegment(segment.start, segment.end)}
-                title={segment.text} className="max-w-full truncate rounded-lg bg-slate-100 px-3 py-2 text-xs text-slate-700 hover:bg-brand-50 hover:text-brand-700">
+                title={segment.text} className="yumai-segment-chip max-w-full truncate">
                 {index + 1}. {segment.text.slice(0, 36)}{segment.text.length > 36 ? '…' : ''}
               </button>
             ))}
           </div>
-          <p className="text-xs text-slate-400">定位后可单独翻译所选片段。最多展示前 8 段。</p>
+          <p className="text-xs text-slate-500">定位后可单独翻译所选片段。最多展示前 8 段。</p>
         </div>
       )}
       {/* 2 & 3. DUAL STUDIO TRANSLATION WORKSPACE — the drag handle resizes the split */}
@@ -955,7 +972,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             whole box collapses to a one-line context strip so the word view
             below gets almost all the vertical space. */}
         {isPopup && selectedWord ? (isFloating ? null : (
-          <div className="shrink-0 flex items-center justify-between gap-2 px-3 py-2 bg-white border border-slate-200 rounded-xl select-none">
+          <div className="yumai-word-context-strip shrink-0 flex items-center justify-between gap-2 px-3 py-2 select-none">
             <span
               className="flex-1 min-w-0 text-xs text-slate-600 truncate whitespace-nowrap font-medium"
               title={(sourceText || result?.sourceText || '').replace(/\s+/g, ' ').trim()}
@@ -964,10 +981,10 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             </span>
             <button
               onClick={clearWordSelection}
-              className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-bold text-brand-700 bg-brand-100/70 hover:bg-brand-200/80 transition-all cursor-pointer shrink-0 shadow-2xs hover:scale-105 active:scale-95"
+              className="yumai-chip-button yumai-chip-button--accent shrink-0"
               title="返回编辑原文 / 整句翻译"
             >
-              <PencilLine className="w-3 h-3 text-brand-600" />
+              <PencilLine className="w-3 h-3" aria-hidden="true" />
               <span>编辑原文</span>
             </button>
           </div>
@@ -989,7 +1006,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
         >
           <div className="yumai-source-heading flex shrink-0 items-center justify-between px-4 pt-3 pb-1">
             <span className="yumai-panel-caption">原文</span>
-            <span className="yumai-shortcut">Ctrl + Enter 翻译</span>
+            <span className="yumai-shortcut"><kbd>{shortcutLabel}</kbd> 翻译</span>
           </div>
           <textarea
             aria-label="原文输入区"
@@ -1023,7 +1040,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             <div className="flex items-center gap-1.5">
               {isFloating && activeSelection && (
                 <button type="button" onClick={() => handleTranslate(activeSelection)}
-                  className="rounded-lg bg-brand-50 px-2 py-1 font-semibold text-brand-700 hover:bg-brand-100"
+                  className="yumai-chip-button yumai-chip-button--accent"
                   title="仅翻译当前高亮选中的句子或段落">
                   翻译所选内容
                 </button>
@@ -1032,14 +1049,14 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                 <button
                   onClick={openSettings}
                   title="「打字实时翻译」已开启：输入停顿 500ms 后自动翻译。点击可在设置中关闭"
-                  className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-brand-50 border border-brand-200 text-brand-600 hover:bg-brand-100 transition-colors cursor-pointer shrink-0"
+                  className="yumai-live-badge shrink-0"
                 >
                   <Zap className="w-3 h-3" />
                   <span className="text-[10px] font-bold leading-none">实时翻译</span>
                 </button>
               )}
-              <span className={`text-[11px] font-bold ${
-                sourceText.length > 4500 ? 'text-rose-600' : sourceText.length > 3500 ? 'text-amber-600' : 'text-slate-400'
+              <span className={`yumai-char-count ${
+                sourceText.length > 4500 ? 'text-rose-700' : sourceText.length > 3500 ? 'text-amber-700' : ''
               }`}>
                 {sourceText.length.toLocaleString()} / 5,000
               </span>
@@ -1050,9 +1067,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
               <button
                 onClick={() => handlePlayAudio(selectedWord || sourceText, sourceLang, 'source')}
                 disabled={!sourceText.trim() && !selectedWord}
-                className={`p-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
-                  playingTarget === 'source' ? 'bg-brand-100 text-brand-700 shadow-inner' : 'hover:bg-brand-50 text-slate-500 hover:text-brand-600'
-                } disabled:opacity-30`}
+                className="yumai-tool-button" data-active={playingTarget === 'source'}
                 title={selectedWord ? `播放 "${selectedWord}"` : "播放原文"} aria-label="朗读原文"
               >
                 {playingTarget === 'source' ? (
@@ -1065,7 +1080,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
               <button
                 onClick={() => handleCopy(selectedWord || sourceText, 'source')}
                 disabled={!sourceText.trim()}
-                className="p-1.5 rounded-lg hover:bg-emerald-50 text-slate-500 hover:text-emerald-600 transition-all disabled:opacity-30 cursor-pointer"
+                className="yumai-tool-button"
                 title={selectedWord ? `复制 "${selectedWord}"` : "复制原文"} aria-label="复制原文"
               >
                 {copied && copiedArea === 'source' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
@@ -1079,7 +1094,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                   try { localStorage.removeItem('freetranslate_draft'); } catch(e){}
                 }}
                 disabled={!sourceText.trim()}
-                className="p-1.5 rounded-lg hover:bg-rose-50 text-slate-500 hover:text-rose-600 transition-all disabled:opacity-30 cursor-pointer"
+                className="yumai-tool-button yumai-tool-button--danger"
                 title="清空文本" aria-label="清空文本"
               >
                 <Eraser className="w-3.5 h-3.5" />
@@ -1114,9 +1129,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             className="h-3 flex items-center justify-center cursor-row-resize touch-none group select-none py-1 shrink-0 focus-visible:outline-2 focus-visible:outline-brand-500"
             title={userCustomVSplit ? '拖动调整高度 (双击恢复智能自适应)' : '智能自适应高度 (拖动可手动调整)'}
           >
-            <div className={`h-[3px] rounded-full transition-all ${
-              vSplitDragging ? 'bg-brand-500 w-16' : 'bg-slate-300 group-hover:bg-brand-400 w-10'
-            }`} />
+            <div className="yumai-split-grip yumai-split-grip--h" data-dragging={vSplitDragging} />
           </div>
         )}
 
@@ -1139,9 +1152,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             className="hidden md:flex items-center justify-center cursor-col-resize touch-none group select-none focus-visible:outline-2 focus-visible:outline-brand-500"
             title="拖动调整左右面板宽度"
           >
-            <div className={`w-[3px] h-16 rounded-full transition-all ${
-              splitDragging ? 'bg-gradient-to-b from-brand-500 to-brand-500 h-24 shadow-sm shadow-brand-500/40' : 'bg-slate-300 group-hover:bg-gradient-to-b group-hover:from-brand-400 group-hover:to-brand-400'
-            }`} />
+            <div className="yumai-split-grip yumai-split-grip--v" data-dragging={splitDragging} />
           </div>
         )}
 
@@ -1172,10 +1183,10 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
               <div className="yumai-result-scroll space-y-3">
                 <div className="text-xs font-semibold">
                   <div className="flex items-center justify-between pb-1.5">
-                    <span className="yumai-panel-caption flex items-center gap-1">
+                    <span className="yumai-panel-caption yumai-result-caption flex items-center gap-1">
                       {result?.sourceText && result.sourceText !== sourceText ? '所选内容译文' : '译文'}
                     </span>
-                    <span className="text-xs bg-brand-50 text-brand-700 px-2 py-0.5 rounded-md font-medium" role="status">生成中…</span>
+                    <span className="yumai-status-pill" role="status">生成中…</span>
                   </div>
                 </div>
                 <div className={`yumai-result-text ${
@@ -1184,13 +1195,14 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                     : 'text-slate-900 text-base sm:text-lg font-medium leading-relaxed tracking-tight select-text min-h-[60px] whitespace-pre-wrap'
                 }`}>
                   {streamingText}
-                  <span className="inline-block w-[2px] h-[1.1em] bg-gradient-to-b from-brand-500 to-brand-500 ml-0.5 align-text-bottom animate-pulse rounded-sm" />
+                  <span className="yumai-stream-caret" aria-hidden="true" />
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-8 text-slate-400 gap-2">
-                <RefreshCw className="w-6 h-6 animate-spin text-brand-600" />
-                <span className="text-xs font-bold text-slate-500">正在翻译…</span>
+              <div className="yumai-loading-state" role="status" aria-live="polite">
+                <RefreshCw className="w-5 h-5 animate-spin" aria-hidden="true" />
+                <span>正在翻译…</span>
+                <small>可随时点击“停止”取消</small>
               </div>
             )
           ) : (
@@ -1199,12 +1211,12 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                 {/* Output Header */}
                 <div className="text-xs font-semibold">
                   <div className="flex items-center justify-between pb-1.5">
-                    <span className="yumai-panel-caption flex items-center gap-1">
+                    <span className="yumai-panel-caption yumai-result-caption flex items-center gap-1">
                       {result?.sourceText && result.sourceText !== sourceText ? '所选内容译文' : '译文'}
                     </span>
                     {result?.detectedLang && (
-                      <span className="text-xs text-slate-500">
-                        识别为 {languages.find(language => language.code === result.detectedLang)?.name || result.detectedLang}
+                      <span className="yumai-detected-lang">
+                        识别为 {getLanguageName(result.detectedLang, languages)}
                       </span>
                     )}
                   </div>
@@ -1259,11 +1271,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                   <button
                     onClick={() => handlePlayAudio(result?.translation || '', targetLang, 'target')}
                     disabled={!result?.translation}
-                    className={`p-2 rounded-xl transition-all cursor-pointer ${
-                      playingTarget === 'target'
-                        ? 'bg-gradient-to-br from-brand-500 to-brand-600 text-white shadow-md shadow-brand-500/30'
-                        : 'text-slate-500 hover:text-brand-600 hover:bg-brand-50'
-                    } disabled:opacity-30`}
+                    className="yumai-result-action" data-active={playingTarget === 'target'}
                     title="朗读译文" aria-label="朗读译文"
                   >
                     {playingTarget === 'target' ? (
@@ -1277,7 +1285,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                   <button
                     onClick={() => result?.translation && handleCopy(result.translation, 'target')}
                     disabled={!result?.translation}
-                    className="p-2 rounded-xl text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 disabled:opacity-30 cursor-pointer transition-all"
+                    className="yumai-result-action"
                     title="复制译文" aria-label="复制译文"
                   >
                     {copied && copiedArea === 'target' ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}

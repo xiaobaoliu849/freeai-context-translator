@@ -58,9 +58,24 @@ export function extractPartialTranslation(raw: string): { text: string; complete
         // Escape sequence: wait for the escaped char to arrive
         if (i + 1 >= cleaned.length) break;
         const next = cleaned[i + 1];
+        if (next === 'u') {
+          // \uXXXX (some models escape all non-ASCII text). Wait for all four
+          // hex digits, and for the low half of a surrogate pair, so a
+          // half-decoded character never flashes on screen.
+          const hex = cleaned.slice(i + 2, i + 6);
+          if (hex.length < 4) break;
+          if (!/^[0-9a-fA-F]{4}$/.test(hex)) { out += next; i += 2; continue; }
+          const unit = parseInt(hex, 16);
+          if (unit >= 0xd800 && unit <= 0xdbff && cleaned.length < i + 12) break;
+          out += String.fromCharCode(unit);
+          i += 6;
+          continue;
+        }
         if (next === 'n') out += '\n';
         else if (next === 't') out += '\t';
         else if (next === 'r') out += '\r';
+        else if (next === 'b') out += '\b';
+        else if (next === 'f') out += '\f';
         else out += next; // \" \\ \/ etc.
         i += 2;
       } else if (ch === '"') {

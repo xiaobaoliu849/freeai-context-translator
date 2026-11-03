@@ -45,16 +45,30 @@ const browser = spawn(process.env.CHROME_PATH || 'google-chrome', [
 let launchError;
 browser.on('error', err => { launchError = err; });
 let socket;
+// Set once the CDP session is ready, so a failed assertion still leaves a
+// screenshot and the visible text behind for the CI artifact.
+let captureFailure;
 try {
   let debugPort;
-  for (let i = 0; i < 100; i++) {
+  // A cold CI runner can take well over the local start-up time.
+  for (let i = 0; i < 300; i++) {
     if (launchError) throw launchError;
     try { debugPort = Number((await readFile(join(profile, 'DevToolsActivePort'), 'utf8')).split('\n')[0]); break; } catch {}
     await delay(100);
   }
   assert.ok(debugPort, 'Chrome debugging endpoint did not start');
-  const targets = await (await fetch(`http://127.0.0.1:${debugPort}/json/list`)).json();
-  socket = new WebSocket(targets.find(t => t.type === 'page').webSocketDebuggerUrl);
+  // DevToolsActivePort is written before the initial about:blank tab is
+  // registered, so poll until a page target actually exists.
+  let pageTarget;
+  for (let i = 0; i < 100 && !pageTarget; i++) {
+    try {
+      const targets = await (await fetch(`http://127.0.0.1:${debugPort}/json/list`)).json();
+      pageTarget = targets.find(t => t.type === 'page' && t.webSocketDebuggerUrl);
+    } catch {}
+    if (!pageTarget) await delay(100);
+  }
+  assert.ok(pageTarget, 'Chrome did not expose a page target');
+  socket = new WebSocket(pageTarget.webSocketDebuggerUrl);
   await new Promise((resolve, reject) => { socket.addEventListener('open', resolve, { once: true }); socket.addEventListener('error', reject, { once: true }); });
   let id = 0;
   const pending = new Map();
@@ -78,12 +92,18 @@ try {
     return result.result.value;
   };
   const waitFor = async expression => {
-    for (let i = 0; i < 60; i++) { if (await evaluate(`Boolean(${expression})`)) return; await delay(100); }
+    for (let i = 0; i < 150; i++) { if (await evaluate(`Boolean(${expression})`)) return; await delay(100); }
     throw new Error(`Condition not met: ${expression}`);
   };
   await command('Page.enable');
   const output = join(root, 'preview'); await mkdir(output, { recursive: true });
   const capture = async name => { const { data } = await command('Page.captureScreenshot', { format: 'png' }); await writeFile(join(output, name), Buffer.from(data, 'base64')); };
+  captureFailure = async () => {
+    await capture('yumai-floating-failure.png');
+    const state = await evaluate(`JSON.stringify({ url: location.href, viewport: [innerWidth, innerHeight], text: document.body?.innerText.slice(0, 1500) })`);
+    await writeFile(join(output, 'yumai-floating-failure.json'), state);
+    console.error('Page state at failure:', state);
+  };
   const contrast = (foreground, background) => {
     const luminance = rgb => rgb.match(/[\d.]+/g).slice(0, 3).map(Number).map(c => {
       const n = c / 255; return n <= 0.04045 ? n / 12.92 : ((n + 0.055) / 1.055) ** 2.4;
@@ -163,6 +183,37 @@ try {
   await evaluate("document.activeElement?.blur(); document.querySelector('textarea').scrollTop = 0; document.querySelector('.yumai-result-scroll').scrollTop = 0");
   await capture('yumai-popup-clarity-long-text.png');
   console.log('PASS: popup empty/result states, text contrast, contextual actions, and keyboard translation.');
+  // Error state: provider rejects the key. The banner must be announced, keep
+  // the raw message, and offer retry + settings as real buttons.
+  await evaluate(`(() => {
+    window.__fetchBeforeError = window.fetch;
+    const unauthorized = () => Promise.resolve(new Response(JSON.stringify({ error: { code: 401, message: 'API key not valid (401)' } }), { status: 401, headers: { 'Content-Type': 'application/json' } }));
+    window.fetch = (input, init) => {
+      const url = typeof input === 'string' ? input : input.url;
+      if (url.includes('/api/translate')) return Promise.resolve(new Response('Unavailable fixture', { status: 503 }));
+      if (/^https?:/.test(url)) return unauthorized();
+      return window.__fetchBeforeError(input, init);
+    };
+    document.querySelector('.yumai-translate-button').click();
+  })()`);
+  await waitFor("document.querySelector('.yumai-error-banner[role=\"alert\"] .yumai-error-detail')?.textContent.length");
+  const errorState = await evaluate(`(() => {
+    const banner = document.querySelector('.yumai-error-banner');
+    const buttons = [...banner.querySelectorAll('button')].map(b => b.textContent.trim() || b.getAttribute('aria-label'));
+    const r = banner.getBoundingClientRect();
+    return { buttons, right: r.right, width: innerWidth, title: banner.querySelector('.yumai-error-title').textContent,
+      titleColor: getComputedStyle(banner.querySelector('.yumai-error-title')).color, background: getComputedStyle(banner).backgroundColor };
+  })()`);
+  assert.ok(errorState.buttons.includes('重试'), 'Error banner offers retry: ' + JSON.stringify(errorState));
+  assert.ok(errorState.buttons.includes('打开设置'), 'Key errors point to settings: ' + JSON.stringify(errorState));
+  assert.ok(errorState.buttons.includes('关闭错误提示'));
+  assert.ok(errorState.right <= errorState.width, 'Error banner overflows the popup');
+  assert.ok(contrast(errorState.titleColor, errorState.background) >= 4.5, 'Error text contrast is too low');
+  await evaluate('document.activeElement?.blur()');
+  await capture('yumai-popup-clarity-error.png');
+  await evaluate("document.querySelector('button[aria-label=\"关闭错误提示\"]').click(); window.fetch = window.__fetchBeforeError");
+  await waitFor("!document.querySelector('.yumai-error-banner')");
+  console.log('PASS: actionable, announced error state with retry, settings and dismiss.');
   const interactionFailures = [];
   // A clipboard permission prompt can settle after the user replaces the source.
   await evaluate(`(() => {
@@ -372,6 +423,9 @@ try {
   await waitFor("!document.querySelector('#freetranslate-host-container')");
   await writeFile(join(output, 'yumai-floating-layout.json'), JSON.stringify({ initial, expanded, sizes }, null, 2));
   console.log('PASS: real Shadow DOM, full explanation scrolling, expand/reset, native resize, editing, narrow/short/high-DPI viewports, pin, Escape, and host style isolation.');
+} catch (error) {
+  try { await captureFailure?.(); } catch (captureError) { console.error('Could not capture failure state:', captureError.message); }
+  throw error;
 } finally {
   socket?.close(); browser.kill(); server.close();
 }
