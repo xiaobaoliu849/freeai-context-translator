@@ -107,7 +107,11 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
     };
   }, [sourceText, result?.id, result?.translation, selectedWord]);
   const [draftNote, setDraftNote] = useState({ document: resetSignal, text: '' });
-  const readerNote = draftNote.document === resetSignal ? draftNote.text : '';
+  const noteDraft = draftNote.document === resetSignal ? draftNote.text : '';
+  const standingBackground = settings.readingBackground?.trim() || '';
+  // A note written for this text wins; otherwise the standing background from settings applies.
+  const readerNote = noteDraft.trim() || standingBackground;
+  const lookupDetail = settings.lookupDetail || 'concise';
   const setReaderNote = (text: string) => setDraftNote({ document: resetSignal, text });
   const [wordContext, setWordContext] = useState<string>('');
   const [activeSelection, setActiveSelection] = useState<string>('');
@@ -122,6 +126,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
   const readingSegments = React.useMemo(() => selectionKind === 'passage' ? getReadingSegments(sourceText) : [], [sourceText, selectionKind]);
   const [wordExplanation, setWordExplanation] = useState<WordExplanation | null>(null);
   const [explainingWord, setExplainingWord] = useState(false);
+  const [wordDetail, setWordDetail] = useState(lookupDetail);
   // Free-drag split between the source/target panels (desktop). The value is
   // a percentage of the left panel; it is persisted so the user's preferred
   // ratio survives reloads. The toolbar presets (5:5 / 6:4 / 4:6) snap it.
@@ -496,15 +501,16 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
   }, [sourceText, isPopup]);
 
   // Handle selecting a word in context with instant cache retrieval
-  const handleSelectWord = async (word: string, contextOverride?: string) => {
+  const handleSelectWord = async (word: string, contextOverride?: string, detail = lookupDetail) => {
     const cleanWord = normalizeSelectedTerm(word);
     if (!cleanWord) return;
     const lookupSentence = (contextOverride || sourceText || result?.sourceText || cleanWord).slice(0, 380);
     const requestId = ++wordReqIdRef.current;
     setWordContext(lookupSentence);
+    setWordDetail(detail);
     setActiveSelection('');
     setReadingOutlineOpen(false);
-    const cacheKey = `${cleanWord.toLowerCase()}_${targetLang}_${activeProvider}_${activeConfig.model}_${lookupSentence}_${readerNote}`;
+    const cacheKey = `${cleanWord.toLowerCase()}_${targetLang}_${activeProvider}_${activeConfig.model}_${detail}_${lookupSentence}_${readerNote}`;
 
     // Return cached explanation instantly if available
     if (wordCacheRef.current[cacheKey]) {
@@ -527,6 +533,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
         data = await bridgeExplain({
           sentence: lookupSentence,
           readerNote,
+          detail,
           selectedWord: cleanWord,
           targetLang,
           provider: activeProvider,
@@ -541,6 +548,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             body: JSON.stringify({
               sentence: lookupSentence,
               readerNote,
+              detail,
               selectedWord: cleanWord,
               targetLang,
               provider: activeProvider,
@@ -556,6 +564,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
           data = await explainWordClient({
             sentence: lookupSentence,
             readerNote,
+            detail,
             selectedWord: cleanWord,
             targetLang,
             provider: activeProvider,
@@ -1029,9 +1038,9 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
 
           {!isPopup && (
             <details className="desk-note">
-              <summary>补充语境{readerNote.trim() ? ' · 已填写' : ''}</summary>
-              <textarea aria-label="补充语境" value={readerNote} maxLength={240} rows={2}
-                placeholder="例如：这是软件开发团队的会议记录"
+              <summary>补充语境{noteDraft.trim() ? ' · 已填写' : standingBackground ? ' · 使用默认背景' : ''}</summary>
+              <textarea aria-label="补充语境" value={noteDraft} maxLength={240} rows={2}
+                placeholder={standingBackground ? `留空则使用默认背景：${standingBackground}` : '例如：这是软件开发团队的会议记录'}
                 onChange={event => { setReaderNote(event.target.value); resetTranslationView(); }}/>
             </details>
           )}
@@ -1174,7 +1183,9 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
               onClose={clearWordSelection}
               onSwitchToTranslate={clearWordSelection}
               sentence={wordContext || sourceText || result?.sourceText || ''}
-              onRetry={() => handleSelectWord(selectedWord, wordContext)}
+              onRetry={() => handleSelectWord(selectedWord, wordContext, wordDetail)}
+              onLoadMore={wordDetail === 'concise' ? () => handleSelectWord(selectedWord, wordContext, 'full') : undefined}
+              readerNote={readerNote}
               settings={settings}
             />
           ) : loading ? (

@@ -23,6 +23,10 @@ export interface WordContextCardProps {
   settings: AppSettings;
   onSwitchToTranslate?: () => void;
   onRetry?: () => void;
+  /** Present when the current entry is concise; fetches collocations, synonyms and examples. */
+  onLoadMore?: () => void;
+  /** Background the lookup was resolved against, shown so the reader knows why a sense was chosen. */
+  readerNote?: string;
 }
 
 /**
@@ -40,6 +44,8 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
   settings,
   onSwitchToTranslate,
   onRetry,
+  onLoadMore,
+  readerNote,
 }) => {
   const [wordPhase, setWordPhase] = useState<'generating' | 'playing' | null>(null);
   const [copied, setCopied] = useState(false);
@@ -218,6 +224,10 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
   const antonyms = explanation.antonyms || [];
   const examplesList = explanation.examples || explanation.exampleSentences || [];
   const contextWordIndex = sentence?.toLowerCase().indexOf(displayWord.toLowerCase()) ?? -1;
+  const normalize = (value: string) => value.replace(/[\s。.，,；;、]/g, '');
+  const literal = explanation.literalMeaning?.trim() || '';
+  const showLiteral = literal && normalize(literal) !== normalize(explanation.contextualMeaning);
+  const hasVocabulary = collocations.length > 0 || synonyms.length > 0 || antonyms.length > 0 || examplesList.length > 0;
 
   return (
     <div className="yumai-word-card bg-white text-slate-800 w-full flex-1 min-h-0 flex flex-col overflow-hidden">
@@ -245,11 +255,15 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
         )}
 
         {/* General dictionary definition */}
-        {explanation.literalMeaning && (
+        {showLiteral && (
           <section className="yumai-word-section">
             <h4>通用释义</h4>
-            <p>{explanation.literalMeaning}</p>
+            <p>{literal}</p>
           </section>
+        )}
+
+        {readerNote?.trim() && (
+          <p className="yumai-word-note" title={readerNote}>已参考背景：{readerNote}</p>
         )}
 
         {sentence && sentence.trim() !== displayWord.trim() && (
@@ -355,6 +369,13 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
               </div>
             )}
           </div>
+        )}
+
+        {onLoadMore && !hasVocabulary && (
+          <button type="button" onClick={onLoadMore} className="yumai-word-disclosure">
+            <ChevronRight className="w-3.5 h-3.5" />
+            查看搭配、近义词与例句
+          </button>
         )}
       </div>
     </div>

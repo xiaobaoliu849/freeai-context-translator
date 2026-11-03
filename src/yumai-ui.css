@@ -284,6 +284,7 @@
 .yumai-word-meaning h4 { color: var(--ym-primary); }
 .yumai-word-meaning p { margin: 0; font-size: 17px; font-weight: 600; line-height: 1.65; color: var(--ym-text); }
 .yumai-word-section p, .yumai-word-context p { margin: 0; font-size: 14px; font-weight: 400; line-height: 1.8; color: var(--ym-text-2); white-space: pre-wrap; }
+.yumai-word-note { margin: 0; overflow: hidden; font-size: 12px; line-height: 1.6; color: var(--ym-text-muted); white-space: nowrap; text-overflow: ellipsis; }
 .yumai-word-context { padding-block: 10px; border-block: 1px solid var(--ym-border); }
 .yumai-word-context summary { padding: 3px 0; font-size: 12px; font-weight: 600; color: var(--ym-text-muted); cursor: pointer; }
 .yumai-word-context[open] p { margin-top: 8px; }
