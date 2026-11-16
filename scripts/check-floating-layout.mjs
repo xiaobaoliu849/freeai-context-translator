@@ -169,6 +169,29 @@ try {
   await waitFor("window.__copiedText === '研究系统帮助科学家在临床应用之前评估各种想法。'");
   await evaluate("document.querySelector('button[aria-label=\"清空文本\"]').click()");
   await waitFor("!document.querySelector('textarea').value && !document.querySelector('button[aria-label=\"复制译文\"]')");
+  // Single-word lookup in popup: pressing plain Enter must search without inserting a newline or clipping/scrolling the input.
+  await evaluate(`(() => {
+    const prevFetch = window.fetch;
+    window.fetch = (input, init) => {
+      const url = typeof input === 'string' ? input : input.url;
+      if (url.includes('/api/explain-word')) return Promise.resolve(new Response(JSON.stringify(${JSON.stringify({ ...sample, word: 'bookmark' })}), { headers: { 'Content-Type': 'application/json' } }));
+      return prevFetch(input, init);
+    };
+    document.querySelector('textarea').focus();
+  })()`);
+  await command('Input.insertText', { text: 'bookmark' });
+  await command('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
+  await command('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
+  await waitFor("document.querySelector('.yumai-word-title h3')?.textContent === 'bookmark'");
+  const wordPopupMetrics = await evaluate(`(() => {
+    const ta = document.querySelector('textarea');
+    return { value: ta.value, clientHeight: ta.clientHeight, scrollHeight: ta.scrollHeight, scrollTop: ta.scrollTop };
+  })()`);
+  assert.equal(wordPopupMetrics.value, 'bookmark', 'Plain Enter on a single word should not append a newline');
+  assert.ok(wordPopupMetrics.clientHeight >= 36 && wordPopupMetrics.scrollHeight <= wordPopupMetrics.clientHeight, 'Single word in popup source box must fit without clipping or scrollbar: ' + JSON.stringify(wordPopupMetrics));
+  assert.equal(wordPopupMetrics.scrollTop, 0);
+  await evaluate("document.querySelector('button[aria-label=\"清空文本\"]').click()");
+  await waitFor("!document.querySelector('textarea').value");
   await evaluate("window.__translationSample = Array(35).fill('研究系统帮助科学家在临床应用之前评估各种想法。').join('\\n\\n'); document.querySelector('textarea').focus()");
   await command('Input.insertText', { text: Array(22).fill('Research systems help scientists evaluate ideas before clinical use.').join('\n\n') });
   await command('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', modifiers: 2, windowsVirtualKeyCode: 13 });

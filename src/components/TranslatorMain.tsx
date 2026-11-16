@@ -168,7 +168,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
     if (userCustomVSplit) return vSplitPercent;
     const len = sourceText.trim().length;
     if (len === 0) return 38;
-    if (len <= 80) return 34; // Keep short content accessible while prioritizing output
+    if (len <= 80) return 38; // Keep short content clearly visible while prioritizing output
     if (len <= 250) return 40;
     if (len <= 800) return 46;
     return 50; // Long form: equal scrollable source / target
@@ -516,6 +516,9 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
   const handleSelectWord = async (word: string, contextOverride?: string, detail = lookupDetail) => {
     const cleanWord = normalizeSelectedTerm(word);
     if (!cleanWord) return;
+    if (textareaRef.current && classifySelection(sourceText) === 'term') {
+      textareaRef.current.scrollTop = 0;
+    }
     const lookupSentence = (contextOverride || sourceText || result?.sourceText || cleanWord).slice(0, 380);
     const cacheKey = `${cleanWord.toLowerCase()}_${targetLang}_${activeProvider}_${activeConfig.model}_${detail}_${lookupSentence}_${readerNote}`;
 
@@ -827,7 +830,10 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
 
   const runPrimaryAction = () => {
     if (!activeSelection && selectionKind === 'term') {
-      handleSelectWord(sourceText, selectionContext || sourceText);
+      const cleanSource = sourceText.replace(/[\r\n]+$/g, '');
+      if (cleanSource !== sourceText) setSourceText(cleanSource);
+      if (textareaRef.current) textareaRef.current.scrollTop = 0;
+      handleSelectWord(cleanSource, selectionContext || cleanSource);
     } else {
       clearWordSelection();
       handleTranslate(activeSelection || undefined);
@@ -835,10 +841,12 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
   };
 
   const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Enter inserts a newline; Ctrl/Cmd+Enter translates.
-    if (e.key !== 'Enter' || (!e.ctrlKey && !e.metaKey) || e.shiftKey || e.nativeEvent.isComposing) return;
-    e.preventDefault();
-    runPrimaryAction();
+    if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return;
+    // Ctrl/Cmd+Enter always translates; plain Enter also submits single-word lookups (Shift+Enter inserts a newline).
+    if (e.ctrlKey || e.metaKey || (!activeSelection && selectionKind === 'term')) {
+      e.preventDefault();
+      runPrimaryAction();
+    }
   };
 
   const translateButton = (
@@ -1084,9 +1092,9 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
           </section>
         ) : (
         <div
-          style={isPopup ? { flex: selectedWord ? '0 0 92px' : `0 0 calc(${effectiveVSplitPercent}% - 6px)` } : undefined}
+          style={isPopup ? { flex: selectedWord ? '0 0 128px' : `0 0 calc(${effectiveVSplitPercent}% - 6px)` } : undefined}
           className={`yumai-source-panel overflow-hidden flex flex-col justify-between transition-colors ${
-            isPopup ? (selectedWord ? 'min-h-[86px]' : 'min-h-[105px]') : 'min-h-[240px] sm:min-h-[300px]'
+            isPopup ? (selectedWord ? 'min-h-[124px]' : 'min-h-[128px]') : 'min-h-[240px] sm:min-h-[300px]'
           }`}
         >
           <div className="yumai-source-heading flex shrink-0 items-center justify-between px-4 pt-3 pb-1">

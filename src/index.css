@@ -38,18 +38,21 @@
 
 /* Quiet thin scrollbar and navy selection, matching the YUMAI tokens. */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
+  margin-block: 4px;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgb(82 100 143 / 28%);
+  background-color: rgb(100 114 104 / 26%);
+  border: 2px solid transparent;
+  background-clip: padding-box;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgb(82 100 143 / 48%);
+  background-color: rgb(100 114 104 / 45%);
 }
 ::selection {
   background: rgb(38 59 104 / 16%);

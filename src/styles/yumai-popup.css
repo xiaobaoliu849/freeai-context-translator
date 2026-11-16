@@ -41,13 +41,13 @@
   box-shadow: 0 3px 7px rgb(42 54 44 / 3%);
 }
 .yumai-app.yumai-popup:not(.yumai-floating) .yumai-source-panel:focus-within { border-color: #98ada0; box-shadow: 0 0 0 2px rgb(75 110 89 / 7%); }
-.yumai-app.yumai-popup:not(.yumai-floating) .yumai-source-heading { padding: 14px 16px 5px; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-source-heading { padding: 10px 16px 2px; }
 .yumai-app.yumai-popup:not(.yumai-floating) .yumai-panel-caption { font-size: 11px; font-weight: 500; color: #667268; }
 .yumai-app.yumai-popup:not(.yumai-floating) .yumai-shortcut { font-size: 10px; color: #68756c; }
-.yumai-app.yumai-popup:not(.yumai-floating) .yumai-source-editor { color: #28382e; font-size: 16px !important; line-height: 1.75 !important; padding: 7px 16px 8px; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-source-editor { color: #28382e; font-size: 16px !important; line-height: 1.6 !important; padding: 4px 16px 6px; min-height: 36px; }
 .yumai-app.yumai-popup:not(.yumai-floating) .yumai-source-editor::placeholder { color: #6b756d; }
 .yumai-app.yumai-popup:not(.yumai-floating) .yumai-source-editor:focus { outline: none; }
-.yumai-app.yumai-popup:not(.yumai-floating) .yumai-panel-footer { background: transparent; padding: 6px 10px 10px 16px; }
+.yumai-app.yumai-popup:not(.yumai-floating) .yumai-panel-footer { background: transparent; padding: 4px 10px 8px 16px; }
 .yumai-app.yumai-popup:not(.yumai-floating) .yumai-panel-footer > div > span { font-size: 10px; color: #68756c; }
 .yumai-app.yumai-popup:not(.yumai-floating) .yumai-translate-button { width: auto; height: 34px; min-width: 74px; white-space: nowrap; border-radius: 8px; padding: 7px 17px; min-height: 32px; font-size: 12px; background: #283f37; color: #fff; }
 .yumai-app.yumai-popup:not(.yumai-floating) .yumai-translate-button:hover { background: #193026; }

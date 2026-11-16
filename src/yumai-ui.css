@@ -53,10 +53,17 @@
   outline-offset: 2px;
 }
 .yumai-app ::selection { background: var(--ym-brand-100); color: var(--ym-text); }
-.yumai-app ::-webkit-scrollbar { width: 5px; height: 5px; }
-.yumai-app ::-webkit-scrollbar-track { background: transparent; }
-.yumai-app ::-webkit-scrollbar-thumb { background: #cbd3e2; border-radius: 12px; }
-.yumai-app ::-webkit-scrollbar-thumb:hover { background: #abb8cf; }
+.yumai-app ::-webkit-scrollbar { width: 8px; height: 8px; }
+.yumai-app ::-webkit-scrollbar-track { background: transparent; margin-block: 4px; }
+.yumai-app ::-webkit-scrollbar-thumb {
+  background-color: rgb(100 114 104 / 26%);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 9999px;
+}
+.yumai-app ::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(100 114 104 / 45%);
+}
 
 /* Primary toolbar stays in one row even in the 440px floating card. */
 .yumai-language-bar {
@@ -172,7 +179,7 @@
 
 /* Dense popup: preserve user-adjustable source/result split and scrolling. */
 .yumai-popup .yumai-language-bar { min-height: 52px; }
-.yumai-popup .yumai-source-panel { min-height: 105px; }
+.yumai-popup .yumai-source-panel { min-height: 124px; }
 .yumai-popup .yumai-source-editor { padding-top: 4px; }
 .yumai-popup .yumai-result-panel { min-height: 110px; }
 .yumai-popup .yumai-result-text { font-size: 15px !important; }
