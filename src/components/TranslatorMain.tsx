@@ -485,7 +485,12 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
     if (settings.autoTranslate && !activeSelection && !selectedWord && !alreadyTranslated && sourceText.trim().length > 1) {
       const version = translateReqIdRef.current;
       const timer = setTimeout(() => {
-        if (version === translateReqIdRef.current) handleTranslate();
+        if (version !== translateReqIdRef.current) return;
+        if (classifySelection(sourceText) === 'term') {
+          handleSelectWord(sourceText, selectionContext || sourceText);
+        } else {
+          handleTranslate();
+        }
       }, 500);
       return () => clearTimeout(timer);
     }
@@ -779,17 +784,25 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
     }
   };
 
+  const runPrimaryAction = () => {
+    if (!activeSelection && selectionKind === 'term') {
+      handleSelectWord(sourceText, selectionContext || sourceText);
+    } else {
+      clearWordSelection();
+      handleTranslate(activeSelection || undefined);
+    }
+  };
+
   const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // Enter inserts a newline; Ctrl/Cmd+Enter translates.
     if (e.key !== 'Enter' || (!e.ctrlKey && !e.metaKey) || e.shiftKey || e.nativeEvent.isComposing) return;
     e.preventDefault();
-    clearWordSelection();
-    handleTranslate(activeSelection || undefined);
+    runPrimaryAction();
   };
 
   const translateButton = (
     <button
-          onClick={() => { if (loading) handleStop(); else { clearWordSelection(); handleTranslate(activeSelection || undefined); } }}
+          onClick={() => { if (loading) handleStop(); else runPrimaryAction(); }}
           disabled={!loading && !sourceText.trim()}
           className="yumai-translate-button inline-flex shrink-0 items-center justify-center gap-1.5 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           data-loading={loading}
@@ -1005,7 +1018,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
         )) : compactFloatingSource ? (
           <section className="yumai-floating-snippet shrink-0 rounded-xl border border-slate-200 bg-white px-4 py-3" aria-label="已选中的网页文本">
             <div className="mb-1.5 flex items-center justify-between gap-2">
-              <span className="yumai-panel-caption">已选中 · {selectionKind === 'passage' ? '长文本' : '句子'}</span>
+              <span className="yumai-panel-caption">已选中 · {selectionKind === 'passage' ? '长文本' : selectionKind === 'term' ? '单词 / 短语' : '句子'}</span>
               <div className="flex items-center gap-1.5">
                 <button type="button" className="yumai-secondary-action" data-active={playingTarget === 'source'}
                   onClick={() => handlePlayAudio(sourceText, speechSourceLang, 'source')}
@@ -1016,7 +1029,17 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                   aria-label="展开原文编辑器"><PencilLine className="h-3.5 w-3.5"/> 编辑</button>
               </div>
             </div>
-            <p className="line-clamp-3 whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-700 select-text">{sourceText}</p>
+            <p
+              className="line-clamp-3 whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-700 select-text"
+              onMouseUp={(e) => {
+                const root = (e.currentTarget.getRootNode?.() as Document | ShadowRoot) || document;
+                const sel = (root as any).getSelection?.() || window.getSelection();
+                const highlighted = sel?.toString().trim() || '';
+                if (highlighted && highlighted !== sourceText.trim() && classifySelection(highlighted) === 'term') {
+                  handleSelectWord(highlighted, sourceText);
+                }
+              }}
+            >{sourceText}</p>
           </section>
         ) : (
         <div
