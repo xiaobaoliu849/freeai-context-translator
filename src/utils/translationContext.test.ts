@@ -37,6 +37,33 @@ test('prompts name the target language and keep concise lookups free of vocabula
   assert.ok(buildTranslatePrompt('bank', 'en', 'zh-CN').includes('Simplified Chinese (zh-CN)'));
   const concise = buildExplainPrompt('bank', 'The river flooded its bank.', 'zh-TW', 'geology notes', 'concise');
   assert.ok(concise.includes('Traditional Chinese (zh-TW)'));
-  assert.ok(concise.includes('collocations, synonymsInContext, antonyms, examples: []'));
+  assert.ok(concise.includes('collocations, synonymsInContext, antonyms: []'));
+  // Concise in-context lookups still teach pronunciation and the sense with examples.
+  assert.ok(concise.includes('IPA') && concise.includes('at most two objects') && concise.includes('inContext'));
   assert.ok(buildExplainPrompt('bank', 'x bank', 'xx').includes('at most two objects'));
+});
+
+test('a word without surrounding text gets a full dictionary entry', () => {
+  for (const excerpt of ['', 'tyres', ' Tyres. ']) {
+    const prompt = buildExplainPrompt('tyres', excerpt, 'zh-CN', undefined, 'concise');
+    assert.match(prompt, /bilingual learner's dictionary/);
+    assert.match(prompt, /three objects/);
+    assert.match(prompt, /phoneticUk, phoneticUs/);
+    assert.match(prompt, /etymology/);
+    assert.match(prompt, /spellingSuggestion/);
+  }
+  assert.doesNotMatch(buildExplainPrompt('tyres', 'The tyres screeched.', 'zh-CN'), /learner's dictionary/);
+});
+
+test('dictionary fields are parsed and malformed senses dropped', () => {
+  const entry = parseExplanation(JSON.stringify({
+    contextualMeaning: '轮胎', phoneticUk: '/ˈtaɪəz/', phoneticUs: '/ˈtaɪərz/', rootOrLemma: 'tyre', etymology: '源自 attire。',
+    senses: [{ pos: 'n.', meaning: '轮胎', inContext: true }, { pos: 'v.' }, null, { meaning: '使疲倦', inContext: 'yes' }],
+  }), 'tyres');
+  assert.equal(entry.phoneticUk, '/ˈtaɪəz/');
+  assert.equal(entry.rootOrLemma, 'tyre');
+  assert.deepEqual(entry.senses, [
+    { pos: 'n.', meaning: '轮胎', inContext: true },
+    { pos: '', meaning: '使疲倦', inContext: false },
+  ]);
 });

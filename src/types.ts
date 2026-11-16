@@ -82,9 +82,18 @@ export interface TranslationResult {
   timestamp: number;
 }
 
+export interface WordSense {
+  pos: string;
+  meaning: string;
+  /** True for the sense used in the looked-up sentence. */
+  inContext?: boolean;
+}
+
 export interface WordExplanation {
   word: string;
   phonetic?: string;
+  phoneticUk?: string;
+  phoneticUs?: string;
   pos?: string;
   partOfSpeech?: string;
   literalMeaning?: string;
@@ -92,6 +101,9 @@ export interface WordExplanation {
   contextExplanation: string;
   rootOrLemma?: string;
   cefrLevel?: string;
+  senses?: WordSense[];
+  etymology?: string;
+  spellingSuggestion?: string;
   collocations?: string[];
   antonyms?: string[];
   synonymsInContext?: string[];
