@@ -53,15 +53,18 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
   speechLang,
   showCloseButton = true,
 }) => {
-  const [wordPhase, setWordPhase] = useState<'generating' | 'playing' | null>(null);
+  // One audio slot for the card: the headword ('word') or an example ('ex-N').
+  const [audio, setAudio] = useState<{ key: string; phase: 'generating' | 'playing' } | null>(null);
+  const wordPhase = audio?.key === 'word' ? audio.phase : null;
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState<string | null>(null);
-  const [examplesOpen, setExamplesOpen] = useState(false);
+  const [examplesOpen, setExamplesOpen] = useState(true);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const sectionId = useId();
   useEffect(() => {
-    setExamplesOpen(false);
+    setExamplesOpen(true);
     setDetailsOpen(false);
+    setAudio(null);
   }, [word]);
 
   // Keyboard shortcut listener: Escape key closes card
@@ -79,31 +82,33 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
   }, [onClose]);
 
   const displayWord = explanation?.word || word || '';
+  const resolvedLang = speechLang && speechLang !== 'auto'
+    ? speechLang
+    : (settings.defaultSourceLang && settings.defaultSourceLang !== 'auto' ? settings.defaultSourceLang : 'en');
 
-  const handlePlayWordAudio = () => {
-    const wordToSpeak = displayWord || sentence;
-    if (!wordToSpeak) return;
-    if (wordPhase) {
+  /** Plays `text` in the given slot; pressing the active slot again stops it. */
+  const playText = (key: string, text: string) => {
+    if (!text?.trim()) return;
+    if (audio?.key === key) {
       audioPlayer.stopAll();
-      setWordPhase(null);
+      setAudio(null);
       return;
     }
-    const resolvedLang = speechLang && speechLang !== 'auto'
-      ? speechLang
-      : (settings.defaultSourceLang && settings.defaultSourceLang !== 'auto' ? settings.defaultSourceLang : 'en');
     audioPlayer.speak({
-      text: wordToSpeak,
+      text,
       lang: resolvedLang,
       engine: settings.ttsEngine,
       voice: settings.ttsVoice,
       rate: settings.ttsRate,
       apiKey: settings.geminiApiKey,
       providerConfigs: settings.providerConfigs,
-      onStart: () => setWordPhase('generating'),
-      onAudioStart: () => setWordPhase('playing'),
-      onEnd: () => setWordPhase(null),
+      onStart: () => setAudio({ key, phase: 'generating' }),
+      onAudioStart: () => setAudio(current => current?.key === key ? { key, phase: 'playing' } : current),
+      onEnd: () => setAudio(current => current?.key === key ? null : current),
     });
   };
+
+  const handlePlayWordAudio = () => playText('word', displayWord || sentence || '');
 
   const handleCopyWord = async () => {
     if (!displayWord) return;
@@ -117,6 +122,8 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
       setCopyError('无法复制单词，请检查剪贴板权限');
     }
   };
+
+  const ipa = (value: string) => value.startsWith('/') ? value : `/${value}/`;
 
   // Keep actions separate from metadata: long part-of-speech descriptions must
   // wrap without pushing the close button into a second, mostly empty row.
@@ -165,11 +172,14 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
             )}
           </div>
         </div>
-        {(explanation?.phonetic || posTag || explanation?.cefrLevel || explanation?.rootOrLemma) && (
+        {(explanation?.phonetic || explanation?.phoneticUk || explanation?.phoneticUs || posTag || explanation?.cefrLevel || explanation?.rootOrLemma) && (
           <div className="yumai-word-meta">
-            {explanation?.phonetic && <span className="yumai-word-phonetic">
-              {explanation.phonetic.startsWith('/') ? explanation.phonetic : `/${explanation.phonetic}/`}
-            </span>}
+            {explanation?.phoneticUk || explanation?.phoneticUs ? (
+              <>
+                {explanation.phoneticUk && <span className="yumai-word-phonetic"><small>英</small> {ipa(explanation.phoneticUk)}</span>}
+                {explanation.phoneticUs && <span className="yumai-word-phonetic"><small>美</small> {ipa(explanation.phoneticUs)}</span>}
+              </>
+            ) : explanation?.phonetic && <span className="yumai-word-phonetic">{ipa(explanation.phonetic)}</span>}
             {posTag && <span className="yumai-word-pos">{posTag}</span>}
             {explanation?.cefrLevel && <span className="yumai-word-level" title="CEFR 词汇等级">{explanation.cefrLevel}</span>}
             {explanation?.rootOrLemma && explanation.rootOrLemma.toLowerCase() !== displayWord.toLowerCase() && (
@@ -233,12 +243,14 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
   const collocations = explanation.collocations || [];
   const synonyms = explanation.synonymsInContext || [];
   const antonyms = explanation.antonyms || [];
+  const senses = explanation.senses || [];
   const examplesList = explanation.examples || explanation.exampleSentences || [];
+  const hasContext = Boolean(sentence && sentence.trim() && sentence.trim().toLowerCase() !== displayWord.trim().toLowerCase());
   const contextWordIndex = sentence?.toLowerCase().indexOf(displayWord.toLowerCase()) ?? -1;
   const normalize = (value: string) => value.replace(/[\s。.，,；;、]/g, '');
   const literal = explanation.literalMeaning?.trim() || '';
   const showLiteral = literal && normalize(literal) !== normalize(explanation.contextualMeaning);
-  const hasVocabulary = collocations.length > 0 || synonyms.length > 0 || antonyms.length > 0 || examplesList.length > 0;
+  const hasLexicalExtras = collocations.length > 0 || synonyms.length > 0 || antonyms.length > 0;
 
   return (
     <div className="yumai-word-card bg-white text-slate-800 w-full flex-1 min-h-0 flex flex-col overflow-hidden">
@@ -249,9 +261,15 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
           translation it temporarily replaces). Secondary info stays flat —
           labels + inline chips, no nested boxes. */}
       <div className="yumai-word-body select-text" tabIndex={0} role="region" aria-label="完整词语解释">
-        {/* In-context meaning — the hero answer */}
+        {explanation.spellingSuggestion && explanation.spellingSuggestion.toLowerCase() !== displayWord.toLowerCase() && (
+          <p className="yumai-word-note">
+            拼写提示：你是不是想查 <strong>{explanation.spellingSuggestion}</strong>？
+          </p>
+        )}
+
+        {/* In-context or primary meaning — the hero answer */}
         <section className="yumai-word-meaning" aria-labelledby={`${sectionId}-meaning`}>
-          <h4 id={`${sectionId}-meaning`}>句中含义</h4>
+          <h4 id={`${sectionId}-meaning`}>{hasContext ? '句中含义' : '核心释义'}</h4>
           <p>
             {explanation.contextualMeaning}
           </p>
@@ -265,11 +283,42 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
           </section>
         )}
 
-        {/* General dictionary definition */}
-        {showLiteral && (
+        {/* Common dictionary senses */}
+        {senses.length > 0 ? (
+          <section className="yumai-word-section">
+            <h4>{hasContext ? '常见义项对比' : '全部常见义项'}</h4>
+            <ul className="space-y-1.5 text-sm leading-relaxed">
+              {senses.map((sense, idx) => (
+                <li key={idx} className="flex items-baseline gap-2">
+                  {sense.pos && (
+                    <span className="yumai-word-pos shrink-0 text-xs font-semibold text-slate-500">
+                      {sense.pos}
+                    </span>
+                  )}
+                  <span className={sense.inContext ? 'font-semibold text-slate-900' : 'text-slate-700'}>
+                    {sense.meaning}
+                  </span>
+                  {sense.inContext && hasContext && (
+                    <span className="shrink-0 rounded bg-emerald-50 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-700">
+                      本句义项
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : showLiteral && (
           <section className="yumai-word-section">
             <h4>通用释义</h4>
             <p>{literal}</p>
+          </section>
+        )}
+
+        {/* Etymology / memory note */}
+        {explanation.etymology && (
+          <section className="yumai-word-section">
+            <h4>词源与记忆</h4>
+            <p>{explanation.etymology}</p>
           </section>
         )}
 
@@ -277,7 +326,7 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
           <p className="yumai-word-note" title={readerNote}>已参考背景：{readerNote}</p>
         )}
 
-        {sentence && sentence.trim() !== displayWord.trim() && (
+        {hasContext && (
           <details className="yumai-word-context">
             <summary>查看原文语境</summary>
             <p>{contextWordIndex >= 0 && displayWord ? <>
@@ -289,7 +338,7 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
         )}
 
         {/* Additional vocabulary data is optional; the contextual meaning remains the hero. */}
-        {(collocations.length > 0 || synonyms.length > 0 || antonyms.length > 0) && (
+        {hasLexicalExtras && (
           <button type="button" aria-expanded={detailsOpen} aria-controls={`${sectionId}-vocabulary`}
             onClick={() => setDetailsOpen(v => !v)}
             className="yumai-word-disclosure">
@@ -350,7 +399,7 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
         )}
 
         </div>)}
-        {/* Examples — collapsed behind a single line by default */}
+        {/* Examples — open by default so learners immediately see usage */}
         {examplesList.length > 0 && (
           <div>
             <button
@@ -360,19 +409,39 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
               className="yumai-word-disclosure"
             >
               <ChevronRight className={`w-3.5 h-3.5 text-brand-500 transition-transform ${examplesOpen ? 'rotate-90' : ''}`} />
-              <span>{examplesList.length} 条例句参考</span>
+              <span>{examplesList.length} 条双语例句</span>
             </button>
             {examplesOpen && (
               <div id={`${sectionId}-examples`} className="yumai-word-examples">
                 {examplesList.map((ex: any, idx: number) => {
                   const src = ex.source || ex.original;
                   const tgt = ex.target || ex.translation;
+                  const exKey = `ex-${idx}`;
+                  const exPhase = audio?.key === exKey ? audio.phase : null;
                   return (
                     <div
                       key={idx}
                       className="text-sm space-y-1 bg-slate-50 border-l-2 border-brand-400 rounded-r-lg p-3"
                     >
-                      <p className="text-slate-900 font-semibold leading-relaxed">{src}</p>
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-slate-900 font-semibold leading-relaxed flex-1">{src}</p>
+                        {src && (
+                          <button
+                            type="button"
+                            onClick={() => playText(exKey, src)}
+                            data-playing={Boolean(exPhase)}
+                            className="yumai-word-icon shrink-0 text-slate-500 hover:text-brand-600 transition-colors cursor-pointer"
+                            title="朗读例句"
+                            aria-label={`朗读例句 ${idx + 1}`}
+                          >
+                            {exPhase === 'generating' ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Volume2 className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                        )}
+                      </div>
                       <p className="text-brand-700 leading-relaxed font-medium">{tgt}</p>
                     </div>
                   );
@@ -382,10 +451,10 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
           </div>
         )}
 
-        {onLoadMore && !hasVocabulary && (
+        {onLoadMore && !hasLexicalExtras && (
           <button type="button" onClick={onLoadMore} className="yumai-word-disclosure">
             <ChevronRight className="w-3.5 h-3.5" />
-            查看搭配、近义词与例句
+            查看搭配、近义词与词源
           </button>
         )}
       </div>
