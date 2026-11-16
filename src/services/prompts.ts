@@ -46,7 +46,8 @@ Return a JSON object with these fields:
 - contextExplanation: one short sentence in ${lang} pointing to a specific clue in the excerpt, if available
 - pos: a concise part-of-speech label in ${lang}
 - literalMeaning: the most common general sense in ${lang}, or "" when it is the same as contextualMeaning
-- phonetic, rootOrLemma, cefrLevel: optional, only when meaningful
+- phonetic: standard IPA pronunciation (e.g. "/ˈmɑːrdʒəriːn/") for words or short phrases, or "" if not applicable
+- rootOrLemma, cefrLevel: optional, only when meaningful
 ${vocabulary}
 
 ${JSON.stringify({ expression: selectedWord, excerpt: sentence || selectedWord, readerNote: boundedNote(readerNote) })}`;
