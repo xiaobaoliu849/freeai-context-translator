@@ -17,10 +17,11 @@ test('translate prompt names both languages and asks for translation first', () 
   assert.ok(prompt.indexOf('"translation"') < prompt.indexOf('"detectedLang"'), 'translation must be requested first for streaming');
 });
 
-test('explain prompt falls back to the word when no sentence is given', () => {
+test('explain prompt treats a missing sentence as a dictionary lookup', () => {
   const bare = buildExplainPrompt('run', '', 'zh-CN');
-  assert.match(bare, /"excerpt":"run"/);
+  assert.match(bare, /"expression":"run"/);
   assert.match(bare, /IPA/);
+  assert.match(bare, /learner's dictionary/);
   const withContext = buildExplainPrompt('run', 'I run every day.', 'ja');
   assert.match(withContext, /"I run every day\."/);
   assert.ok(withContext.includes('Explain this one expression in Japanese (ja)'));

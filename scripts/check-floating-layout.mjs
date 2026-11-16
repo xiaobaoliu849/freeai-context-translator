@@ -381,7 +381,9 @@ try {
   await click('.yumai-word-context summary');
   assert.equal(await evaluate(`${query('.yumai-word-context p')}.textContent`), await evaluate("document.querySelector('#sample').textContent"));
   await click('button[aria-controls$="-vocabulary"]');
-  await click('button[aria-controls$="-examples"]');
+  if (await evaluate(`${query('button[aria-controls$="-examples"]')}?.getAttribute('aria-expanded') === 'false'`)) {
+    await click('button[aria-controls$="-examples"]');
+  }
   await evaluate(`(() => { const body = ${query('.yumai-word-body')}; body.scrollTop = 100000; })()`);
   await delay(100);
   assert.ok(await evaluate(`(() => { const s=${shadow}; const b=s.querySelector('.yumai-word-body').getBoundingClientRect(); const e=s.querySelector('.yumai-word-examples').lastElementChild.getBoundingClientRect(); return e.bottom <= b.bottom && e.bottom > b.top; })()`), 'Last example cannot be reached');

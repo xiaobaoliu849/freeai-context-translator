@@ -1,4 +1,4 @@
-import { contextForRange } from './utils/selectionMode';
+import { sentenceAroundRange } from './utils/selectionMode';
 import React, { useState, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
@@ -280,18 +280,38 @@ function removeFloatBtn() {
 /** Only read a short span around a user's explicit selection, never entire paragraphs
  * or surrounding form fields. The selected term remains the only trigger.
  */
+const CONTEXT_BLOCK_SELECTOR = 'p, li, dd, dt, td, th, blockquote, figcaption, caption, h1, h2, h3, h4, h5, h6, pre';
+
 function getSelectionContext(selectedText: string): string {
   const sel = window.getSelection();
   if (!sel || sel.isCollapsed || !sel.rangeCount || !selectedText.trim()) return '';
   const range = sel.getRangeAt(0);
-  const node = range.startContainer;
-  if (node.nodeType !== Node.TEXT_NODE || node !== range.endContainer) return '';
-  const value = node.textContent || '';
+  const startNode = range.startContainer;
+  const startEl = startNode.nodeType === Node.TEXT_NODE ? startNode.parentElement : startNode as Element;
+  if (!startEl) return '';
   // Ignore selections inside editable fields (which may contain private data).
-  if (node.parentElement?.closest('input, textarea, [contenteditable], [contenteditable="true"]')) return '';
-  const selected = value.slice(range.startOffset, range.endOffset).trim();
-  if (selected !== selectedText.trim()) return '';
-  return contextForRange(value, range.startOffset, range.endOffset);
+  if (startEl.closest('input, textarea, [contenteditable]:not([contenteditable="false"])')) return '';
+  // The nearest block holding the whole selection: a sentence is often split
+  // across <a>, <em> or <span> nodes, so a single text node is not enough.
+  let block = startEl.closest(CONTEXT_BLOCK_SELECTOR) as HTMLElement | null;
+  while (block && !block.contains(range.endContainer)) block = block.parentElement?.closest(CONTEXT_BLOCK_SELECTOR) as HTMLElement | null;
+  if (!block) return '';
+  try {
+    const before = document.createRange();
+    before.selectNodeContents(block);
+    before.setEnd(range.startContainer, range.startOffset);
+    const value = block.textContent || '';
+    let start = before.toString().length;
+    let end = start + range.toString().length;
+    if (value.slice(start, end).trim() !== selectedText.trim()) {
+      start = value.indexOf(selectedText.trim());
+      if (start < 0) return '';
+      end = start + selectedText.trim().length;
+    }
+    return sentenceAroundRange(value, start, end);
+  } catch {
+    return '';
+  }
 }
 
 function showFloatBtn(text: string, x: number, y: number, mode: 'click' | 'hover', selectionContext = '') {
