@@ -27,6 +27,10 @@ export interface WordContextCardProps {
   onLoadMore?: () => void;
   /** Background the lookup was resolved against, shown so the reader knows why a sense was chosen. */
   readerNote?: string;
+  /** Resolved source language for TTS playback (never 'auto'). */
+  speechLang?: string;
+  /** Whether to show the inner "back to sentence translation" close button. */
+  showCloseButton?: boolean;
 }
 
 /**
@@ -46,6 +50,8 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
   onRetry,
   onLoadMore,
   readerNote,
+  speechLang,
+  showCloseButton = true,
 }) => {
   const [wordPhase, setWordPhase] = useState<'generating' | 'playing' | null>(null);
   const [copied, setCopied] = useState(false);
@@ -82,9 +88,12 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
       setWordPhase(null);
       return;
     }
+    const resolvedLang = speechLang && speechLang !== 'auto'
+      ? speechLang
+      : (settings.defaultSourceLang && settings.defaultSourceLang !== 'auto' ? settings.defaultSourceLang : 'en');
     audioPlayer.speak({
       text: wordToSpeak,
-      lang: settings.defaultSourceLang || 'en',
+      lang: resolvedLang,
       engine: settings.ttsEngine,
       voice: settings.ttsVoice,
       rate: settings.ttsRate,
@@ -145,13 +154,15 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
             >
               {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
             </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); onClose(); }}
-              className="yumai-word-icon text-slate-500 hover:text-slate-700 transition-colors cursor-pointer"
-              title="返回整句翻译 (Esc)" aria-label="关闭词典，返回翻译"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            {showCloseButton && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onClose(); }}
+                className="yumai-word-icon text-slate-500 hover:text-slate-700 transition-colors cursor-pointer"
+                title="返回整句翻译 (Esc)" aria-label="关闭词典，返回翻译"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
         {(explanation?.phonetic || posTag || explanation?.cefrLevel || explanation?.rootOrLemma) && (

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { StreamingPcmPlayer } from './audio';
+import { StreamingPcmPlayer, audioPlayer } from './audio';
 
 const RATE = 24000;
 
@@ -96,4 +96,48 @@ test('a sample split across chunks is not dropped', () => {
   player.finish();
   const out = Array.from(ctx.scheduled[0].samples, (v) => Math.round(v * 32768));
   assert.deepEqual(out, [1000, -2000, 3000]);
+});
+
+test('audioPlayer caches cloud TTS audio and avoids duplicate requests', async () => {
+  audioPlayer.clearCache();
+  let fetchCount = 0;
+  const origFetch = globalThis.fetch;
+  const origAudio = (globalThis as any).Audio;
+  const origURL = (globalThis as any).URL;
+  const origBlob = (globalThis as any).Blob;
+
+  globalThis.fetch = (async () => {
+    fetchCount++;
+    return {
+      ok: true,
+      json: async () => ({
+        audioBase64: pcmChunk(0.1),
+        mimeType: 'audio/pcm',
+        sampleRate: RATE,
+      }),
+    } as any;
+  }) as any;
+
+  // Stub Audio/URL/Blob in case playAudioData uses HTMLAudioElement
+  (globalThis as any).Blob = class { constructor(public parts: any[], public opts: any) {} };
+  (globalThis as any).URL = { createObjectURL: () => 'blob:mock', revokeObjectURL: () => {} };
+  (globalThis as any).Audio = class {
+    onended: (() => void) | null = null;
+    onerror: (() => void) | null = null;
+    async play() { this.onended?.(); }
+    pause() {}
+  };
+
+  try {
+    await audioPlayer.speak({ text: 'hello', lang: 'en', engine: 'openai', voice: 'alloy', rate: 1.0 });
+    await audioPlayer.speak({ text: 'hello', lang: 'en', engine: 'openai', voice: 'alloy', rate: 1.0 });
+    assert.equal(fetchCount, 1);
+    assert.equal(audioPlayer.getCacheSize(), 1);
+  } finally {
+    globalThis.fetch = origFetch;
+    (globalThis as any).Audio = origAudio;
+    (globalThis as any).URL = origURL;
+    (globalThis as any).Blob = origBlob;
+    audioPlayer.clearCache();
+  }
 });
