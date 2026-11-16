@@ -963,7 +963,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
         )}
 
         {/* Translate / Stop Button */}
-        {(!isPopup || isFloating || selectedWord) && translateButton}
+        {(!isPopup || isFloating || (selectedWord && selectionKind !== 'term')) && translateButton}
       </div>
 
       {/* ERROR MESSAGE ALERT — raw message stays visible; the hint says what to do next. */}
@@ -1092,9 +1092,9 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
           </section>
         ) : (
         <div
-          style={isPopup ? { flex: selectedWord ? '0 0 128px' : `0 0 calc(${effectiveVSplitPercent}% - 6px)` } : undefined}
+          style={isPopup ? { flex: selectedWord ? '0 0 136px' : `0 0 calc(${effectiveVSplitPercent}% - 6px)` } : undefined}
           className={`yumai-source-panel overflow-hidden flex flex-col justify-between transition-colors ${
-            isPopup ? (selectedWord ? 'min-h-[124px]' : 'min-h-[128px]') : 'min-h-[240px] sm:min-h-[300px]'
+            isPopup ? (selectedWord ? 'min-h-[132px]' : 'min-h-[136px]') : 'min-h-[240px] sm:min-h-[300px]'
           }`}
         >
           <div className="yumai-source-heading flex shrink-0 items-center justify-between px-4 pt-3 pb-1">
@@ -1115,7 +1115,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             placeholder="在这里输入或粘贴原文…"
             className={`${
               isPopup
-                ? 'flex-1 min-h-0 px-4 pb-3 resize-none overflow-y-auto text-sm'
+                ? `flex-1 min-h-0 px-4 pb-3 resize-none ${selectionKind === 'term' && !sourceText.includes('\n') ? 'overflow-y-hidden' : 'overflow-y-auto'} text-sm`
                 : 'w-full px-4 pb-4 flex-1 min-h-[180px] sm:min-h-[220px] resize-y text-sm sm:text-base'
             } yumai-source-editor text-slate-800 font-normal focus:outline-none placeholder:text-slate-400 bg-transparent leading-relaxed`}
           />
