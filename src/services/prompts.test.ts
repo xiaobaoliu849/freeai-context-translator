@@ -18,7 +18,9 @@ test('translate prompt names both languages and asks for translation first', () 
 });
 
 test('explain prompt falls back to the word when no sentence is given', () => {
-  assert.match(buildExplainPrompt('run', '', 'zh-CN'), /"excerpt":"run"/);
+  const bare = buildExplainPrompt('run', '', 'zh-CN');
+  assert.match(bare, /"excerpt":"run"/);
+  assert.match(bare, /IPA/);
   const withContext = buildExplainPrompt('run', 'I run every day.', 'ja');
   assert.match(withContext, /"I run every day\."/);
   assert.ok(withContext.includes('Explain this one expression in Japanese (ja)'));
