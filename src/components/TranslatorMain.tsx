@@ -929,7 +929,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
         </div>
       )}
 
-      {(selectedWord || (sourceText.trim() && selectionKind === 'term')) && (
+      {(!isFloating || selectionKind !== 'term' || floatingEditorExpanded) && (selectedWord || (sourceText.trim() && selectionKind === 'term')) && (
         <div className="desk-mode-bar">
           <div className="desk-modes" role="group" aria-label="阅读方式">
             <button type="button" aria-pressed={!selectedWord} onClick={() => {
