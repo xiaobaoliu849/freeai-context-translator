@@ -829,14 +829,14 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
   };
 
   const runPrimaryAction = () => {
+    const cleanSource = sourceText.replace(/[\r\n]+$/g, '');
+    if (cleanSource !== sourceText) setSourceText(cleanSource);
     if (!activeSelection && selectionKind === 'term') {
-      const cleanSource = sourceText.replace(/[\r\n]+$/g, '');
-      if (cleanSource !== sourceText) setSourceText(cleanSource);
       if (textareaRef.current) textareaRef.current.scrollTop = 0;
       handleSelectWord(cleanSource, selectionContext || cleanSource);
     } else {
       clearWordSelection();
-      handleTranslate(activeSelection || undefined);
+      handleTranslate(activeSelection || cleanSource || undefined);
     }
   };
 

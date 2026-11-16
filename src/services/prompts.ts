@@ -20,14 +20,15 @@ export function describeLanguage(code: string): string {
 export type LookupDetail = 'concise' | 'full';
 
 export function buildTranslatePrompt(text: string, sourceLang: string, targetLang: string, context?: string, readerNote?: string): string {
+  const cleanText = text.trim() || text;
   const nearby = typeof context === 'string' ? context.trim().slice(0, 380) : '';
   const note = boundedNote(readerNote);
   return `Translate the excerpt at the end into ${describeLanguage(targetLang)}. ${sourceLang === 'auto' ? 'Detect the original language of the excerpt.' : `The original language is ${sourceLang}.`}
 Use any background below to choose the meaning of ambiguous words, references and idioms. Return a natural translation of the excerpt alone. Preserve names, numbers, negation and paragraph breaks.
-Return one JSON object. The first field "translation" contains the translation; the second field "detectedLang" contains the original language code (for example, en for English). Escape line breaks inside JSON strings.
-${note ? `\nBackground supplied by the reader: ${JSON.stringify(note)}\n` : ''}${nearby && nearby !== text.trim() ? `\nSurrounding text for reference: ${JSON.stringify(nearby)}\n` : ''}
+Return one JSON object. The first field "translation" contains the translation; the second field "detectedLang" contains the original language code (for example, en for English).
+${note ? `\nBackground supplied by the reader: ${JSON.stringify(note)}\n` : ''}${nearby && nearby !== cleanText ? `\nSurrounding text for reference: ${JSON.stringify(nearby)}\n` : ''}
 Excerpt to translate:
-${JSON.stringify(text)}`;
+${JSON.stringify(cleanText)}`;
 }
 
 export const EXPLAIN_SYSTEM_PROMPT =
@@ -87,13 +88,22 @@ ${vocabulary}
 ${payload}`;
 }
 
+/** Unescapes double-escaped line breaks (e.g. "\\n") emitted by some JSON-mode models and trims outer whitespace. */
+export function normalizeTranslatedText(value: string): string {
+  return value
+    .replace(/\\r\\n/g, '\n')
+    .replace(/\\n/g, '\n')
+    .trim();
+}
+
 export function parseTranslation(raw: string) {
   const parsed = parseLLMJson(raw);
-  if (typeof parsed?.translation !== 'string' || !parsed.translation.trim()) {
+  const cleaned = typeof parsed?.translation === 'string' ? normalizeTranslatedText(parsed.translation) : '';
+  if (!cleaned) {
     throw new Error('模型没有返回有效译文，请重试或更换模型。');
   }
   return {
-    translation: parsed.translation.trim(),
+    translation: cleaned,
     detectedLang: typeof parsed.detectedLang === 'string' ? parsed.detectedLang : '',
     tokens: Array.isArray(parsed.tokens) ? parsed.tokens : [],
   };
