@@ -8,6 +8,36 @@ const CLOUD_TTS_ENGINES: TTSEngine[] = ['gemini', 'openai', 'minimax', 'qwen', '
 // Engines that can stream audio chunks while generating (low first-byte latency)
 const STREAMABLE_TTS_ENGINES: TTSEngine[] = ['mimo', 'gemini'];
 
+const MAX_AUDIO_CACHE_SIZE = 50;
+
+interface CachedAudioEntry {
+  audioBase64: string;
+  mimeType: string;
+  sampleRate: number;
+}
+
+function mergeBase64PcmChunks(chunks: string[]): string {
+  const decoded = chunks.map((chunk) => {
+    const bin = atob(chunk);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes;
+  });
+  const totalLen = decoded.reduce((sum, arr) => sum + arr.length, 0);
+  const merged = new Uint8Array(totalLen);
+  let offset = 0;
+  for (const arr of decoded) {
+    merged.set(arr, offset);
+    offset += arr.length;
+  }
+  let binary = '';
+  const step = 0x8000;
+  for (let i = 0; i < merged.length; i += step) {
+    binary += String.fromCharCode(...merged.subarray(i, i + step));
+  }
+  return btoa(binary);
+}
+
 // Seconds of audio to collect before playback starts. Cloud TTS (Gemini's
 // preview model especially) can generate slower than real time; playing each
 // chunk the moment it lands leaves a gap after every chunk.
@@ -166,6 +196,38 @@ class AudioPlayerService {
   private streamPlayer: StreamingPcmPlayer | null = null;
   private streamFetchAbort: AbortController | null = null;
   private currentSpeakId: number = 0;
+  private audioCache = new Map<string, CachedAudioEntry>();
+
+  private buildCacheKey(engine: TTSEngine, voice: string, lang: string, rate: number, text: string): string {
+    return `${engine}::${voice}::${lang}::${rate}::${text.trim()}`;
+  }
+
+  private getCachedAudio(key: string): CachedAudioEntry | undefined {
+    const entry = this.audioCache.get(key);
+    if (!entry) return undefined;
+    // Refresh LRU order
+    this.audioCache.delete(key);
+    this.audioCache.set(key, entry);
+    return entry;
+  }
+
+  private setCachedAudio(key: string, entry: CachedAudioEntry): void {
+    if (this.audioCache.has(key)) {
+      this.audioCache.delete(key);
+    } else if (this.audioCache.size >= MAX_AUDIO_CACHE_SIZE) {
+      const oldestKey = this.audioCache.keys().next().value;
+      if (oldestKey !== undefined) this.audioCache.delete(oldestKey);
+    }
+    this.audioCache.set(key, entry);
+  }
+
+  public clearCache(): void {
+    this.audioCache.clear();
+  }
+
+  public getCacheSize(): number {
+    return this.audioCache.size;
+  }
 
   public stopAll() {
     // Invalidate current and in-flight speak requests
@@ -431,6 +493,19 @@ class AudioPlayerService {
       return;
     }
 
+    const cacheKey = this.buildCacheKey(engine, voice, lang, rate, text);
+    const cached = this.getCachedAudio(cacheKey);
+    if (cached) {
+      onAudioStart?.();
+      await this.playAudioData({
+        audioBase64: cached.audioBase64,
+        mimeType: cached.mimeType,
+        sampleRate: cached.sampleRate,
+        onEnd,
+      });
+      return;
+    }
+
     // Streaming engines: start playback as soon as the first audio chunk
     // arrives. Falls back to the non-streaming path if nothing was produced.
     if (STREAMABLE_TTS_ENGINES.includes(engine)) {
@@ -439,6 +514,7 @@ class AudioPlayerService {
         lang,
         engine,
         voice,
+        cacheKey,
         apiKey,
         providerConfigs,
         onAudioStart: () => {
@@ -512,11 +588,14 @@ class AudioPlayerService {
       if (speakId !== this.currentSpeakId) return;
 
       if (data?.audioBase64) {
+        const mimeType = data.mimeType || 'audio/mp3';
+        const sampleRate = data.sampleRate || 24000;
+        this.setCachedAudio(cacheKey, { audioBase64: data.audioBase64, mimeType, sampleRate });
         onAudioStart?.();
         await this.playAudioData({
           audioBase64: data.audioBase64,
-          mimeType: data.mimeType || 'audio/mp3',
-          sampleRate: data.sampleRate || 24000,
+          mimeType,
+          sampleRate,
           onEnd,
         });
         return;
@@ -554,6 +633,7 @@ class AudioPlayerService {
     lang,
     engine,
     voice,
+    cacheKey,
     apiKey,
     providerConfigs,
     onAudioStart,
@@ -563,6 +643,7 @@ class AudioPlayerService {
     lang: string;
     engine: TTSEngine;
     voice?: string;
+    cacheKey?: string;
     apiKey?: string;
     providerConfigs?: any;
     onAudioStart?: () => void;
@@ -570,6 +651,7 @@ class AudioPlayerService {
   }): Promise<boolean> {
     let player: StreamingPcmPlayer | null = null;
     let startedPlaying = false;
+    const chunks: string[] = [];
     const speakId = this.currentSpeakId;
 
     const ensurePlayer = (): StreamingPcmPlayer | null => {
@@ -592,6 +674,7 @@ class AudioPlayerService {
 
     const handleChunk = (delta: string) => {
       if (!delta || speakId !== this.currentSpeakId) return;
+      if (cacheKey) chunks.push(delta);
       ensurePlayer()?.appendBase64(delta);
       startedPlaying = true;
     };
@@ -639,8 +722,21 @@ class AudioPlayerService {
         return false;
       }
 
-      // Stream completed normally — finish playback if anything was played.
-      if (startedPlaying && player) player.finish();
+      // Stream completed normally — finish playback and cache the full PCM buffer.
+      if (startedPlaying && player) {
+        player.finish();
+        if (cacheKey && chunks.length > 0) {
+          try {
+            this.setCachedAudio(cacheKey, {
+              audioBase64: mergeBase64PcmChunks(chunks),
+              mimeType: 'audio/pcm',
+              sampleRate: 24000,
+            });
+          } catch {
+            // Ignore cache encoding errors
+          }
+        }
+      }
       return startedPlaying;
     } catch (err) {
       console.warn(`Streaming TTS (${engine}) failed:`, err);
