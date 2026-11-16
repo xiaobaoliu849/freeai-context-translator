@@ -78,9 +78,9 @@ Return a JSON object with these fields:
 - literalMeaning: the most common general sense in ${lang}, or "" when it is the same as contextualMeaning
 ${pronunciation}
 - rootOrLemma: the base form if the expression is inflected, otherwise ""
-- senses: up to three common senses, each {"pos": short label in ${lang}, "meaning": ${lang} equivalent, "inContext": true only for the sense used in the excerpt}
+- senses: up to four common senses, each {"pos": short label in ${lang}, "meaning": ${lang} equivalent, "inContext": true only for the sense used in the excerpt}
 - examples: at most two objects with source and target strings illustrating the same sense as the excerpt
-- etymology: ${detail === 'full' ? `one short sentence in ${lang} on origin or a memory hint, or ""` : '""'}
+- etymology: one short sentence in ${lang} on origin or a memory hint, or ""
 - cefrLevel: optional, only when meaningful
 ${vocabulary}
 

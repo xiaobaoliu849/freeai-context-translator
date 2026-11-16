@@ -280,7 +280,7 @@ function removeFloatBtn() {
 /** Only read a short span around a user's explicit selection, never entire paragraphs
  * or surrounding form fields. The selected term remains the only trigger.
  */
-const CONTEXT_BLOCK_SELECTOR = 'p, li, dd, dt, td, th, blockquote, figcaption, caption, h1, h2, h3, h4, h5, h6, pre, article, section, div';
+const CONTEXT_BLOCK_SELECTOR = 'p, li, dd, dt, td, th, blockquote, figcaption, caption, h1, h2, h3, h4, h5, h6, pre';
 
 function getSelectionContext(selectedText: string): string {
   const sel = window.getSelection();
