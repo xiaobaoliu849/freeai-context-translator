@@ -1055,14 +1055,30 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
             >
               {renderContextSentence()}
             </span>
-            <button
-              onClick={clearWordSelection}
-              className="yumai-chip-button yumai-chip-button--accent shrink-0"
-              title="返回编辑原文 / 整句翻译"
-            >
-              <PencilLine className="w-3 h-3" aria-hidden="true" />
-              <span>编辑原文</span>
-            </button>
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={() => handlePlayAudio(wordContext || sourceText || result?.sourceText || '', speechSourceLang, 'source')}
+                className="yumai-tool-button"
+                data-active={playingTarget === 'source'}
+                title="朗读原文语境"
+                aria-label="朗读原文语境"
+              >
+                {playingTarget === 'source' ? (
+                  <PlayIndicator phase={audioPhase} size={14} />
+                ) : (
+                  <Volume2 className="w-3.5 h-3.5" />
+                )}
+              </button>
+              <button
+                onClick={clearWordSelection}
+                className="yumai-chip-button yumai-chip-button--accent shrink-0"
+                title="返回编辑原文 / 整句翻译"
+              >
+                <PencilLine className="w-3 h-3" aria-hidden="true" />
+                <span>编辑原文</span>
+              </button>
+            </div>
           </div>
         )) : compactFloatingSource ? (
           <section className="yumai-floating-snippet shrink-0 rounded-xl border border-slate-200 bg-white px-4 py-3" aria-label="已选中的网页文本">
@@ -1073,6 +1089,12 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
                   onClick={() => handlePlayAudio(sourceText, speechSourceLang, 'source')}
                   title="朗读原文" aria-label="朗读原文">
                   {playingTarget === 'source' ? <PlayIndicator phase={audioPhase} size={14} /> : <Volume2 className="h-3.5 w-3.5" />} 朗读
+                </button>
+                <button type="button" className="yumai-secondary-action"
+                  onClick={() => handleCopy(sourceText, 'source')}
+                  title="复制原文" aria-label="复制原文">
+                  {copied && copiedArea === 'source' ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copied && copiedArea === 'source' ? '已复制' : '复制'}
                 </button>
                 <button type="button" className="yumai-secondary-action" onClick={() => setFloatingEditorExpanded(true)}
                   aria-label="展开原文编辑器"><PencilLine className="h-3.5 w-3.5"/> 编辑</button>
@@ -1273,6 +1295,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
               readerNote={readerNote}
               settings={settings}
               speechLang={speechSourceLang}
+              targetLang={targetLang}
               showCloseButton={selectionKind !== 'term' || Boolean(result?.translation)}
             />
           ) : loading ? (
