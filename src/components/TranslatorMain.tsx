@@ -481,14 +481,15 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
 
   // Auto-translate debounce
   useEffect(() => {
-    if (settings.autoTranslate && !activeSelection && !selectedWord && sourceText.trim().length > 1) {
+    const alreadyTranslated = result?.sourceText === sourceText && Boolean(result?.translation);
+    if (settings.autoTranslate && !activeSelection && !selectedWord && !alreadyTranslated && sourceText.trim().length > 1) {
       const version = translateReqIdRef.current;
       const timer = setTimeout(() => {
         if (version === translateReqIdRef.current) handleTranslate();
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [sourceText, sourceLang, targetLang, settings.autoTranslate, activeProvider, activeConfig.model, selectedWord, activeSelection, readerNote]);
+  }, [sourceText, sourceLang, targetLang, settings.autoTranslate, activeProvider, activeConfig.model, selectedWord, activeSelection, readerNote, result?.sourceText, result?.translation]);
 
   // Auto-grow the input textarea with its content (90px → 260px). Skipped in
   // the compact popup, where the textarea scrolls inside a fixed-height pane.
@@ -1198,6 +1199,8 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
               onLoadMore={wordDetail === 'concise' ? () => handleSelectWord(selectedWord, wordContext, 'full') : undefined}
               readerNote={readerNote}
               settings={settings}
+              speechLang={speechSourceLang}
+              showCloseButton={!isFloating || selectionKind !== 'term' || Boolean(result?.translation)}
             />
           ) : loading ? (
             streamingText ? (
