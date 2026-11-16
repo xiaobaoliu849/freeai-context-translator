@@ -983,7 +983,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
         </div>
       )}
 
-      {(selectedWord || (sourceText.trim() && selectionKind === 'term')) && (
+      {(isFloating || selectionKind !== 'term') && (selectedWord || (sourceText.trim() && selectionKind === 'term')) && (
         <div className="desk-mode-bar">
           <div className="desk-modes" role="group" aria-label="阅读方式">
             <button type="button" aria-pressed={!selectedWord} onClick={() => {
@@ -1036,10 +1036,10 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
         }
         style={{ '--split': `${splitPercent}%` } as React.CSSProperties}
       >
-        {/* LEFT / TOP COLUMN: SOURCE INPUT BOX — in popup word-lookup mode the
-            whole box collapses to a one-line context strip so the word view
-            below gets almost all the vertical space. */}
-        {isPopup && selectedWord ? (isFloating ? null : (
+        {/* LEFT / TOP COLUMN: SOURCE INPUT BOX — in popup sentence word-lookup
+            mode the box collapses to a one-line context strip; for a standalone
+            word it stays an editable input box so pasting/typing is seamless. */}
+        {isPopup && selectedWord && (isFloating || selectionKind !== 'term') ? (isFloating ? null : (
           <div className="yumai-word-context-strip shrink-0 flex items-center justify-between gap-2 px-3 py-2 select-none">
             <span
               className="flex-1 min-w-0 text-xs text-slate-600 truncate whitespace-nowrap font-medium"
@@ -1084,9 +1084,9 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
           </section>
         ) : (
         <div
-          style={isPopup ? { flex: `0 0 calc(${effectiveVSplitPercent}% - 6px)` } : undefined}
+          style={isPopup ? { flex: selectedWord ? '0 0 92px' : `0 0 calc(${effectiveVSplitPercent}% - 6px)` } : undefined}
           className={`yumai-source-panel overflow-hidden flex flex-col justify-between transition-colors ${
-            isPopup ? 'min-h-[105px]' : 'min-h-[240px] sm:min-h-[300px]'
+            isPopup ? (selectedWord ? 'min-h-[86px]' : 'min-h-[105px]') : 'min-h-[240px] sm:min-h-[300px]'
           }`}
         >
           <div className="yumai-source-heading flex shrink-0 items-center justify-between px-4 pt-3 pb-1">
@@ -1265,7 +1265,7 @@ export const TranslatorMain: React.FC<TranslatorMainProps> = ({
               readerNote={readerNote}
               settings={settings}
               speechLang={speechSourceLang}
-              showCloseButton={!isFloating || selectionKind !== 'term' || Boolean(result?.translation)}
+              showCloseButton={selectionKind !== 'term' || Boolean(result?.translation)}
             />
           ) : loading ? (
             streamingText ? (
