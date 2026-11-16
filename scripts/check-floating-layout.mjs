@@ -200,6 +200,11 @@ try {
   assert.equal(wordPopupMetrics.scrollTop, 0);
   assert.equal(wordPopupMetrics.translateButtons, 1, 'Popup word lookup must not render a duplicate translate button in the language bar');
   assert.equal(wordPopupMetrics.panelOutlineStyle, 'none', 'Popup source panel must not stack an inner outline inside its border');
+  assert.ok(await evaluate("Boolean(document.querySelector('button[aria-label=\"朗读核心释义\"]') && document.querySelector('button[aria-label=\"朗读完整释义\"]'))"), 'Dictionary card must offer audio playback for both core meaning and full explanation');
+  await evaluate("window.__copiedText = ''; document.querySelector('button[aria-label=\"复制核心释义\"]').click()");
+  await waitFor(`window.__copiedText === ${JSON.stringify(sample.contextualMeaning)}`);
+  await evaluate("window.__copiedText = ''; document.querySelector('button[aria-label=\"复制完整释义\"]').click()");
+  await waitFor("window.__copiedText.includes('bookmark') && window.__copiedText.includes('核心释义：') && window.__copiedText.includes('语境解析：')");
   await evaluate("document.querySelector('button[aria-label=\"清空文本\"]').click()");
   await waitFor("!document.querySelector('textarea').value");
   await evaluate("window.__translationSample = Array(35).fill('研究系统帮助科学家在临床应用之前评估各种想法。').join('\\n\\n'); document.querySelector('textarea').focus()");

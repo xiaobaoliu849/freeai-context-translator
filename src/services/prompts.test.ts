@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildExplainPrompt, buildTranslatePrompt, parseLLMJson } from './prompts';
+import { buildExplainPrompt, buildTranslatePrompt, parseLLMJson, parseTranslation } from './prompts';
 
 const quiet = <T>(fn: () => T): T => {
   const warn = console.warn;
@@ -49,4 +49,11 @@ test('parseLLMJson treats plain text as a translation and rejects errors', () =>
 
 test('parseLLMJson drops an unclosed reasoning block (token cut-off)', () => {
   assert.deepEqual(quiet(() => parseLLMJson('<think>still thinking about it')), {});
+});
+
+test('buildTranslatePrompt trims outer newlines and parseTranslation cleans double-escaped \\n', () => {
+  const prompt = buildTranslatePrompt('what do you mean?\n', 'auto', 'zh-CN');
+  assert.ok(prompt.endsWith('"what do you mean?"'));
+  assert.equal(parseTranslation('{"translation":"你什么意思？ \\\\n","detectedLang":"en"}').translation, '你什么意思？');
+  assert.equal(parseTranslation('{"translation":"第一段\\\\n第二段\\\\n","detectedLang":"en"}').translation, '第一段\n第二段');
 });

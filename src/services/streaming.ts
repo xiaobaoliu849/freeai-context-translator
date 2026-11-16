@@ -76,10 +76,19 @@ export function extractPartialTranslation(raw: string): { text: string; complete
         else if (next === 'r') out += '\r';
         else if (next === 'b') out += '\b';
         else if (next === 'f') out += '\f';
-        else out += next; // \" \\ \/ etc.
+        else if (next === '\\' && cleaned[i + 2] === 'n') {
+          // Handle double-escaped "\\n" emitted by some models in JSON mode
+          out += '\n';
+          i += 3;
+          continue;
+        } else if (next === '\\' && cleaned[i + 2] === 'r' && cleaned.slice(i + 2, i + 5) === 'r\\n') {
+          out += '\n';
+          i += 5;
+          continue;
+        } else out += next; // \" \\ \/ etc.
         i += 2;
       } else if (ch === '"') {
-        return { text: out, complete: true };
+        return { text: out.replace(/[\r\n]+$/g, ''), complete: true };
       } else {
         out += ch;
         i++;

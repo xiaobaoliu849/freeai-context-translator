@@ -31,6 +31,8 @@ export interface WordContextCardProps {
   readerNote?: string;
   /** Resolved source language for TTS playback (never 'auto'). */
   speechLang?: string;
+  /** Target language for reading meanings and explanations aloud. */
+  targetLang?: string;
   /** Whether to show the inner "back to sentence translation" close button. */
   showCloseButton?: boolean;
 }
@@ -54,12 +56,16 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
   loadingMore = false,
   readerNote,
   speechLang,
+  targetLang,
   showCloseButton = true,
 }) => {
-  // One audio slot for the card: the headword ('word') or an example ('ex-N').
+  // One audio slot for the card: 'word', 'meaning', 'full', 'context', or 'ex-N'.
   const [audio, setAudio] = useState<{ key: string; phase: 'generating' | 'playing' } | null>(null);
   const wordPhase = audio?.key === 'word' ? audio.phase : null;
-  const [copied, setCopied] = useState(false);
+  const meaningPhase = audio?.key === 'meaning' ? audio.phase : null;
+  const fullPhase = audio?.key === 'full' ? audio.phase : null;
+  const contextPhase = audio?.key === 'context' ? audio.phase : null;
+  const [copiedKey, setCopiedKey] = useState<'full' | 'meaning' | null>(null);
   const [copyError, setCopyError] = useState<string | null>(null);
   const [examplesOpen, setExamplesOpen] = useState(true);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -68,6 +74,8 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
     setExamplesOpen(true);
     setDetailsOpen(false);
     setAudio(null);
+    setCopiedKey(null);
+    setCopyError(null);
   }, [word]);
 
   // Keyboard shortcut listener: Escape key closes card
@@ -88,9 +96,12 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
   const resolvedLang = speechLang && speechLang !== 'auto'
     ? speechLang
     : (settings.defaultSourceLang && settings.defaultSourceLang !== 'auto' ? settings.defaultSourceLang : 'en');
+  const resolvedTargetLang = targetLang && targetLang !== 'auto'
+    ? targetLang
+    : (settings.defaultTargetLang || 'zh-CN');
 
   /** Plays `text` in the given slot; pressing the active slot again stops it. */
-  const playText = (key: string, text: string) => {
+  const playText = (key: string, text: string, lang: string = resolvedLang) => {
     if (!text?.trim()) return;
     if (audio?.key === key) {
       audioPlayer.stopAll();
@@ -99,7 +110,7 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
     }
     audioPlayer.speak({
       text,
-      lang: resolvedLang,
+      lang,
       engine: settings.ttsEngine,
       voice: settings.ttsVoice,
       rate: settings.ttsRate,
@@ -111,27 +122,103 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
     });
   };
 
-  const handlePlayWordAudio = () => playText('word', displayWord || sentence || '');
-
-  const handleCopyWord = async () => {
-    if (!displayWord) return;
-    setCopyError(null);
-    setCopied(false);
-    try {
-      await navigator.clipboard.writeText(displayWord);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      setCopyError('无法复制单词，请检查剪贴板权限');
+  const renderAudioIcon = (phase: 'generating' | 'playing' | null) => {
+    if (phase === 'generating') {
+      return <Loader2 className="w-3.5 h-3.5 animate-spin" />;
     }
+    if (phase === 'playing') {
+      return (
+        <span className="ft-eq flex items-end gap-0.5 h-3.5 px-0.5">
+          <span className="w-0.5 bg-brand-600 rounded-full animate-bounce h-2.5" />
+          <span className="w-0.5 bg-brand-600 rounded-full animate-bounce h-3.5 delay-75" />
+          <span className="w-0.5 bg-brand-600 rounded-full animate-bounce h-2 delay-150" />
+        </span>
+      );
+    }
+    return <Volume2 className="w-3.5 h-3.5" />;
   };
 
   const ipa = (value: string) => value.startsWith('/') ? value : `/${value}/`;
+  const hasContext = Boolean(sentence && sentence.trim() && sentence.trim().toLowerCase() !== displayWord.trim().toLowerCase());
+
+  const formatFullExplanation = (): string => {
+    if (!explanation) return displayWord;
+    const lines: string[] = [];
+    const posTag = explanation.pos || explanation.partOfSpeech;
+    const phonetics = [
+      explanation.phoneticUk ? `英 ${ipa(explanation.phoneticUk)}` : '',
+      explanation.phoneticUs ? `美 ${ipa(explanation.phoneticUs)}` : '',
+      !explanation.phoneticUk && !explanation.phoneticUs && explanation.phonetic ? ipa(explanation.phonetic) : '',
+    ].filter(Boolean).join(' ');
+    const headerParts = [displayWord, phonetics, posTag, explanation.cefrLevel].filter(Boolean);
+    if (headerParts.length > 0) {
+      lines.push(headerParts.join('  '));
+    }
+    if (explanation.contextualMeaning?.trim()) {
+      lines.push(`${hasContext ? '句中含义' : '核心释义'}：${explanation.contextualMeaning.trim()}`);
+    }
+    if (explanation.contextExplanation?.trim()) {
+      lines.push(`语境解析：${explanation.contextExplanation.trim()}`);
+    }
+    const sensesList = explanation.senses || [];
+    if (sensesList.length > 0) {
+      lines.push(
+        `${hasContext ? '常见义项对比' : '全部常见义项'}：\n` +
+        sensesList.map(s => `${s.pos ? `${s.pos} ` : ''}${s.meaning}${s.inContext && hasContext ? '（本句义项）' : ''}`).join('\n')
+      );
+    } else if (explanation.literalMeaning?.trim() && explanation.literalMeaning.trim() !== explanation.contextualMeaning?.trim()) {
+      lines.push(`通用释义：${explanation.literalMeaning.trim()}`);
+    }
+    return lines.join('\n') || displayWord;
+  };
+
+  const buildFullExplanationSpeech = (): string => {
+    if (!explanation) return '';
+    const parts: string[] = [];
+    if (explanation.contextualMeaning?.trim()) {
+      parts.push(explanation.contextualMeaning.trim());
+    }
+    if (explanation.contextExplanation?.trim()) {
+      parts.push(explanation.contextExplanation.trim());
+    }
+    const sensesList = explanation.senses || [];
+    if (sensesList.length > 0) {
+      parts.push(sensesList.map(s => `${s.pos ? `${s.pos}，` : ''}${s.meaning}`).join('；'));
+    } else if (explanation.literalMeaning?.trim() && explanation.literalMeaning.trim() !== explanation.contextualMeaning?.trim()) {
+      parts.push(explanation.literalMeaning.trim());
+    }
+    return parts.join('。');
+  };
+
+  const handlePlayWordAudio = () => playText('word', displayWord || sentence || '', resolvedLang);
+  const handlePlayMeaningAudio = () => {
+    if (!explanation?.contextualMeaning) return;
+    playText('meaning', explanation.contextualMeaning, resolvedTargetLang);
+  };
+  const handlePlayFullExplanationAudio = () => {
+    const text = buildFullExplanationSpeech();
+    if (!text) return;
+    playText('full', text, resolvedTargetLang);
+  };
+
+  const handleCopyText = async (text: string, key: 'full' | 'meaning') => {
+    if (!text?.trim()) return;
+    setCopyError(null);
+    setCopiedKey(null);
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedKey(key);
+      setTimeout(() => setCopiedKey(current => current === key ? null : current), 1500);
+    } catch {
+      setCopyError('无法复制内容，请检查剪贴板权限');
+    }
+  };
 
   // Keep actions separate from metadata: long part-of-speech descriptions must
   // wrap without pushing the close button into a second, mostly empty row.
   const renderHeader = () => {
     const posTag = explanation?.pos || explanation?.partOfSpeech;
+    const copyLabel = explanation ? '复制完整释义' : '复制单词';
     return (
       <div className="yumai-word-header select-none">
         <div className="yumai-word-title-row">
@@ -144,28 +231,33 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
               className="yumai-word-icon text-brand-600 transition-colors cursor-pointer disabled:opacity-30"
               title="播放单词发音" aria-label="播放单词发音"
             >
-              {wordPhase === 'generating' ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : wordPhase === 'playing' ? (
-                <span className="ft-eq flex items-end gap-0.5 h-3.5 px-0.5">
-                  <span className="w-0.5 bg-brand-600 rounded-full animate-bounce h-2.5" />
-                  <span className="w-0.5 bg-brand-600 rounded-full animate-bounce h-3.5 delay-75" />
-                  <span className="w-0.5 bg-brand-600 rounded-full animate-bounce h-2 delay-150" />
-                </span>
-              ) : <Volume2 className="w-3.5 h-3.5" />}
+              {renderAudioIcon(wordPhase)}
             </button>
           </div>
           <div className="yumai-word-actions">
+            {explanation && (
+              <button
+                type="button"
+                onClick={handlePlayFullExplanationAudio}
+                data-playing={Boolean(fullPhase)}
+                className="yumai-word-icon text-slate-500 hover:text-brand-600 transition-colors cursor-pointer"
+                title="朗读完整释义" aria-label="朗读完整释义"
+              >
+                {renderAudioIcon(fullPhase)}
+              </button>
+            )}
             <button
-              onClick={handleCopyWord}
-              disabled={!displayWord}
+              type="button"
+              onClick={() => handleCopyText(formatFullExplanation(), 'full')}
+              disabled={!displayWord && !explanation}
               className="yumai-word-icon text-slate-500 hover:text-slate-800 transition-colors cursor-pointer disabled:opacity-30"
-              title="复制单词" aria-label="复制单词"
+              title={copyLabel} aria-label={copyLabel}
             >
-              {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+              {copiedKey === 'full' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
             </button>
             {showCloseButton && (
               <button
+                type="button"
                 onClick={(e) => { e.stopPropagation(); onClose(); }}
                 className="yumai-word-icon text-slate-500 hover:text-slate-700 transition-colors cursor-pointer"
                 title="返回整句翻译 (Esc)" aria-label="关闭词典，返回翻译"
@@ -248,7 +340,6 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
   const antonyms = explanation.antonyms || [];
   const senses = explanation.senses || [];
   const examplesList = explanation.examples || explanation.exampleSentences || [];
-  const hasContext = Boolean(sentence && sentence.trim() && sentence.trim().toLowerCase() !== displayWord.trim().toLowerCase());
   const contextWordIndex = sentence?.toLowerCase().indexOf(displayWord.toLowerCase()) ?? -1;
   const normalize = (value: string) => value.replace(/[\s。.，,；;、]/g, '');
   const literal = explanation.literalMeaning?.trim() || '';
@@ -272,7 +363,32 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
 
         {/* In-context or primary meaning — the hero answer */}
         <section className="yumai-word-meaning" aria-labelledby={`${sectionId}-meaning`}>
-          <h4 id={`${sectionId}-meaning`}>{hasContext ? '句中含义' : '核心释义'}</h4>
+          <div className="yumai-word-meaning-head">
+            <h4 id={`${sectionId}-meaning`}>{hasContext ? '句中含义' : '核心释义'}</h4>
+            <div className="yumai-word-meaning-actions select-none">
+              <button
+                type="button"
+                onClick={handlePlayMeaningAudio}
+                disabled={!explanation.contextualMeaning?.trim()}
+                data-playing={Boolean(meaningPhase)}
+                className="yumai-word-icon yumai-word-icon--sm text-slate-500 hover:text-brand-600 transition-colors cursor-pointer disabled:opacity-30"
+                title="朗读核心释义"
+                aria-label="朗读核心释义"
+              >
+                {renderAudioIcon(meaningPhase)}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCopyText(explanation.contextualMeaning, 'meaning')}
+                disabled={!explanation.contextualMeaning?.trim()}
+                className="yumai-word-icon yumai-word-icon--sm text-slate-500 hover:text-slate-800 transition-colors cursor-pointer disabled:opacity-30"
+                title="复制核心释义"
+                aria-label="复制核心释义"
+              >
+                {copiedKey === 'meaning' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+          </div>
           <p>
             {explanation.contextualMeaning}
           </p>
@@ -332,11 +448,23 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
         {hasContext && (
           <details className="yumai-word-context">
             <summary>查看原文语境</summary>
-            <p>{contextWordIndex >= 0 && displayWord ? <>
-              {sentence!.slice(0, contextWordIndex)}
-              <mark>{sentence!.slice(contextWordIndex, contextWordIndex + displayWord.length)}</mark>
-              {sentence!.slice(contextWordIndex + displayWord.length)}
-            </> : sentence}</p>
+            <div className="yumai-word-context-row">
+              <p>{contextWordIndex >= 0 && displayWord ? <>
+                {sentence!.slice(0, contextWordIndex)}
+                <mark>{sentence!.slice(contextWordIndex, contextWordIndex + displayWord.length)}</mark>
+                {sentence!.slice(contextWordIndex + displayWord.length)}
+              </> : sentence}</p>
+              <button
+                type="button"
+                onClick={() => playText('context', sentence!, resolvedLang)}
+                data-playing={Boolean(contextPhase)}
+                className="yumai-word-icon yumai-word-icon--sm shrink-0 text-slate-500 hover:text-brand-600 transition-colors cursor-pointer select-none"
+                title="朗读原文语境"
+                aria-label="朗读原文语境"
+              >
+                {renderAudioIcon(contextPhase)}
+              </button>
+            </div>
           </details>
         )}
 
@@ -431,17 +559,13 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
                         {src && (
                           <button
                             type="button"
-                            onClick={() => playText(exKey, src)}
+                            onClick={() => playText(exKey, src, resolvedLang)}
                             data-playing={Boolean(exPhase)}
                             className="yumai-word-icon shrink-0 text-slate-500 hover:text-brand-600 transition-colors cursor-pointer"
                             title="朗读例句"
                             aria-label={`朗读例句 ${idx + 1}`}
                           >
-                            {exPhase === 'generating' ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <Volume2 className="w-3.5 h-3.5" />
-                            )}
+                            {renderAudioIcon(exPhase)}
                           </button>
                         )}
                       </div>
