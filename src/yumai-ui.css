@@ -276,9 +276,16 @@
 .yumai-word-title h3 { margin: 0; font: 600 25px/1.25 Georgia, "Songti SC", serif; letter-spacing: -.025em; overflow-wrap: anywhere; }
 .yumai-word-actions { flex: 0 0 auto; gap: 4px; }
 .yumai-app .yumai-word-icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 32px; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 8px; background: transparent; }
+.yumai-app .yumai-word-icon--sm { flex: 0 0 24px; width: 24px; height: 24px; border-radius: 6px; }
 .yumai-app .yumai-word-icon:hover { background: var(--ym-surface-muted); }
 .yumai-app .yumai-word-icon[data-playing="true"] { background: var(--ym-primary-soft); color: var(--ym-primary); }
 .yumai-word-icon svg { width: 16px; height: 16px; }
+.yumai-word-icon--sm svg { width: 14px; height: 14px; }
+.yumai-word-meaning-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+.yumai-word-meaning-head h4 { margin: 0 !important; }
+.yumai-word-meaning-actions { display: inline-flex; align-items: center; gap: 2px; }
+.yumai-word-context-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-top: 8px; }
+.yumai-word-context-row p { flex: 1 1 auto; min-width: 0; margin: 0 !important; }
 .yumai-word-meta { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 10px; margin-top: 8px; font-size: 12px; line-height: 1.6; color: var(--ym-text-muted); overflow-wrap: anywhere; }
 .yumai-word-phonetic { font-family: ui-monospace, monospace; }
 .yumai-word-pos { flex: 0 1 auto; }
