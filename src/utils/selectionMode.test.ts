@@ -1,6 +1,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { classifySelection, getReadingSegments, normalizeSelectedTerm } from './selectionMode';
+import { classifySelection, getReadingSegments, normalizeSelectedTerm, sentenceAroundRange } from './selectionMode';
+
+test('word lookups receive the whole containing sentence', () => {
+  const text = 'He braked hard. The tyres screeched as the car slid on the wet road. Nobody was hurt.';
+  const start = text.indexOf('tyres');
+  assert.equal(sentenceAroundRange(text, start, start + 5), 'The tyres screeched as the car slid on the wet road.');
+  const zh = '他猛踩刹车。轮胎发出刺耳的声音。没有人受伤。';
+  const zs = zh.indexOf('轮胎');
+  assert.equal(sentenceAroundRange(zh, zs, zs + 2), '轮胎发出刺耳的声音。');
+});
+
+test('a selection that is the whole sentence adds no context', () => {
+  assert.equal(sentenceAroundRange('Margarine', 0, 9), '');
+  const long = 'word ' + 'x'.repeat(500);
+  assert.ok(sentenceAroundRange(long, 0, 4).length <= 380);
+});
 
 test('short terms and phrases open contextual dictionary', () => {
   assert.equal(classifySelection('breakthrough'), 'term');
