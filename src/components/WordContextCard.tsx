@@ -25,6 +25,8 @@ export interface WordContextCardProps {
   onRetry?: () => void;
   /** Present when the current entry is concise; fetches collocations, synonyms and examples. */
   onLoadMore?: () => void;
+  /** True while extra vocabulary (collocations/synonyms) is being fetched in place. */
+  loadingMore?: boolean;
   /** Background the lookup was resolved against, shown so the reader knows why a sense was chosen. */
   readerNote?: string;
   /** Resolved source language for TTS playback (never 'auto'). */
@@ -49,6 +51,7 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
   onSwitchToTranslate,
   onRetry,
   onLoadMore,
+  loadingMore = false,
   readerNote,
   speechLang,
   showCloseButton = true,
@@ -452,9 +455,26 @@ export const WordContextCard: React.FC<WordContextCardProps> = ({
         )}
 
         {onLoadMore && !hasLexicalExtras && (
-          <button type="button" onClick={onLoadMore} className="yumai-word-disclosure">
-            <ChevronRight className="w-3.5 h-3.5" />
-            查看搭配、近义词与词源
+          <button
+            type="button"
+            disabled={loadingMore}
+            onClick={() => {
+              setDetailsOpen(true);
+              onLoadMore();
+            }}
+            className="yumai-word-disclosure disabled:opacity-60"
+          >
+            {loadingMore ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span>正在补充搭配与近义词…</span>
+              </>
+            ) : (
+              <>
+                <ChevronRight className="w-3.5 h-3.5" />
+                <span>查看搭配与近义词</span>
+              </>
+            )}
           </button>
         )}
       </div>
